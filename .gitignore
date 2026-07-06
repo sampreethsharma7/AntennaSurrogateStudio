@@ -1,0 +1,10 @@
+.venv/
+.venv_py311/
+__pycache__/
+*.pyc
+.pytest_cache/
+projects/*/models/*.joblib
+projects/*/analysis/plots/*.png
+projects/*/predictions/exported_predictions/*.csv
+*.zip
+.DS_Store

@@ -1,0 +1,60 @@
+{
+  "input_columns": [
+    "Patch_Length_mm",
+    "Patch_Width_mm",
+    "Feed_x_mm",
+    "Substrate_Thickness_mm"
+  ],
+  "output_columns": [
+    "S11_2.300GHz",
+    "S11_2.315GHz",
+    "S11_2.330GHz",
+    "S11_2.345GHz",
+    "S11_2.360GHz",
+    "S11_2.375GHz",
+    "S11_2.390GHz",
+    "S11_2.405GHz",
+    "S11_2.420GHz",
+    "S11_2.435GHz",
+    "S11_2.450GHz",
+    "S11_2.465GHz",
+    "S11_2.480GHz",
+    "S11_2.495GHz",
+    "S11_2.510GHz",
+    "S11_2.525GHz",
+    "S11_2.540GHz",
+    "S11_2.555GHz",
+    "S11_2.570GHz",
+    "S11_2.585GHz",
+    "S11_2.600GHz",
+    "Gain_2.45GHz"
+  ],
+  "output_axis_metadata": {
+    "kind": "frequency",
+    "axis_values": [
+      2.3,
+      2.315,
+      2.33,
+      2.345,
+      2.36,
+      2.375,
+      2.39,
+      2.405,
+      2.42,
+      2.435,
+      2.45,
+      2.465,
+      2.48,
+      2.495,
+      2.51,
+      2.525,
+      2.54,
+      2.555,
+      2.57,
+      2.585,
+      2.6,
+      2.45
+    ],
+    "axis_unit": "GHz"
+  }
+}
