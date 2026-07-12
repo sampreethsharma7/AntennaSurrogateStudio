@@ -54,6 +54,20 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 echo
+echo "Checking for libomp (required by xgboost on macOS)..."
+if [ -f "/opt/homebrew/opt/libomp/lib/libomp.dylib" ] || [ -f "/usr/local/opt/libomp/lib/libomp.dylib" ]; then
+  echo "libomp is already installed."
+elif command -v brew >/dev/null 2>&1; then
+  echo "Installing libomp via Homebrew..."
+  brew install libomp || echo "Warning: 'brew install libomp' failed. Training will not work until libomp is installed."
+else
+  echo "Homebrew was not found, so libomp could not be installed automatically."
+  echo "xgboost requires libomp on macOS. Install Homebrew from https://brew.sh, then run:"
+  echo "  brew install libomp"
+  echo "and re-run this setup script."
+fi
+
+echo
 echo "Setup complete. Double-click run_app.command to launch Antenna Surrogate Studio."
 echo
 read -r -p "Press Enter to close this window..."

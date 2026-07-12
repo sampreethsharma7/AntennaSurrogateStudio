@@ -22,3 +22,11 @@ class DocumentationSearch:
                 scored.append((score, title, snippet))
         scored.sort(reverse=True)
         return [(title, snippet) for _, title, snippet in scored[:limit]]
+
+    def combined_text(self, manual_path: Path = None) -> str:
+        parts = []
+        if manual_path and manual_path.exists():
+            parts.append(manual_path.read_text(encoding="utf-8"))
+        for title, text in self.documents():
+            parts.append(f"## {title}\n{text}")
+        return "\n\n".join(parts)

@@ -8,7 +8,7 @@ def evaluate_predictions(y_true, y_pred, output_columns: list[str]) -> dict:
     per_output_rmse = np.sqrt(np.mean(err ** 2, axis=0))
     per_output_mae = np.mean(np.abs(err), axis=0)
     return {
-        "overall_rmse": float(mean_squared_error(y_true, y_pred, squared=False)),
+        "overall_rmse": float(mean_squared_error(y_true, y_pred) ** 0.5),
         "overall_mae": float(mean_absolute_error(y_true, y_pred)),
         "overall_r2": float(r2_score(y_true, y_pred, multioutput="variance_weighted")),
         "per_output_rmse": dict(zip(output_columns, per_output_rmse.astype(float))),

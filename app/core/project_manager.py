@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import shutil
+import tempfile
 import zipfile
 
 from app.core.project_manifest import ProjectManifest
@@ -63,16 +64,22 @@ class ProjectManager:
         return zip_path
 
     def import_project_zip(self, zip_path: Path) -> Path:
-        target = self.projects_dir / zip_path.stem.replace("_bundle", "")
-        if target.exists():
-            target = self.projects_dir / f"{target.name}_{utc_timestamp().replace(':', '').replace('-', '')}"
-        with zipfile.ZipFile(zip_path) as zf:
-            zf.extractall(self.projects_dir)
-        if not (target / "project.json").exists():
-            candidates = [p for p in self.projects_dir.iterdir() if (p / "project.json").exists()]
-            if not candidates:
-                raise ValueError("The ZIP did not contain a valid project.json manifest.")
-            target = max(candidates, key=lambda p: p.stat().st_mtime)
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            with zipfile.ZipFile(zip_path) as zf:
+                zf.extractall(tmp_dir)
+            if (tmp_dir / "project.json").exists():
+                extracted = tmp_dir
+            else:
+                candidates = [p for p in tmp_dir.iterdir() if p.is_dir() and (p / "project.json").exists()]
+                if not candidates:
+                    raise ValueError("The ZIP did not contain a valid project.json manifest.")
+                extracted = candidates[0]
+            base_name = sanitize_name(extracted.name if extracted != tmp_dir else zip_path.stem.replace("_bundle", ""))
+            target = self.projects_dir / base_name
+            if target.exists():
+                target = self.projects_dir / f"{base_name}_{utc_timestamp().replace(':', '').replace('-', '')}"
+            shutil.move(str(extracted), str(target))
         return target
 
     def backup_project(self, project_dir: Path, reason: str) -> Path:
