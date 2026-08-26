@@ -1,1 +1,0 @@
-from app.assistant.prompt_templates import PRODUCT_GUIDE_SYSTEM_PROMPT
