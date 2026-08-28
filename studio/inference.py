@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import csv
+import json
 import math
+import os
+import shutil
+import tempfile
 import warnings
 from dataclasses import dataclass, field
 from numbers import Real
@@ -21,10 +26,12 @@ from studio.model_book import (
     load_model_book,
     load_model_library,
 )
+from studio.project_store import atomic_write_json, utc_now
 
 
 INFERENCE_COMPLETED = "INFERENCE_COMPLETED"
 INFERENCE_FAILED = "INFERENCE_FAILED"
+INFERENCE_SCHEMA_VERSION = 1
 
 
 class InferenceError(RuntimeError):
@@ -73,6 +80,38 @@ class InferenceResult:
     input_values: dict[str, float] = field(default_factory=dict)
     predictions: dict[str, float] = field(default_factory=dict)
     error_message: str | None = None
+    run_id: str | None = None
+    created_at: str | None = None
+    artifact_directory: Path | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "success": self.success,
+            "status": self.status,
+            "model_book_id": self.model_book_id,
+            "model_book_name": self.model_book_name,
+            "model_name": self.model_name,
+            "feature_order": list(self.feature_order),
+            "target_order": list(self.target_order),
+            "input_values": dict(self.input_values),
+            "predictions": dict(self.predictions),
+            "error_message": self.error_message,
+            "run_id": self.run_id,
+            "created_at": self.created_at,
+            "artifact_directory": (
+                str(self.artifact_directory)
+                if self.artifact_directory is not None
+                else None
+            ),
+        }
+
+
+@dataclass(slots=True)
+class InferenceHistory:
+    """Valid project-local predictions plus isolated record errors."""
+
+    runs: list[InferenceResult] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -120,8 +159,8 @@ def submit_inference_request(
     """Validate and evaluate one sample with the active saved Model Book.
 
     The optional request Model Book ID is a stale-selection guard: when supplied,
-    it must identify the project's current active book. No project files are
-    created or modified by inference.
+    it must identify the project's current active book. Every successful
+    prediction is preserved as an immutable project-local inference run.
     """
 
     if not isinstance(request, InferenceRequest):
@@ -150,7 +189,7 @@ def submit_inference_request(
         book = predictor.book
         ordered_inputs = predictor.ordered_inputs(validated_request.inputs)
         predictions = predictor.predict(ordered_inputs)
-        return InferenceResult(
+        result = InferenceResult(
             success=True,
             status=INFERENCE_COMPLETED,
             model_book_id=book.book_id,
@@ -162,6 +201,13 @@ def submit_inference_request(
             predictions=predictions,
             error_message=None,
         )
+        _save_completed_inference(
+            Path(project_path).expanduser().resolve(),
+            validated_request,
+            book,
+            result,
+        )
+        return result
     except (InferenceError, ModelBookError, OSError) as exc:
         return _failed_result(validated_request.model_book_id, str(exc))
     except ImportError:
@@ -175,6 +221,235 @@ def submit_inference_request(
             validated_request.model_book_id,
             "Inference failed because an unexpected local error occurred.",
         )
+
+
+def load_inference_runs(
+    project_path: str | Path,
+    *,
+    model_book_id: str | None = None,
+) -> InferenceHistory:
+    """Load every valid saved prediction, preserving chronological order.
+
+    A malformed index prevents trustworthy enumeration and raises one friendly
+    error. A damaged individual run is isolated in ``errors`` so remaining
+    predictions can still be restored.
+    """
+
+    project_root = Path(project_path).expanduser().resolve()
+    index_path = project_root / "inference" / "index.json"
+    if not index_path.exists():
+        return InferenceHistory()
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise InferenceError(
+            "The inference history index is malformed or unreadable."
+        ) from exc
+    if not isinstance(index, dict) or not isinstance(index.get("runs"), list):
+        raise InferenceError("The inference history index has invalid metadata.")
+
+    history = InferenceHistory()
+    seen: set[str] = set()
+    for raw_entry in index["runs"]:
+        if not isinstance(raw_entry, dict):
+            history.errors.append("An inference history entry has invalid metadata.")
+            continue
+        run_id = str(raw_entry.get("run_id") or "").strip()
+        if (
+            not run_id.startswith("inference-")
+            or not run_id[10:].isdigit()
+            or run_id in seen
+        ):
+            history.errors.append(
+                f"Inference history entry '{run_id or 'unknown'}' has an invalid run ID."
+            )
+            continue
+        seen.add(run_id)
+        result_path = project_root / "inference" / "runs" / run_id / "result.json"
+        try:
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+            result = _inference_result_from_payload(payload, project_root, run_id)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            history.errors.append(
+                f"Inference run '{run_id}' is malformed or unreadable."
+            )
+            continue
+        entry_book_id = str(raw_entry.get("model_book_id") or "").strip()
+        if entry_book_id and entry_book_id != result.model_book_id:
+            history.errors.append(
+                f"Inference run '{run_id}' does not match its history entry."
+            )
+            continue
+        if model_book_id is not None and result.model_book_id != model_book_id:
+            continue
+        history.runs.append(result)
+    return history
+
+
+def _inference_result_from_payload(
+    payload: Any,
+    project_root: Path,
+    run_id: str,
+) -> InferenceResult:
+    if not isinstance(payload, dict):
+        raise ValueError("Inference result metadata must be an object.")
+    if (
+        payload.get("run_id") != run_id
+        or payload.get("success") is not True
+        or payload.get("status") != INFERENCE_COMPLETED
+    ):
+        raise ValueError("Inference result metadata is inconsistent.")
+    model_book_id = str(payload.get("model_book_id") or "").strip()
+    feature_order = payload.get("feature_order")
+    target_order = payload.get("target_order")
+    raw_inputs = payload.get("input_values")
+    raw_predictions = payload.get("predictions")
+    if (
+        not model_book_id
+        or not isinstance(feature_order, list)
+        or not isinstance(target_order, list)
+        or not isinstance(raw_inputs, dict)
+        or not isinstance(raw_predictions, dict)
+        or not feature_order
+        or not target_order
+        or any(not isinstance(name, str) or not name for name in feature_order)
+        or any(not isinstance(name, str) or not name for name in target_order)
+        or list(raw_inputs) != feature_order
+        or list(raw_predictions) != target_order
+    ):
+        raise ValueError("Inference result fields are incomplete.")
+    input_values = {name: float(raw_inputs[name]) for name in feature_order}
+    predictions = {name: float(raw_predictions[name]) for name in target_order}
+    if not all(math.isfinite(value) for value in (*input_values.values(), *predictions.values())):
+        raise ValueError("Inference result values must be finite.")
+    created_at = str(payload.get("created_at") or "").strip() or None
+    return InferenceResult(
+        success=True,
+        status=INFERENCE_COMPLETED,
+        model_book_id=model_book_id,
+        model_book_name=str(payload.get("model_book_name") or "").strip() or None,
+        model_name=str(payload.get("model_name") or "").strip() or None,
+        feature_order=list(feature_order),
+        target_order=list(target_order),
+        input_values=input_values,
+        predictions=predictions,
+        error_message=None,
+        run_id=run_id,
+        created_at=created_at,
+        artifact_directory=(project_root / "inference" / "runs" / run_id).resolve(),
+    )
+
+
+def _save_completed_inference(
+    project_root: Path,
+    request: InferenceRequest,
+    book: ModelBook,
+    result: InferenceResult,
+) -> None:
+    runs_root = project_root / "inference" / "runs"
+    runs_root.mkdir(parents=True, exist_ok=True)
+    run_number = 1
+    while (runs_root / f"inference-{run_number:04d}").exists():
+        run_number += 1
+    run_id = f"inference-{run_number:04d}"
+    created_at = utc_now()
+    destination = runs_root / run_id
+    staging = Path(tempfile.mkdtemp(prefix=f".{run_id}.", dir=runs_root))
+    result.run_id = run_id
+    result.created_at = created_at
+    result.artifact_directory = destination
+    try:
+        atomic_write_json(
+            staging / "request.json",
+            {
+                "schema_version": INFERENCE_SCHEMA_VERSION,
+                "created_at": created_at,
+                "model_book_id": book.book_id,
+                "requested_model_book_id": request.model_book_id,
+                "inputs": dict(result.input_values),
+            },
+        )
+        payload = result.to_dict()
+        payload["schema_version"] = INFERENCE_SCHEMA_VERSION
+        payload["artifact_directory"] = f"inference/runs/{run_id}"
+        payload["model_book"] = {
+            "book_id": book.book_id,
+            "name": book.name,
+            "model_name": book.model_name,
+            "dataset_fingerprint": book.dataset_fingerprint,
+        }
+        payload["output_axis"] = (
+            book.output_axis.to_dict() if book.output_axis is not None else None
+        )
+        atomic_write_json(staging / "result.json", payload)
+        axis_values = (
+            book.output_axis.values
+            if book.output_axis is not None
+            and len(book.output_axis.values) == len(result.target_order)
+            else tuple(float(index) for index in range(1, len(result.target_order) + 1))
+        )
+        with (staging / "prediction.csv").open(
+            "w", newline="", encoding="utf-8"
+        ) as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["Output coordinate", "Output variable", "Predicted value"])
+            for coordinate, target in zip(axis_values, result.target_order, strict=True):
+                writer.writerow([coordinate, target, result.predictions[target]])
+        os.replace(staging, destination)
+    except OSError as exc:
+        raise InferenceError(
+            f"The prediction was calculated but could not be saved: {exc}"
+        ) from exc
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+
+    index_path = project_root / "inference" / "index.json"
+    index: dict[str, Any] = {
+        "schema_version": INFERENCE_SCHEMA_VERSION,
+        "latest_run_id": None,
+        "runs": [],
+    }
+    if index_path.exists():
+        try:
+            loaded = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise InferenceError(
+                "The prediction was saved, but its inference history index is invalid."
+            ) from exc
+        if not isinstance(loaded, dict) or not isinstance(loaded.get("runs"), list):
+            raise InferenceError(
+                "The prediction was saved, but its inference history index is invalid."
+            )
+        index = loaded
+    index["latest_run_id"] = run_id
+    index["runs"] = [
+        *index.get("runs", []),
+        {
+            "run_id": run_id,
+            "created_at": created_at,
+            "model_book_id": book.book_id,
+            "model_book_name": book.name,
+            "result": f"runs/{run_id}/result.json",
+        },
+    ]
+    atomic_write_json(index_path, index)
+
+    manifest_path = project_root / "project.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise InferenceError(
+            "The prediction was saved, but project state could not be updated."
+        ) from exc
+    manifest["inference"] = {
+        "schema_version": INFERENCE_SCHEMA_VERSION,
+        "run_count": len(index["runs"]),
+        "latest_run_id": run_id,
+        "index": "inference/index.json",
+    }
+    manifest["updated_at"] = created_at
+    atomic_write_json(manifest_path, manifest)
 
 
 def _active_model_book(

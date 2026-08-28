@@ -266,10 +266,12 @@ plot is then redrawn, and the top-bar action can reopen the same chat.
 **View Raw Values** reveals every saved-order input and prediction, while
 **Export Prediction** writes an explicit user-chosen JSON export with Model Book
 information or a curve CSV using saved output-axis coordinates and target order.
-Plot curves survive same-project page navigation but are not saved
-as automatic prediction history. Never claim
-there is batch or CSV inference, or that selecting a book in Model Library itself
-runs inference.
+Every successful prediction is saved as its own project-local
+`inference-####` run. Reopening Inference restores every valid saved prediction
+for the active Model Book as a separate curve; a damaged individual record is
+skipped without hiding the remaining history. Never claim there is batch or CSV
+input inference, or that selecting a book in Model Library itself runs inference.
+Explicit JSON and curve-CSV export remain separate user actions.
 
 Inverse Design uses the active Model Book as a fast evaluator inside deterministic
 Differential Evolution. Explain that an **objective** is the one scalar predicted

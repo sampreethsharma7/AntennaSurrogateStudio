@@ -32,6 +32,7 @@ class ProjectStoreTests(unittest.TestCase):
         self.assertTrue((project.path / "assistant" / "chat_history.json").exists())
         self.assertEqual(project.manifest["ui"]["last_page"], "data")
         self.assertEqual(project.manifest["dataset_registry"]["dataset_count"], 0)
+        self.assertEqual(project.manifest["inference"]["run_count"], 0)
         self.assertEqual(project.manifest["inverse_design"]["run_count"], 0)
         self.assertIsNone(project.manifest["inverse_design"]["latest_run_id"])
         self.assertEqual(self.store.recent_projects()[0].path, project.path)

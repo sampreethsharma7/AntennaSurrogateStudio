@@ -1,14 +1,14 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.47
-Studio version: 0.33.1
-UI source SHA-256: af40a487818b452e3f976943b5a4a37f1dc2d2dbee35f96569fb28d2e42cce28
+Contract version: 3.50
+Studio version: 0.33.2
+UI source SHA-256: 39f075f35b720f2f0d7190063844b2d6e631edef4d454e051f36f7a3601f6a5b
 Sample Generator UI source SHA-256: 7c59e5fdd2f1ac1a92fe42cadeb914a3a9e36e6252432dae1d2be2298b39b6fe
-Results UI source SHA-256: fe0f2fe92ca4d7273c86c24e1bb9e8b0981adef0ac3390d62f60787c4f7ce7ee
+Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
-Inference UI source SHA-256: 4945d117a680c14532a0a4877aa372c8a28b02c512245aa5666de7d2308f580d
-Inverse Design UI source SHA-256: 0e06eec31804af981f8e0c2150d349903ff246bea9b9b90a9409aeae469c7b2c
-Scientific Plot UI source SHA-256: 3ecb1880ce404907221a627777edeb1a4285119dd7f45e1df2ed9f9b85c0f001
+Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
+Inverse Design UI source SHA-256: c5d1529324d4faf690b88fa2d3e9e718d073830c56ca852bbdd040fe39c1023f
+Scientific Plot UI source SHA-256: 90ffa0bca1408d4aaabe73f6722b9144c9e0ab585e6cb15837701b6d8b6eb825
 Theme source SHA-256: c1149c09ec5cd35f71710288f9067c6949e00088b8a8d0470011e38ed07aedb8
 
 This file is SnowBuddy’s visual and interaction map. It describes the interface
@@ -39,7 +39,8 @@ adds the user’s current page, values, selections, and status.
   “Appearance” Light/Dark control sit on the right.
 - File contains New project, Open project, Return to Welcome when available,
   and Exit. Edit is a reserved placeholder. Help opens SnowBuddy local-model
-  settings or the About dialog.
+  settings or the About dialog. About shows the Studio version, local-first
+  product line, and creator contact for Sai Sampreeth Indharapu.
 - A light-steel or graphite workflow sidebar sits on the left. Expanded, its
   brand subtitle is “RF SURROGATE LAB,” its navigation label is “LAB WORKFLOW,”
   and its footer reads “LOCAL COMPUTE · PRIVATE.” A clear chevron collapses it
@@ -49,6 +50,8 @@ adds the user’s current page, values, selections, and status.
   compact mode; no project or page state is changed. Each compact icon exposes
   its page name on pointer hover and keyboard focus and has the same accessibility
   name.
+- A fixed two-pixel steel divider separates the workflow rail from the active
+  page workspace in expanded and collapsed modes.
 - SnowBuddy is not allocated a permanent workspace column while closed. The
   labeled “SnowBuddy” action in the top application bar opens a dedicated
   390-pixel right-side column only when that leaves at least 980 design pixels
@@ -379,8 +382,11 @@ authority.
 
 Before training, the button is enabled and reads “Train Model.” While the
 backend is training, it is disabled and reads “Training…,” preventing duplicate
-submissions. After either success or failure, it is enabled again and returns
-to “Train Model.”
+submissions. Model fitting runs on a background worker so the Tk interface can
+continue processing navigation, repaint, and window events. A lightweight
+once-per-second “Local training running · M:SS elapsed” label appears beside the
+button; there is no animated progress bar. After either success or failure, the
+label hides, the button is enabled again, and it returns to “Train Model.”
 
 The left side of the action bar displays the persisted latest-run readout. It
 shows “Latest Run: None” before the first successful run and then uses the exact
@@ -564,6 +570,11 @@ detail panel visible at a time:
 2. Residuals — the same Scientific Plot Workbench, with marker-only values of
    `Actual − Predicted`, a dashed horizontal zero-error reference curve, sample
    and output identity in hover details, and a measured directional-bias note.
+   Dense residual sets retain every value for metrics and saved artifacts but
+   draw at most 1,600 deterministic representative markers, always including
+   the first, last, minimum, and maximum residual. The visible summary states
+   when this display-only reduction is active so large multi-output runs do not
+   stall the desktop event loop.
 3. Error Distribution — an absolute-error histogram plus median error, maximum
    error, and the largest-error sample with actual and predicted values.
 4. Configuration — Auto shows every candidate ordered by successful validation
@@ -749,12 +760,14 @@ line/marker sizes are rejected. Autoscale and Reset fit all visible curves.
 
 The compact curve manager pages long curve lists and provides a visibility
 checkbox plus whole-row selection for each curve. Its selected-curve area shows
-the immutable inputs used to generate that prediction. **Rename**, **Delete**,
+the active Model Book, output-point count, and immutable inputs used to generate
+that prediction. **Rename**, **Delete**,
 and **Clear markers** manage the in-memory workspace. Replace updates only the
 selected curve; Add creates another colored overlay. Ordinary navigation away
 and back preserves curves while the project and active Model Book are unchanged.
-Changing project/book or returning to Welcome clears them. Curves are not
-persisted as automatic prediction history. A draggable vertical divider resizes
+Changing project/book filters the restored history to that active Model Book.
+Every successful prediction is persisted as an immutable project-local run and
+all valid matching runs are restored as curves on reopen. A draggable vertical divider resizes
 the plot and Curves manager with minimum usable widths on both sides. Legend
 labels use the available legend width; they are no longer cut at a fixed 20
 characters. Full curve names always remain available in the Curves manager.
@@ -765,16 +778,22 @@ operating system save dialog for either a JSON file containing Model Book identi
 ordered input name/value records, structured output-axis metadata, output count,
 and ordered target/value records, or a curve CSV containing output-axis coordinate,
 predicted value, and output-variable name in saved order.
-This explicit export does not create an automatic project history. Both actions
-are disabled before prediction, during prediction, and after a failed result.
+This explicit export is separate from the automatic project history. Both actions
+are disabled before prediction, during prediction, and after a failed result, and
+operate on the currently selected restored or newly generated curve.
 
 With no active book, the page disables Predict and directs the user to Model
 Library. Missing or invalid values, backend failures, corrupted manifests,
 missing artifacts, and integrity errors appear as friendly inline messages
-without tracebacks. The footer returns to Model Library, offers **Inverse Design**
-when an active book is available, and states that this is a single-sample
-workflow with no automatic history. Curve CSV is an explicit
-single-result export; there is no CSV-input or batch inference.
+without tracebacks. The left New Sample action rail keeps **Open Inverse Design**
+directly beneath Predict and enables it when an active book is available. The
+footer returns to Model Library and states that this is a single-sample workflow
+whose project history is restored automatically. Each successful prediction creates
+`inference/runs/inference-####/request.json`, `result.json`, and `prediction.csv`;
+the project-local index preserves chronological order and active-book filtering.
+If one saved result is damaged, it is skipped with a clear status while other
+curves remain available. Curve CSV is also an explicit single-result export;
+there is no CSV-input or batch inference.
 
 ## Inverse Design page
 
@@ -841,7 +860,10 @@ design**, labeled **CLOSEST FOUND** when unconstrained, and display Achieved and
 Target Gap separately; the UI never claims an unattainable target was reached.
 Each result adds a saved-order response curve by default; Replace selected curve
 updates only the currently selected curve. Curves preserve their own optimized
-input values and remain independently renameable, visible, hideable, and
+input values plus a compact Objective, Achieved value, and Constraints record.
+Selecting any curve exposes that run-specific context in the Curves manager;
+replacing a selected curve also refreshes its run/objective name instead of
+leaving a stale label. Curves remain independently renameable, visible, hideable, and
 deletable through the reusable Scientific Plot Workbench. If an added response
 matches an existing plotted response within the named 0.01% tolerance, both
 curves remain available and an amber warning identifies the matching prior
@@ -850,9 +872,10 @@ curve. The configuration stays available for the next search.
 Every successful search creates a new `inverse_design/runs/inverse-####` folder
 containing `request.json`, `result.json`, `best_prediction.csv`, and
 `evaluation_trace.csv`; earlier folders are never overwritten. The project-local
-index records the latest run, and reopening restores it only when it belongs to
-the current active Model Book. Reopening rehydrates the complete structured
-result, not only its labels and curve, so the visible outcome state, latest run,
+index records every run plus the latest run, and reopening restores every valid
+run that belongs to the current active Model Book. The newest restored result is
+selected as current. Reopening rehydrates each complete structured result, not
+only its labels and curve, so the visible outcome state, latest run,
 and SnowBuddy's live project context remain consistent. Legacy Target results
 without a saved target gap calculate that gap when restored. Invalid fields,
 unavailable/corrupt books, and prediction failures show friendly text without a
@@ -1030,7 +1053,8 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
   finite bounds or Fixed with one finite value; the scalar objective is either
   one saved-axis coordinate or the mean over an inclusive saved-axis range; a
   goal is selected; optional generic output constraints are visible.
-- Inverse Design completed: the latest immutable inverse run is selected, the
+- Inverse Design completed: all valid immutable inverse runs for the active Model
+  Book are restored as curves and the latest is selected, the
   persistent workspace distinguishes Optimized, Constraints Met, and Closest
   Found, shows the saved-order response curve, and enables Run Inverse Design
   again for another independent search. Target results show the numeric target
@@ -1085,8 +1109,9 @@ At question time SnowBuddy may receive:
   empty/failure/artifact-error state; and that the ordered page has no page
   scrolling.
 - On Inference: active Model Book name and ID; exact required numeric inputs;
-  saved output count; latest prediction status; and that the page supports one
-  unsaved sample with no batch or CSV inference.
+  saved output count; selected prediction status; restored project-history curve
+  count; and that the page supports one new sample at a time with no batch or CSV
+  input inference.
 - On Inverse Design: active Model Book name and ID; deterministic optimizer;
   variable and fixed input names; objective scope, selected coordinate or range,
   and goal; constraint count and each point/range-mean scope; visible configuration

@@ -11,8 +11,10 @@ from typing import TYPE_CHECKING
 import customtkinter as ctk
 
 from studio.inference import (
+    InferenceError,
     InferenceRequest,
     InferenceResult,
+    load_inference_runs,
     submit_inference_request,
 )
 from studio.model_book import ModelBook, ModelBookError, load_model_library
@@ -228,6 +230,7 @@ class InferencePage(ctk.CTkFrame):
         self.last_result: InferenceResult | None = None
         self.raw_values_dialog: RawPredictionDialog | None = None
         self.result_summary_values: dict[str, ctk.CTkLabel] = {}
+        self._curve_results: dict[str, InferenceResult] = {}
         self._workspace_key: tuple[Path, str] | None = None
 
         self.grid_columnconfigure(0, weight=1)
@@ -310,11 +313,11 @@ class InferencePage(ctk.CTkFrame):
             f"Active inference Model Book: {self.active_book.name} ({self.active_book.book_id})",
             f"Required numeric inputs: {', '.join(self.active_book.feature_columns)}",
             f"Saved outputs: {len(self.active_book.target_columns)}",
-            f"Latest page prediction: {result_state}",
+            f"Selected prediction: {result_state}",
             f"Plot curves: {len(self.response_plot.state.curves)}",
             f"Prediction plot action: {self.prediction_plot_mode.get()}",
             "Plot tools: major/minor grid, engineering ticks, zoom, pan, reset, autoscale, hover crosshair, movable legend, markers, editable axes, and curve management",
-            "Inference mode: one sample; no batch, CSV, or automatic history",
+            "Inference mode: one sample; successful predictions are restored from project history",
         ]
         if self.last_result is not None and self.last_result.success:
             state.append(
@@ -471,7 +474,28 @@ class InferencePage(ctk.CTkFrame):
             row=6,
             column=0,
             padx=16,
-            pady=(8, 14),
+            pady=(8, 6),
+            sticky="ew",
+        )
+        self.inverse_design_button = ctk.CTkButton(
+            self.input_card,
+            text="Open Inverse Design  →",
+            height=36,
+            corner_radius=11,
+            fg_color=COLORS["surface_alt"],
+            hover_color=COLORS["control_hover"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["ink"],
+            font=FONTS["button"],
+            state="disabled",
+            command=lambda: self.app.show_page("inverse_design"),
+        )
+        self.inverse_design_button.grid(
+            row=7,
+            column=0,
+            padx=16,
+            pady=(0, 14),
             sticky="ew",
         )
 
@@ -692,28 +716,15 @@ class InferencePage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w")
         self.footer_status = ctk.CTkLabel(
             footer,
-            text="Single-sample prediction · no automatic history",
+            text="Single-sample prediction · project history restored automatically",
             text_color=COLORS["subtle"],
             font=FONTS["caption"],
         )
         self.footer_status.grid(row=0, column=1, sticky="e")
-        self.inverse_design_button = ctk.CTkButton(
-            footer,
-            text="Inverse Design  →",
-            width=148,
-            height=36,
-            corner_radius=11,
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
-            text_color=COLORS["on_primary"],
-            font=FONTS["button"],
-            state="disabled",
-            command=lambda: self.app.show_page("inverse_design"),
-        )
-        self.inverse_design_button.grid(row=0, column=2, padx=(12, 0), sticky="e")
 
     def _refresh(self) -> None:
         self._clear_input_fields()
+        self._curve_results.clear()
         self.response_plot.clear()
         self.input_error.configure(text="")
         self.inputs_used_value.configure(text="—")
@@ -767,6 +778,7 @@ class InferencePage(ctk.CTkFrame):
         )
         self._create_input_fields(book.feature_columns)
         self.predict_button.configure(text="Predict", state="normal")
+        self._restore_saved_predictions()
 
     def _clear_input_fields(self) -> None:
         for child in self.input_host.winfo_children():
@@ -910,7 +922,13 @@ class InferencePage(ctk.CTkFrame):
         )
         self.update_idletasks()
 
-    def _show_success(self, result: InferenceResult) -> None:
+    def _show_success(
+        self,
+        result: InferenceResult,
+        *,
+        replace_selected: bool | None = None,
+        restoring: bool = False,
+    ) -> None:
         predictions = result.predictions
         values = tuple(float(value) for value in predictions.values())
         self.result_summary_values["count"].configure(text=str(len(values)))
@@ -933,22 +951,48 @@ class InferencePage(ctk.CTkFrame):
             if axis is not None and len(axis.values) == len(target_names)
             else tuple(float(index) for index in range(1, len(target_names) + 1))
         )
-        self.response_plot.add_curve(
+        curve = self.response_plot.add_curve(
             x_values=x_values,
             y_values=values,
             target_names=target_names,
             inputs=result.input_values,
+            details=(
+                f"Prediction · {result.model_book_name or result.model_book_id}",
+                f"Run: {result.run_id or 'current session'}",
+                f"Output points: {len(values)}",
+            ),
             replace_selected=(
                 self.prediction_plot_mode.get() == "Replace current curve"
+                if replace_selected is None
+                else replace_selected
             ),
             x_label=x_label,
+            name=result.run_id,
+            refresh=not restoring,
         )
+        self._curve_results[curve.curve_id] = result
+        self.last_result = result
+        self._show_result_text(result)
+        self._plot_selection_changed(curve)
+        self.raw_values_button.configure(state="normal")
+        self.export_button.configure(state="normal")
+        assistant_closed = False if restoring else self._ensure_prediction_plot_visible()
+        self.footer_status.configure(
+            text=(
+                f"Prediction complete · {result.model_book_name or result.model_book_id}"
+                + (" · SnowBuddy closed to show plot" if assistant_closed else "")
+            )
+        )
+
+    def _show_result_text(self, result: InferenceResult) -> None:
+        predictions = result.predictions
         if len(predictions) == 1:
             target, value = next(iter(predictions.items()))
             self.result_title.configure(text=target)
             self.result_summary.configure(
                 text=f"Predicted value: {value:.10g}",
                 font=FONTS["body_small"],
+                text_color=COLORS["muted"],
             )
         else:
             self.result_title.configure(
@@ -957,16 +1001,50 @@ class InferencePage(ctk.CTkFrame):
             self.result_summary.configure(
                 text="Ordered response from the saved Model Book output interface.",
                 font=FONTS["body_small"],
+                text_color=COLORS["muted"],
             )
-        self.raw_values_button.configure(state="normal")
-        self.export_button.configure(state="normal")
-        assistant_closed = self._ensure_prediction_plot_visible()
-        self.footer_status.configure(
-            text=(
-                f"Prediction complete · {result.model_book_name or result.model_book_id}"
-                + (" · SnowBuddy closed to show plot" if assistant_closed else "")
+
+    def _restore_saved_predictions(self) -> None:
+        if self.project is None or self.active_book is None:
+            return
+        try:
+            history = load_inference_runs(
+                self.project.path,
+                model_book_id=self.active_book.book_id,
             )
-        )
+        except InferenceError as exc:
+            self.footer_status.configure(text=str(exc), text_color=COLORS["danger"])
+            return
+        for result in history.runs:
+            self._show_success(
+                result,
+                replace_selected=False,
+                restoring=True,
+            )
+        if history.runs:
+            self.response_plot.refresh_curves()
+            self.last_result = history.runs[-1]
+            selected = self.response_plot.state.selected_curve
+            if selected is not None:
+                self._plot_selection_changed(selected)
+            suffix = (
+                f" · skipped {len(history.errors)} damaged run"
+                f"{'s' if len(history.errors) != 1 else ''}"
+                if history.errors
+                else ""
+            )
+            self.footer_status.configure(
+                text=(
+                    f"Restored {len(history.runs)} saved prediction"
+                    f"{'s' if len(history.runs) != 1 else ''}{suffix}"
+                ),
+                text_color=COLORS["warning"] if history.errors else COLORS["success"],
+            )
+        elif history.errors:
+            self.footer_status.configure(
+                text="Saved prediction history could not be restored.",
+                text_color=COLORS["danger"],
+            )
 
     def _ensure_prediction_plot_visible(self) -> bool:
         """Recover plot width when the assistant leaves less than a usable canvas."""
@@ -998,6 +1076,9 @@ class InferencePage(ctk.CTkFrame):
     def _plot_selection_changed(self, curve: ScientificCurve | None) -> None:
         if curve is None:
             self.inputs_used_value.configure(text="—")
+            self.last_result = None
+            self.raw_values_button.configure(state="disabled")
+            self.export_button.configure(state="disabled")
             return
         values = curve.y_values
         self.result_summary_values["count"].configure(text=str(len(values)))
@@ -1009,6 +1090,12 @@ class InferencePage(ctk.CTkFrame):
             )
             or "No inputs recorded"
         )
+        selected_result = self._curve_results.get(curve.curve_id)
+        if selected_result is not None:
+            self.last_result = selected_result
+            self._show_result_text(selected_result)
+            self.raw_values_button.configure(state="normal")
+            self.export_button.configure(state="normal")
 
     def _show_model_info(self) -> None:
         book = self.active_book

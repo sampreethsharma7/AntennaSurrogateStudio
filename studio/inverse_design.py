@@ -40,6 +40,14 @@ class InverseDesignError(RuntimeError):
     """A safe failure that can be displayed without a traceback."""
 
 
+@dataclass(slots=True)
+class InverseDesignHistory:
+    """Valid saved searches plus isolated per-run restoration errors."""
+
+    runs: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+
 def _name(value: object, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} must be a non-empty string.")
@@ -717,6 +725,81 @@ def load_inverse_design_run(
             f"Inverse-design result '{selected}' has invalid metadata."
         )
     return payload
+
+
+def load_inverse_design_runs(
+    project_path: str | Path,
+    *,
+    model_book_id: str | None = None,
+) -> InverseDesignHistory:
+    """Load every valid completed search in chronological index order.
+
+    A damaged individual result is skipped and reported without hiding the
+    remaining project history. Results from another Model Book are filtered out.
+    """
+
+    project_root = Path(project_path).expanduser().resolve()
+    index_path = project_root / "inverse_design" / "index.json"
+    if not index_path.exists():
+        return InverseDesignHistory()
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise InverseDesignError(
+            "The inverse-design run index is malformed or unreadable."
+        ) from exc
+    if not isinstance(index, dict) or not isinstance(index.get("runs"), list):
+        raise InverseDesignError("The inverse-design run index has invalid metadata.")
+
+    history = InverseDesignHistory()
+    seen: set[str] = set()
+    for raw_entry in index["runs"]:
+        if not isinstance(raw_entry, dict):
+            history.errors.append(
+                "An inverse-design history entry has invalid metadata."
+            )
+            continue
+        run_id = str(raw_entry.get("run_id") or "").strip()
+        if (
+            not run_id.startswith("inverse-")
+            or not run_id[8:].isdigit()
+            or run_id in seen
+        ):
+            history.errors.append(
+                f"Inverse-design history entry '{run_id or 'unknown'}' has an invalid run ID."
+            )
+            continue
+        seen.add(run_id)
+        try:
+            payload = load_inverse_design_run(project_root, run_id)
+        except InverseDesignError:
+            history.errors.append(
+                f"Inverse-design run '{run_id}' is malformed or unreadable."
+            )
+            continue
+        if payload is None:
+            history.errors.append(f"Inverse-design run '{run_id}' is missing.")
+            continue
+        entry_book_id = str(raw_entry.get("model_book_id") or "").strip()
+        payload_book_id = str(payload.get("model_book_id") or "").strip()
+        if entry_book_id and entry_book_id != payload_book_id:
+            history.errors.append(
+                f"Inverse-design run '{run_id}' does not match its history entry."
+            )
+            continue
+        if (
+            payload.get("success") is not True
+            or payload.get("status") != INVERSE_DESIGN_COMPLETED
+            or not payload_book_id
+        ):
+            history.errors.append(
+                f"Inverse-design run '{run_id}' is not a valid completed result."
+            )
+            continue
+        if model_book_id is not None and payload_book_id != model_book_id:
+            continue
+        history.runs.append(payload)
+    return history
 
 
 def _validate_against_book(

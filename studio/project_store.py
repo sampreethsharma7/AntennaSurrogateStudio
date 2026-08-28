@@ -242,6 +242,12 @@ class ProjectStore:
                 "active_book_id": None,
                 "index": "books/index.json",
             },
+            "inference": {
+                "schema_version": 1,
+                "run_count": 0,
+                "latest_run_id": None,
+                "index": "inference/index.json",
+            },
             "inverse_design": {
                 "schema_version": 1,
                 "run_count": 0,

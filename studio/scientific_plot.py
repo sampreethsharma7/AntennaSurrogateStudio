@@ -17,6 +17,11 @@ PLOT_PANE_MIN_WIDTH = 320
 PLOT_CANVAS_HORIZONTAL_INSET = 8
 CURVE_MANAGER_MIN_WIDTH = 220
 CURVE_MANAGER_DEFAULT_WIDTH = 250
+# Dense scatter plots can contain one residual for every test-sample/output
+# pair.  Drawing every marker as a separate Tk canvas item can stall the event
+# loop on modest laptops, so rendering uses a deterministic visual subset while
+# the full curve remains in state for calculations and saved artifacts.
+MAX_SCATTER_MARKERS = 1600
 AXIS_SCALES = ("Linear", "Log")
 LEGEND_LOCATIONS = (
     "Upper right",
@@ -99,6 +104,31 @@ def adaptive_major_interval_count(plot_span: float, font_size: float) -> int:
     return max(2, min(5, int(max(0.0, plot_span) // minimum_spacing)))
 
 
+def scatter_display_indices(
+    y_values: Iterable[float],
+    maximum: int = MAX_SCATTER_MARKERS,
+) -> tuple[int, ...]:
+    """Return a deterministic visual subset while retaining both Y extremes."""
+
+    values = tuple(float(value) for value in y_values)
+    count = len(values)
+    if count <= maximum:
+        return tuple(range(count))
+    if maximum < 4:
+        raise ValueError("A dense scatter display requires at least four markers.")
+    selected = {
+        0,
+        count - 1,
+        min(range(count), key=values.__getitem__),
+        max(range(count), key=values.__getitem__),
+    }
+    for index in range(maximum):
+        selected.add(round(index * (count - 1) / (maximum - 1)))
+        if len(selected) >= maximum:
+            break
+    return tuple(sorted(selected))
+
+
 def _scale_value(value: float, scale: str) -> float:
     if scale == "Log":
         if value <= 0:
@@ -125,6 +155,7 @@ class ScientificCurve:
     y_values: tuple[float, ...]
     target_names: tuple[str, ...]
     inputs: dict[str, float] = field(default_factory=dict)
+    details: tuple[str, ...] = ()
     visible: bool = True
     color_index: int = 0
     line_width: float = 2.0
@@ -189,6 +220,7 @@ class ScientificPlotState:
         y_values: Iterable[float],
         target_names: Iterable[str],
         inputs: dict[str, float] | None = None,
+        details: Iterable[str] | None = None,
         replace_selected: bool = False,
         name: str | None = None,
     ) -> ScientificCurve:
@@ -210,6 +242,11 @@ class ScientificPlotState:
         input_snapshot = {
             str(key): float(value) for key, value in (inputs or {}).items()
         }
+        detail_snapshot = tuple(
+            clean
+            for value in (details or ())
+            if (clean := str(value).strip())
+        )
 
         selected = self.selected_curve if replace_selected else None
         if selected is not None:
@@ -217,6 +254,9 @@ class ScientificPlotState:
             selected.y_values = ys
             selected.target_names = targets
             selected.inputs = input_snapshot
+            selected.details = detail_snapshot
+            if name is not None and name.strip():
+                selected.name = name.strip()
             selected.visible = True
             self.annotations = [
                 marker
@@ -233,6 +273,7 @@ class ScientificPlotState:
                 y_values=ys,
                 target_names=targets,
                 inputs=input_snapshot,
+                details=detail_snapshot,
                 color_index=self._curve_number - 1,
             )
             self.curves.append(curve)
@@ -1346,24 +1387,33 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
         y_values: Iterable[float],
         target_names: Iterable[str],
         inputs: dict[str, float],
+        details: Iterable[str] | None = None,
         replace_selected: bool,
         x_label: str | None = None,
         name: str | None = None,
+        refresh: bool = True,
     ) -> ScientificCurve:
         curve = self.state.add_curve(
             x_values=x_values,
             y_values=y_values,
             target_names=target_names,
             inputs=inputs,
+            details=details,
             replace_selected=replace_selected,
             name=name,
         )
         if x_label and not self.state.axis_labels_user_defined:
             self.state.x_label = x_label
+        if refresh:
+            self.refresh_curves()
+        return curve
+
+    def refresh_curves(self) -> None:
+        """Render accumulated curve-state changes once after a bulk restore."""
+
         self._refresh_manager()
         self.redraw()
         self._notify_selection()
-        return curve
 
     def set_response(self, predictions: dict[str, float]) -> None:
         targets = tuple(predictions)
@@ -1556,8 +1606,13 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             values = " · ".join(
                 f"{name}={value:.5g}" for name, value in selected.inputs.items()
             )
+            detail_lines = "\n".join(selected.details)
+            details_text = f"\n{detail_lines}" if detail_lines else ""
             self.selected_inputs.configure(
-                text=f"{selected.name}\nInputs: {values or 'not recorded'}"
+                text=(
+                    f"{selected.name}{details_text}\n"
+                    f"Inputs: {values or 'not recorded'}"
+                )
             )
 
     def _change_curve_page(self, offset: int) -> None:
@@ -1698,9 +1753,17 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
                 font=FONTS["body_small"],
             )
         for curve in visible_curves:
+            point_indices = (
+                scatter_display_indices(curve.y_values)
+                if curve.line_style == "None"
+                else tuple(range(len(curve.x_values)))
+            )
             points = [
                 coordinate
-                for x_value, y_value in zip(curve.x_values, curve.y_values, strict=True)
+                for index in point_indices
+                for x_value, y_value in (
+                    (curve.x_values[index], curve.y_values[index]),
+                )
                 for coordinate in (map_x(x_value), map_y(y_value))
             ]
             color = curve_color(curve.color_index)
@@ -1923,7 +1986,14 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
         for curve in self.state.curves:
             if not curve.visible:
                 continue
-            for x_value, y_value in zip(curve.x_values, curve.y_values, strict=True):
+            point_indices = (
+                scatter_display_indices(curve.y_values)
+                if curve.line_style == "None"
+                else range(len(curve.x_values))
+            )
+            for index in point_indices:
+                x_value = curve.x_values[index]
+                y_value = curve.y_values[index]
                 x = left + (
                     _scale_value(x_value, self.state.x_scale) - tx_min
                 ) / (tx_max - tx_min) * (right - left)
