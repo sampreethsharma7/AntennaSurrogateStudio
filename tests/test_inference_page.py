@@ -1,6 +1,7 @@
 import csv
 import json
 import os
+import shutil
 import tempfile
 import tkinter as tk
 import unittest
@@ -23,6 +24,7 @@ from studio.model_training import (
 )
 from studio.parser_engine import TrainingRequest
 from studio.project_store import ProjectStore
+from studio.scientific_plot import MAX_SCATTER_MARKERS
 from studio.ui import StudioApp, responsive_window_layout
 
 
@@ -152,6 +154,11 @@ class InferencePageTests(unittest.TestCase):
     def setUp(self):
         self.app.set_sidebar_collapsed(False)
         self.app.set_snowbuddy_collapsed(False)
+        for candidate in (self.single_project, self.multi_project):
+            history_root = candidate.path / "inference"
+            if history_root.exists():
+                shutil.rmtree(history_root)
+            history_root.mkdir(parents=True, exist_ok=True)
         project = self.store.open_project(self.single_project.path, touch=False)
         self.app.set_project(project, target_page="inference")
         self.app.update_idletasks()
@@ -179,6 +186,16 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.page.raw_values_button.cget("state"), "disabled")
         self.assertEqual(self.page.export_button.cget("state"), "disabled")
         self.assertEqual(self.app.nav_buttons["inference"].cget("state"), "normal")
+
+    def test_about_dialog_identifies_the_author_and_contact(self):
+        with patch("studio.ui.messagebox.showinfo") as showinfo:
+            self.app._show_about()
+
+        title, message = showinfo.call_args.args
+        self.assertEqual(title, "About Antenna Surrogate Studio")
+        self.assertIn("Sai Sampreeth Indharapu", message)
+        self.assertIn("sampreethsharma@gmail.com", message)
+        self.assertIn("linkedin.com/in/sai-sampreeth-indharapu", message)
 
     def test_required_features_generate_numeric_input_fields(self):
         self.assertEqual(list(self.page.input_entries), ["P2", "P3", "P4"])
@@ -232,6 +249,10 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.page.export_button.cget("state"), "normal")
         self.assertEqual(self.page.predict_button.cget("state"), "normal")
         self.assertEqual(self.page.predict_button.cget("text"), "Predict")
+        curve = self.page.response_plot.state.selected_curve
+        self.assertIsNotNone(curve)
+        self.assertIn("Prediction ·", curve.details[0])
+        self.assertIn("Output points: 1", curve.details)
 
     def test_multi_output_prediction_uses_compact_summary_and_ordered_plot(self):
         project = self.store.open_project(self.multi_project.path, touch=False)
@@ -285,6 +306,7 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(len(self.page.response_plot.state.curves), 2)
         self.assertEqual(first.inputs, {"P2": 4.0, "P3": 2.0, "P4": 3.0})
         self.assertEqual(second.inputs, {"P2": 7.0, "P3": 1.0, "P4": 2.0})
+        self.assertIn("Output points: 12", second.details)
         self.assertNotEqual(first.curve_id, second.curve_id)
 
         self.page.prediction_plot_mode.set("Replace current curve")
@@ -332,6 +354,30 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(workbench.state.curves, [])
         self.assertEqual(workbench.state.annotations, [])
 
+    def test_dense_marker_curve_keeps_full_data_but_caps_canvas_items(self):
+        workbench = self.page.response_plot
+        workbench.clear()
+        count = MAX_SCATTER_MARKERS * 4
+        curve = workbench.add_curve(
+            x_values=range(count),
+            y_values=(float(index % 37) for index in range(count)),
+            target_names=(f"point_{index}" for index in range(count)),
+            inputs={},
+            replace_selected=False,
+            name="Dense residual",
+        )
+        curve.line_style = "None"
+        curve.marker_style = "Circle"
+        workbench.redraw()
+
+        marker_items = sum(
+            1
+            for item in workbench.canvas.find_all()
+            if workbench.canvas.type(item) == "oval"
+        )
+        self.assertEqual(len(curve.y_values), count)
+        self.assertLessEqual(marker_items, MAX_SCATTER_MARKERS + 1)
+
     def test_hover_crosshair_and_movable_legend_report_curve_coordinates(self):
         project = self.store.open_project(self.multi_project.path, touch=False)
         self.app.set_project(project, target_page="inference")
@@ -377,6 +423,8 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.app.snowbuddy_panel.winfo_manager(), "grid")
 
     def test_workflow_sidebar_collapses_to_icons_and_navigation_still_works(self):
+        self.assertEqual(self.app.workflow_divider.winfo_manager(), "grid")
+        self.assertEqual(int(self.app.workflow_divider.cget("width")), 2)
         self.app.sidebar_toggle_button.invoke()
         self.app.update_idletasks()
 
@@ -858,6 +906,60 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(len(self.page.response_plot.state.curves), 1)
         self.assertEqual(self.page.response_plot.state.selected_curve_id, curve_id)
         self.assertTrue(self.page.last_result.success)
+
+    def test_all_saved_predictions_restore_and_selected_curve_drives_result(self):
+        project = self.store.open_project(self.multi_project.path, touch=False)
+        self.app.set_project(project, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+        self.page.prediction_plot_mode.set("Add to plot")
+        self._fill_inputs({"P2": 4.0, "P3": 2.0, "P4": 3.0})
+        self.page.predict_button.invoke()
+        first_run_id = self.page.last_result.run_id
+        first_predictions = dict(self.page.last_result.predictions)
+        self._fill_inputs({"P2": 7.0, "P3": 1.0, "P4": 2.0})
+        self.page.predict_button.invoke()
+        second_run_id = self.page.last_result.run_id
+
+        reopened = self.store.open_project(self.multi_project.path, touch=False)
+        self.app.set_project(reopened, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+
+        self.assertEqual(len(self.page.response_plot.state.curves), 2)
+        self.assertEqual(
+            [curve.name for curve in self.page.response_plot.state.curves],
+            [first_run_id, second_run_id],
+        )
+        self.assertEqual(self.page.last_result.run_id, second_run_id)
+        first_curve = self.page.response_plot.state.curves[0]
+        self.page.response_plot.select_curve(first_curve.curve_id)
+        self.assertEqual(self.page.last_result.run_id, first_run_id)
+        self.assertEqual(self.page.last_result.predictions, first_predictions)
+        self.assertIn("Restored 2 saved predictions", self.page.footer_status.cget("text"))
+
+    def test_restore_skips_one_damaged_prediction_without_hiding_others(self):
+        project = self.store.open_project(self.multi_project.path, touch=False)
+        self.app.set_project(project, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+        self.page.prediction_plot_mode.set("Add to plot")
+        self._fill_inputs({"P2": 4.0, "P3": 2.0, "P4": 3.0})
+        self.page.predict_button.invoke()
+        first_run_id = self.page.last_result.run_id
+        self._fill_inputs({"P2": 7.0, "P3": 1.0, "P4": 2.0})
+        self.page.predict_button.invoke()
+        damaged = self.page.last_result.artifact_directory / "result.json"
+        damaged.write_text("{invalid json", encoding="utf-8")
+
+        reopened = self.store.open_project(self.multi_project.path, touch=False)
+        self.app.set_project(reopened, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+
+        self.assertEqual(len(self.page.response_plot.state.curves), 1)
+        self.assertEqual(self.page.last_result.run_id, first_run_id)
+        self.assertIn("skipped 1 damaged run", self.page.footer_status.cget("text"))
 
 
 if __name__ == "__main__":

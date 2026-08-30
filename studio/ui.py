@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+import queue
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 import tkinter as tk
 from dataclasses import dataclass
@@ -327,17 +329,25 @@ class StudioApp(ctk.CTk):
         super().destroy()
 
     def _build_shell(self) -> None:
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self._build_menu_bar()
         self._build_sidebar()
+
+        self.workflow_divider = ctk.CTkFrame(
+            self,
+            width=2,
+            corner_radius=0,
+            fg_color=COLORS["border_strong"],
+        )
+        self.workflow_divider.grid(row=1, column=1, sticky="ns")
 
         self.workspace = ctk.CTkFrame(
             self,
             fg_color=COLORS["app_bg"],
             corner_radius=0,
         )
-        self.workspace.grid(row=1, column=1, sticky="nsew")
+        self.workspace.grid(row=1, column=2, sticky="nsew")
         self.workspace.grid_columnconfigure(0, weight=1)
         self.workspace.grid_columnconfigure(1, weight=0, minsize=0)
         self.workspace.grid_rowconfigure(0, weight=1)
@@ -456,7 +466,7 @@ class StudioApp(ctk.CTk):
             border_width=1,
             border_color=COLORS["border"],
         )
-        menu_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
+        menu_bar.grid(row=0, column=0, columnspan=3, sticky="ew")
         menu_bar.grid_propagate(False)
         menu_bar.grid_columnconfigure(3, weight=1)
 
@@ -581,7 +591,10 @@ class StudioApp(ctk.CTk):
             "About Antenna Surrogate Studio",
             (
                 f"Antenna Surrogate Studio v{__version__}\n\n"
-                "Local compute · Private projects · Reusable surrogate books"
+                "Local compute · Private projects · Reusable surrogate books\n\n"
+                "Created by Sai Sampreeth Indharapu\n"
+                "sampreethsharma@gmail.com\n"
+                "linkedin.com/in/sai-sampreeth-indharapu-ph-d-a98802110/"
             ),
             parent=self,
         )
@@ -3933,6 +3946,13 @@ class ModelTrainingPage(ctk.CTkFrame):
         self.last_training_request: ModelTrainingRequest | None = None
         self.last_training_result: ModelTrainingResult | None = None
         self.training_in_progress = False
+        self._training_job_id = 0
+        self._training_events: queue.SimpleQueue[
+            tuple[int, ModelTrainingResult | None, str | None]
+        ] = queue.SimpleQueue()
+        self._training_poll_after_id: str | None = None
+        self._training_elapsed_after_id: str | None = None
+        self._training_started_at = 0.0
         self.latest_run_number: int | None = None
         self.latest_run_var = ctk.StringVar(value="Latest Run: None")
 
@@ -3959,7 +3979,7 @@ class ModelTrainingPage(ctk.CTkFrame):
         previous_path = self.project.path if self.project else None
         self.project = project
         next_path = project.path if project else None
-        if project and previous_path != next_path:
+        if previous_path != next_path:
             self._reset_ui_state()
         elif project is None:
             self.last_training_request = None
@@ -4539,6 +4559,19 @@ class ModelTrainingPage(ctk.CTkFrame):
             pady=12,
             sticky="w",
         )
+        self.training_status_label = ctk.CTkLabel(
+            self.action_bar,
+            text="Local training running · 0:00 elapsed",
+            text_color=COLORS["cyan"],
+            font=FONTS["caption"],
+        )
+        self.training_status_label.grid(
+            row=0,
+            column=1,
+            padx=(8, 4),
+            sticky="e",
+        )
+        self.training_status_label.grid_remove()
         self.train_button = ctk.CTkButton(
             self.action_bar,
             text=TRAIN_BUTTON_LABEL,
@@ -4552,7 +4585,7 @@ class ModelTrainingPage(ctk.CTkFrame):
             state="disabled",
             command=self._train_model,
         )
-        self.train_button.grid(row=0, column=1, padx=12, pady=8, sticky="e")
+        self.train_button.grid(row=0, column=2, padx=12, pady=8, sticky="e")
 
     def _build_footer(self) -> None:
         footer = ctk.CTkFrame(self, fg_color="transparent")
@@ -4784,10 +4817,12 @@ class ModelTrainingPage(ctk.CTkFrame):
             control.configure(state=neural_state)
 
     def _reset_ui_state(self) -> None:
+        if self.training_in_progress:
+            self._training_job_id += 1
+        self._set_training_busy(False)
         self.state.reset()
         self.last_training_request = None
         self.last_training_result = None
-        self.training_in_progress = False
         self.selected_model.set(self.state.selected_model)
         self.training_mode.set(self.state.training_mode)
         self.search_level.set(self.state.search_level)
@@ -4992,14 +5027,75 @@ class ModelTrainingPage(ctk.CTkFrame):
             return
 
         self._set_training_busy(True)
+        self._training_job_id += 1
+        job_id = self._training_job_id
+        backend = submit_model_training_request
+        project_path = self.project.path
+        threading.Thread(
+            target=self._training_worker,
+            args=(job_id, backend, request, project_path),
+            daemon=True,
+            name=f"studio-training-{job_id}",
+        ).start()
+        self._schedule_training_poll()
+
+    def _training_worker(
+        self,
+        job_id: int,
+        backend: Callable[..., ModelTrainingResult],
+        request: ModelTrainingRequest,
+        project_path: Path,
+    ) -> None:
+        """Run compute without touching Tk from the worker thread."""
+
         try:
-            result = submit_model_training_request(
-                request,
-                project_path=self.project.path,
+            result = backend(request, project_path=project_path)
+        except Exception:
+            self._training_events.put(
+                (
+                    job_id,
+                    None,
+                    "Training failed because an unexpected local error occurred.",
+                )
             )
-        finally:
+            return
+        self._training_events.put((job_id, result, None))
+
+    def _schedule_training_poll(self) -> None:
+        if self._training_poll_after_id is None:
+            self._training_poll_after_id = self.after(
+                80,
+                self._poll_training_events,
+            )
+
+    def _poll_training_events(self) -> None:
+        self._training_poll_after_id = None
+        try:
+            job_id, result, error_message = self._training_events.get_nowait()
+        except queue.Empty:
+            if self.training_in_progress:
+                self._schedule_training_poll()
+            return
+        if job_id != self._training_job_id:
+            if self.training_in_progress:
+                self._schedule_training_poll()
+            return
+        if error_message is not None or result is None:
             self._set_training_busy(False)
+            self.last_training_result = None
+            self.app.results_page.show_training_failure()
+            messagebox.showerror(
+                "Training failed",
+                error_message or "Training could not be completed.",
+                parent=self,
+            )
+            return
+        self._training_completed(result)
+
+    def _training_completed(self, result: ModelTrainingResult) -> None:
+        self._set_training_busy(False)
         self.last_training_result = result
+        request = self.last_training_request
         if not result.success:
             self.app.results_page.show_training_failure()
             messagebox.showerror(
@@ -5013,7 +5109,9 @@ class ModelTrainingPage(ctk.CTkFrame):
         self._set_latest_run(result.run_number)
         metrics = result.metrics
         parameters = result.parameters_used
-        training_mode_label = (result.training_mode or request.training_mode).title()
+        training_mode_label = (
+            result.training_mode or (request.training_mode if request else "")
+        ).title()
         if result.model_name == "ensemble_ai_engine":
             best_model = self._display_model_name(
                 result.best_individual_model or "Unknown"
@@ -5074,9 +5172,14 @@ class ModelTrainingPage(ctk.CTkFrame):
             )
             self._open_latest_training_results(result)
             return
-        if (result.training_mode or request.training_mode) == "auto":
+        if (
+            result.training_mode
+            or (request.training_mode if request else "")
+        ) == "auto":
             search_level_label = (
-                result.search_level or request.search_level or ""
+                result.search_level
+                or (request.search_level if request else None)
+                or ""
             ).title()
             validation_rmse = result.best_validation_rmse
             validation_rmse_text = (
@@ -5143,7 +5246,32 @@ class ModelTrainingPage(ctk.CTkFrame):
             text="Training…" if busy else TRAIN_BUTTON_LABEL,
         )
         if busy:
+            self._training_started_at = time.monotonic()
+            self.training_status_label.grid()
+            self._update_training_elapsed()
             self.update_idletasks()
+        else:
+            if self._training_elapsed_after_id is not None:
+                try:
+                    self.after_cancel(self._training_elapsed_after_id)
+                except tk.TclError:
+                    pass
+                self._training_elapsed_after_id = None
+            self.training_status_label.grid_remove()
+
+    def _update_training_elapsed(self) -> None:
+        self._training_elapsed_after_id = None
+        if not self.training_in_progress:
+            return
+        elapsed = max(0, int(time.monotonic() - self._training_started_at))
+        minutes, seconds = divmod(elapsed, 60)
+        self.training_status_label.configure(
+            text=f"Local training running · {minutes}:{seconds:02d} elapsed"
+        )
+        self._training_elapsed_after_id = self.after(
+            1000,
+            self._update_training_elapsed,
+        )
 
     def _load_latest_run(self, project: Project | None) -> None:
         if project is None:

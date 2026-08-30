@@ -8,6 +8,7 @@ from unittest.mock import patch
 from studio.inverse_design import (
     INVERSE_DESIGN_COMPLETED,
     INVERSE_DESIGN_FAILED,
+    InverseDesignHistory,
     InverseDesignResult,
 )
 from studio.inverse_design_ui import CONFIGURATION_MIN_WIDTH, RESULT_MIN_WIDTH
@@ -253,6 +254,18 @@ class InverseDesignPageTests(unittest.TestCase):
             self.page.response_plot.state.selected_curve.inputs,
             success.best_inputs,
         )
+        self.assertIn(
+            "Objective: Minimize theta_0",
+            self.page.response_plot.state.selected_curve.details,
+        )
+        self.assertIn(
+            "Achieved: 1",
+            self.page.response_plot.state.selected_curve.details,
+        )
+        self.assertIn(
+            "Objective: Minimize theta_0",
+            self.page.response_plot.selected_inputs.cget("text"),
+        )
         legend_text = {
             self.page.response_plot.canvas.itemcget(item, "text")
             for item in self.page.response_plot.canvas.find_all()
@@ -318,6 +331,14 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertEqual(
             self.page.response_plot.state.selected_curve.y_values,
             tuple(second.predicted_outputs.values()),
+        )
+        self.assertIn(
+            "inverse-0003",
+            self.page.response_plot.state.selected_curve.name,
+        )
+        self.assertIn(
+            "Objective: Maximize Mean",
+            self.page.response_plot.state.selected_curve.details[0],
         )
 
     def test_target_result_shows_achieved_value_gap_without_claiming_target_met(self):
@@ -543,18 +564,28 @@ class InverseDesignPageTests(unittest.TestCase):
         self.page.response_plot.state.clear_curves()
         self.page.response_plot._refresh_manager()
 
+        earlier_payload = {
+            **payload,
+            "run_id": "inverse-0041",
+            "best_inputs": {"P2": 3.0, "P3": 2.0, "P4": 3.0},
+            "objective_value": 2.0,
+        }
         with patch(
-            "studio.inverse_design_ui.load_inverse_design_run",
-            return_value=payload,
+            "studio.inverse_design_ui.load_inverse_design_runs",
+            return_value=InverseDesignHistory(runs=[earlier_payload, payload]),
         ):
-            self.page._restore_latest_result()
+            self.page._restore_saved_results()
 
         self.assertIsNotNone(self.page.last_result)
         self.assertEqual(self.page.last_result.run_id, "inverse-0042")
         self.assertEqual(self.page.last_result.status, INVERSE_DESIGN_COMPLETED)
         self.assertTrue(self.page.last_result.feasible)
         self.assertEqual(self.page.result_badge.cget("text"), "OPTIMIZED")
-        self.assertEqual(len(self.page.response_plot.state.curves), 1)
+        self.assertEqual(len(self.page.response_plot.state.curves), 2)
+        self.assertEqual(
+            [curve.name.split(" · ")[0] for curve in self.page.response_plot.state.curves],
+            ["inverse-0041", "inverse-0042"],
+        )
         self.assertIn(
             f"Latest inverse-design result: {INVERSE_DESIGN_COMPLETED}",
             self.app.snowbuddy_ui_state(),
@@ -585,6 +616,10 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertEqual(
             self.app.inference_page.inverse_design_button.cget("state"),
             "normal",
+        )
+        self.assertIs(
+            self.app.inference_page.inverse_design_button.master,
+            self.app.inference_page.input_card,
         )
         self.app.inference_page.inverse_design_button.invoke()
         self.assertEqual(self.app.active_page, "inverse_design")

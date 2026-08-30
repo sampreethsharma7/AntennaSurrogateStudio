@@ -27,7 +27,11 @@ from studio.model_comparison import (
 )
 from studio.output_axis import infer_output_axis
 from studio.project_store import Project
-from studio.scientific_plot import ScientificPlotState, ScientificPlotWorkbench
+from studio.scientific_plot import (
+    MAX_SCATTER_MARKERS,
+    ScientificPlotState,
+    ScientificPlotWorkbench,
+)
 from studio.theme import COLORS, FONTS
 from studio.training_results import (
     TrainingResultsError,
@@ -1738,9 +1742,15 @@ class TrainingResultsPage(ctk.CTkFrame):
 
     def _render_residual_plot(self) -> None:
         assert self.result is not None
+        residual_summary = self.result.residual_interpretation
+        if len(self.result.predictions) > MAX_SCATTER_MARKERS:
+            residual_summary += (
+                f" Displaying {MAX_SCATTER_MARKERS:,} representative markers from "
+                f"{len(self.result.predictions):,}; metrics and artifacts retain all values."
+            )
         shell = self._content_shell(
             "Residual analysis",
-            self.result.residual_interpretation,
+            residual_summary,
         )
         shell.grid_columnconfigure(1, weight=0)
         self.residual_plot_state.clear_curves()

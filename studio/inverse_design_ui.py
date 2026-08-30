@@ -18,7 +18,7 @@ from studio.inverse_design import (
     InverseDesignRequest,
     InverseDesignResult,
     OutputConstraint,
-    load_inverse_design_run,
+    load_inverse_design_runs,
     submit_inverse_design_request,
 )
 from studio.model_book import ModelBook, ModelBookError, load_model_library
@@ -165,7 +165,7 @@ class InverseDesignPage(ctk.CTkFrame):
         self.last_result = None
         self.input_page = 0
         self._refresh()
-        self._restore_latest_result()
+        self._restore_saved_results()
 
     def refresh_theme(self) -> None:
         self.workspace_split.configure(bg=self._palette(COLORS["border"]))
@@ -1392,7 +1392,13 @@ class InverseDesignPage(ctk.CTkFrame):
             text_color=COLORS["danger"],
         )
 
-    def _show_success(self, result: InverseDesignResult) -> None:
+    def _show_success(
+        self,
+        result: InverseDesignResult,
+        *,
+        replace_selected: bool | None = None,
+        restoring: bool = False,
+    ) -> None:
         self._show_result_values(
             run_id=result.run_id,
             objective=result.objective,
@@ -1403,7 +1409,13 @@ class InverseDesignPage(ctk.CTkFrame):
             constraint_evaluations=result.constraint_evaluations,
             evaluations=result.evaluations,
             iterations=result.iterations,
-            replace_selected=self.plot_action.get() == "Replace selected curve",
+            replace_selected=(
+                self.plot_action.get() == "Replace selected curve"
+                if replace_selected is None
+                else replace_selected
+            ),
+            check_duplicate=not restoring,
+            refresh_plot=not restoring,
         )
 
     @staticmethod
@@ -1472,6 +1484,8 @@ class InverseDesignPage(ctk.CTkFrame):
         evaluations: int,
         iterations: int,
         replace_selected: bool,
+        check_duplicate: bool = True,
+        refresh_plot: bool = True,
     ) -> None:
         aggregation = str(objective.get("aggregation") or "single")
         output_names = list(objective.get("output_names") or [])
@@ -1491,10 +1505,14 @@ class InverseDesignPage(ctk.CTkFrame):
             target_value = objective.get("target_value")
             if objective_value is not None and target_value is not None:
                 target_gap = abs(objective_value - float(target_value))
-        duplicate = self._matching_plotted_curve(
-            predicted_outputs,
-            best_inputs,
-            replace_selected=replace_selected,
+        duplicate = (
+            self._matching_plotted_curve(
+                predicted_outputs,
+                best_inputs,
+                replace_selected=replace_selected,
+            )
+            if check_duplicate
+            else None
         )
         self.result_title.configure(
             text=(
@@ -1582,14 +1600,32 @@ class InverseDesignPage(ctk.CTkFrame):
             else tuple(float(index) for index in range(1, len(targets) + 1))
         )
         curve_name = f"{run_id or 'Inverse design'} · {objective_label}"
+        objective_text = f"{goal.replace('_', ' ').title()} {objective_label}"
+        if is_target and objective.get("target_value") is not None:
+            objective_text += f" = {float(objective['target_value']):.7g}"
+        constraint_text = (
+            f"Constraints: {len(constraint_evaluations)}/{len(constraint_evaluations)} met"
+            if constraint_evaluations
+            else "Constraints: not used"
+        )
         self.response_plot.add_curve(
             x_values=x_values,
             y_values=values,
             target_names=targets,
             inputs=best_inputs,
+            details=(
+                f"Objective: {objective_text}",
+                (
+                    "Achieved: unavailable"
+                    if objective_value is None
+                    else f"Achieved: {objective_value:.7g}"
+                ),
+                constraint_text,
+            ),
             replace_selected=replace_selected,
             x_label=axis.display_label if axis is not None else "Output coordinate",
             name=curve_name,
+            refresh=refresh_plot,
         )
         self.response_plot.state.plot_title = "Inverse Design Responses"
         self.response_plot.state.y_label = "Predicted value"
@@ -1639,30 +1675,61 @@ class InverseDesignPage(ctk.CTkFrame):
             text="Best inputs will appear here; each curve also retains its own inputs."
         )
 
-    def _restore_latest_result(self) -> None:
+    def _restore_saved_results(self) -> None:
         if self.project is None or self.active_book is None:
             return
         try:
-            payload = load_inverse_design_run(self.project.path)
+            history = load_inverse_design_runs(
+                self.project.path,
+                model_book_id=self.active_book.book_id,
+            )
         except InverseDesignError as exc:
             self.footer_status.configure(text=str(exc), text_color=COLORS["danger"])
             return
-        if (
-            not payload
-            or not payload.get("success")
-            or payload.get("model_book_id") != self.active_book.book_id
-        ):
-            return
-        try:
-            result = self._restored_result(payload)
-        except (TypeError, ValueError):
+        restored: list[InverseDesignResult] = []
+        restore_errors = list(history.errors)
+        for payload in history.runs:
+            try:
+                result = self._restored_result(payload)
+            except (TypeError, ValueError):
+                restore_errors.append(
+                    "A saved inverse-design result contains invalid values."
+                )
+                continue
+            restored.append(result)
+            self._show_success(
+                result,
+                replace_selected=False,
+                restoring=True,
+            )
+        if not restored:
+            if not restore_errors:
+                return
             self.footer_status.configure(
-                text="The latest inverse-design result contains invalid saved values.",
+                text="Saved inverse-design history could not be restored.",
                 text_color=COLORS["danger"],
             )
             return
-        self.last_result = result
-        self._show_success(result)
+        self.response_plot.refresh_curves()
+        self.last_result = restored[-1]
+        suffix = (
+            f" · skipped {len(restore_errors)} damaged run"
+            f"{'s' if len(restore_errors) != 1 else ''}"
+            if restore_errors
+            else ""
+        )
+        self.footer_status.configure(
+            text=(
+                f"Restored {len(restored)} saved inverse-design run"
+                f"{'s' if len(restored) != 1 else ''}{suffix}"
+            ),
+            text_color=COLORS["warning"] if restore_errors else COLORS["success"],
+        )
+
+    def _restore_latest_result(self) -> None:
+        """Backward-compatible alias for the former one-run restore hook."""
+
+        self._restore_saved_results()
 
     def _restored_result(self, payload: dict[str, Any]) -> InverseDesignResult:
         """Rehydrate the same canonical result object used by a live search."""

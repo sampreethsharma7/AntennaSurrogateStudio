@@ -12,6 +12,7 @@ from studio.inference import (
     INFERENCE_COMPLETED,
     INFERENCE_FAILED,
     InferenceRequest,
+    load_inference_runs,
     submit_inference_request,
 )
 from studio.model_book import save_model_book, set_active_model_book
@@ -102,12 +103,12 @@ class BasicInferenceBackendTests(unittest.TestCase):
             project_path=self.project.path,
         )
 
-    def _project_hashes(self):
+    def _tree_hashes(self, root: Path):
         return {
-            path.relative_to(self.project.path).as_posix(): hashlib.sha256(
+            path.relative_to(root).as_posix(): hashlib.sha256(
                 path.read_bytes()
             ).hexdigest()
-            for path in sorted(self.project.path.rglob("*"))
+            for path in sorted(root.rglob("*"))
             if path.is_file()
         }
 
@@ -139,17 +140,88 @@ class BasicInferenceBackendTests(unittest.TestCase):
         self.assertEqual(list(result.input_values.values()), [4.0, 2.0, 3.0])
         self.assertTrue(math.isclose(result.predictions["gain"], 13.5, abs_tol=1e-9))
 
-    def test_inference_does_not_modify_project_or_model_book_artifacts(self):
+    def test_inference_preserves_book_and_saves_separate_history_runs(self):
         book = self._completed_book()
-        before = self._project_hashes()
+        before = self._tree_hashes(book.directory)
 
-        result = self._infer(
+        first = self._infer(
             {"P2": 4.0, "P3": 2.0, "P4": 3.0},
             model_book_id=book.book_id,
         )
+        second = self._infer(
+            {"P2": 7.0, "P3": 1.0, "P4": 2.0},
+            model_book_id=book.book_id,
+        )
 
-        self.assertTrue(result.success)
-        self.assertEqual(self._project_hashes(), before)
+        self.assertTrue(first.success)
+        self.assertTrue(second.success)
+        self.assertEqual(self._tree_hashes(book.directory), before)
+        self.assertEqual(first.run_id, "inference-0001")
+        self.assertEqual(second.run_id, "inference-0002")
+        self.assertNotEqual(first.artifact_directory, second.artifact_directory)
+        for result in (first, second):
+            self.assertTrue((result.artifact_directory / "request.json").exists())
+            self.assertTrue((result.artifact_directory / "result.json").exists())
+            self.assertTrue((result.artifact_directory / "prediction.csv").exists())
+        saved_request = json.loads(
+            (first.artifact_directory / "request.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(saved_request["model_book_id"], book.book_id)
+        self.assertEqual(list(saved_request["inputs"]), ["P2", "P3", "P4"])
+        history = load_inference_runs(
+            self.project.path,
+            model_book_id=book.book_id,
+        )
+        self.assertEqual([result.run_id for result in history.runs], [
+            "inference-0001",
+            "inference-0002",
+        ])
+        self.assertEqual(history.errors, [])
+        manifest = json.loads(
+            (self.project.path / "project.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["inference"]["run_count"], 2)
+        self.assertEqual(manifest["inference"]["latest_run_id"], "inference-0002")
+
+    def test_inference_history_skips_one_corrupt_run(self):
+        book = self._completed_book()
+        first = self._infer({"P2": 4.0, "P3": 2.0, "P4": 3.0})
+        second = self._infer({"P2": 7.0, "P3": 1.0, "P4": 2.0})
+        (second.artifact_directory / "result.json").write_text(
+            "{invalid json", encoding="utf-8"
+        )
+
+        history = load_inference_runs(
+            self.project.path,
+            model_book_id=book.book_id,
+        )
+
+        self.assertEqual([result.run_id for result in history.runs], [first.run_id])
+        self.assertEqual(len(history.errors), 1)
+        self.assertIn(second.run_id, history.errors[0])
+
+    def test_inference_history_is_filtered_by_model_book(self):
+        first_book = self._completed_book(name="First History Book")
+        first = self._infer({"P2": 4.0, "P3": 2.0, "P4": 3.0})
+        second_book = save_model_book(
+            self.project.path,
+            first_book.source_run_id,
+            "Second History Book",
+        )
+        set_active_model_book(self.project.path, second_book.book_id)
+        second = self._infer({"P2": 7.0, "P3": 1.0, "P4": 2.0})
+
+        first_history = load_inference_runs(
+            self.project.path,
+            model_book_id=first_book.book_id,
+        )
+        second_history = load_inference_runs(
+            self.project.path,
+            model_book_id=second_book.book_id,
+        )
+
+        self.assertEqual([item.run_id for item in first_history.runs], [first.run_id])
+        self.assertEqual([item.run_id for item in second_history.runs], [second.run_id])
 
     def test_multi_output_linear_regression_prediction(self):
         book = self._completed_book(

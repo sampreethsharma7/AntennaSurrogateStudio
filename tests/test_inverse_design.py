@@ -14,6 +14,7 @@ from studio.inverse_design import (
     InverseDesignRequest,
     OutputConstraint,
     load_inverse_design_run,
+    load_inverse_design_runs,
     submit_inverse_design_request,
 )
 from studio.model_book import save_model_book, set_active_model_book
@@ -447,6 +448,76 @@ class InverseDesignBackendTests(unittest.TestCase):
         )
         self.assertEqual(manifest["inverse_design"]["latest_run_id"], second.run_id)
         self.assertGreaterEqual(manifest["inverse_design"]["run_count"], 2)
+
+        history = load_inverse_design_runs(
+            self.project.path,
+            model_book_id=self.book.book_id,
+        )
+        self.assertEqual(
+            [payload["run_id"] for payload in history.runs][-2:],
+            [first.run_id, second.run_id],
+        )
+        self.assertEqual(history.errors, [])
+
+    def test_history_skips_a_corrupt_inverse_run(self):
+        first = submit_inverse_design_request(
+            self._request("minimize"),
+            project_path=self.project.path,
+        )
+        second = submit_inverse_design_request(
+            self._request("maximize"),
+            project_path=self.project.path,
+        )
+        (second.artifact_directory / "result.json").write_text(
+            "{invalid json", encoding="utf-8"
+        )
+
+        history = load_inverse_design_runs(
+            self.project.path,
+            model_book_id=self.book.book_id,
+        )
+
+        restored_ids = [payload["run_id"] for payload in history.runs]
+        self.assertIn(first.run_id, restored_ids)
+        self.assertNotIn(second.run_id, restored_ids)
+        self.assertEqual(len(history.errors), 1)
+        self.assertIn(second.run_id, history.errors[0])
+
+    def test_history_filter_excludes_runs_from_another_model_book(self):
+        first_book = self.book
+        first = submit_inverse_design_request(
+            self._request("minimize"),
+            project_path=self.project.path,
+        )
+        second_book = save_model_book(
+            self.project.path,
+            first_book.source_run_id,
+            "Second Inverse Evaluator",
+        )
+        set_active_model_book(self.project.path, second_book.book_id)
+        second_request = self._request("maximize")
+        second_request.model_book_id = second_book.book_id
+        second = submit_inverse_design_request(
+            second_request,
+            project_path=self.project.path,
+        )
+
+        first_history = load_inverse_design_runs(
+            self.project.path,
+            model_book_id=first_book.book_id,
+        )
+        second_history = load_inverse_design_runs(
+            self.project.path,
+            model_book_id=second_book.book_id,
+        )
+
+        self.assertIn(first.run_id, [item["run_id"] for item in first_history.runs])
+        self.assertNotIn(second.run_id, [item["run_id"] for item in first_history.runs])
+        self.assertEqual(
+            [item["run_id"] for item in second_history.runs],
+            [second.run_id],
+        )
+        set_active_model_book(self.project.path, first_book.book_id)
 
 
 if __name__ == "__main__":

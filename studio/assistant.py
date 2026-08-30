@@ -77,9 +77,11 @@ FALLBACK_GUI_REFERENCE = (
     "hover crosshair, movable legend, markers, and Plot Settings for title, axes, "
     "supported linear/log scales, grids, editable axis/title/value/legend font "
     "sizes, legend placement and line width, and selected-curve line/marker styling. "
-    "Each curve retains its prediction inputs. Raw values can be viewed or "
-    "explicitly exported as JSON without creating prediction history. Batch and "
-    "CSV inference are not implemented. Results reads the "
+    "Each successful prediction is saved as an immutable project-local inference "
+    "run, and reopening restores every valid curve for the active Model Book. "
+    "Each curve retains its prediction inputs. Raw values can also be viewed or "
+    "explicitly exported as JSON or ordered curve CSV. Batch and CSV-input "
+    "inference are not implemented. Results reads the "
     "latest saved run and provides deterministic plots, metrics, predictions, and "
     "same-dataset configuration guidance without retraining. Its Model Comparison "
     "tab compares the best compatible validation-backed Linear Regression, "
@@ -327,8 +329,10 @@ KNOWLEDGE_BASE = (
             "one set of numeric inputs for the active saved model book and "
             "shows the exact inputs, a compact summary, and a multi-curve scientific "
             "plot with zoom/pan, hover, legend, markers, Plot Settings, and curve "
-            "management. Complete values can be viewed or explicitly exported "
-            "as JSON or an ordered curve CSV without automatic history."
+            "management. Every successful prediction is saved in project history, "
+            "and all valid runs for the active Model Book are restored as curves. "
+            "Complete values can also be viewed or explicitly exported as JSON or "
+            "an ordered curve CSV."
         ),
         ("model", "book", "library", "save", "inference", "version"),
     ),
@@ -397,8 +401,9 @@ KNOWLEDGE_BASE = (
             "markers, Plot Settings for axis/title/value/legend fonts plus global "
             "and selected-curve styling, and curve "
             "show/hide/rename/delete controls. Each "
-            "curve retains its inputs. Raw values and explicit JSON export remain "
-            "available without automatic prediction history."
+            "curve retains its inputs. Successful predictions are immutable "
+            "project-local runs restored for the active Model Book; raw values and "
+            "explicit JSON or curve-CSV export remain available."
         ),
         ("gui", "screen", "page", "button", "navigate", "start", "data"),
     ),
@@ -1491,8 +1496,10 @@ def build_response_directive(
             "sizes, legend thickness, and curve styles, "
             "and show/hide/rename/delete. View Raw Values "
             "shows the complete saved "
-            "order and Export Prediction writes an explicit JSON file; neither adds "
-            "automatic history. Batch and CSV inference remain unavailable. The "
+            "order and Export Prediction writes an explicit JSON or ordered curve "
+            "CSV file. Successful predictions are also saved automatically as "
+            "separate project-local runs and restored as curves for the active Model "
+            "Book. Batch and CSV-input inference remain unavailable. The "
             "Ensemble AI Engine trains the three individual families in Auto High, "
             "weights valid components from validation RMSE, and is available through "
             "Training Results, Model Books, inference, and scientific plotting. Training "
@@ -1508,8 +1515,9 @@ def build_response_directive(
             "Differential Evolution. Its one scalar objective is a saved output point "
             "or a mean over an inclusive saved-axis range to minimize, maximize, or "
             "target. Constraints can likewise use a point or range mean. Results can "
-            "be added as curves or replace the selected curve, and both horizontal "
-            "workspace dividers are user-adjustable."
+            "be added as curves or replace the selected curve. Every valid completed "
+            "inverse-design run for the active Model Book is restored on reopen, and "
+            "both horizontal workspace dividers are user-adjustable."
         ),
     ]
     if not project:

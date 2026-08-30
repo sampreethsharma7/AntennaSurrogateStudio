@@ -2,9 +2,11 @@ import math
 import unittest
 
 from studio.scientific_plot import (
+    MAX_SCATTER_MARKERS,
     ScientificPlotState,
     adaptive_major_interval_count,
     engineering_tick,
+    scatter_display_indices,
 )
 
 
@@ -36,6 +38,48 @@ class ScientificPlotStateTests(unittest.TestCase):
         self.assertEqual(first.inputs, {"P2": 1.2, "P3": 3.4})
         self.assertEqual(second.inputs, {"P2": 2.5, "P3": 4.5})
         self.assertEqual(self.state.selected_curve_id, second.curve_id)
+
+    def test_curves_preserve_context_and_replace_refreshes_explicit_identity(self):
+        first = self.state.add_curve(
+            x_values=[1.0, 2.0],
+            y_values=[3.0, 4.0],
+            target_names=["a", "b"],
+            inputs={"P1": 2.0},
+            details=["Objective: Minimize a", "Achieved: 3"],
+            name="inverse-0001 · a",
+        )
+
+        replaced = self.state.add_curve(
+            x_values=[1.0, 2.0],
+            y_values=[5.0, 6.0],
+            target_names=["a", "b"],
+            inputs={"P1": 4.0},
+            details=["Objective: Maximize b", "Achieved: 6"],
+            replace_selected=True,
+            name="inverse-0002 · b",
+        )
+
+        self.assertIs(replaced, first)
+        self.assertEqual(replaced.name, "inverse-0002 · b")
+        self.assertEqual(
+            replaced.details,
+            ("Objective: Maximize b", "Achieved: 6"),
+        )
+
+    def test_dense_scatter_subset_is_bounded_deterministic_and_keeps_extremes(self):
+        values = [float(index % 31) for index in range(MAX_SCATTER_MARKERS * 4)]
+        values[111] = -200.0
+        values[-222] = 500.0
+
+        first = scatter_display_indices(values)
+        second = scatter_display_indices(values)
+
+        self.assertEqual(first, second)
+        self.assertLessEqual(len(first), MAX_SCATTER_MARKERS)
+        self.assertIn(0, first)
+        self.assertIn(len(values) - 1, first)
+        self.assertIn(111, first)
+        self.assertIn(len(values) - 222, first)
 
     def test_replace_updates_only_selected_curve_and_its_inputs(self):
         first = self._add_curve()

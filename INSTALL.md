@@ -1,53 +1,47 @@
-# Installing Antenna Surrogate Studio
+# Installation Guide
 
-This tester build runs directly from its source folder. It creates one private
-Python environment at `.venv`; it does not install files elsewhere or require
-you to activate that environment manually.
+This guide covers the first installation, normal launches, and common setup
+problems. Antenna Surrogate Studio runs from its downloaded folder and creates
+one private Python environment named `.venv` inside that folder.
 
-## Requirements
+## Before you begin
+
+You need:
 
 - A 64-bit Windows, macOS, or Linux computer.
 - 64-bit Python 3.11, 3.12, or 3.13.
-- Internet access during the first dependency installation.
-- About 500 MB of free disk space for the source and private Python
-  environment, excluding optional Ollama models and user projects.
-- On Linux, Python Tk support (commonly the `python3-tk` package).
-- Ollama is optional. The rest of the Studio, including SnowBuddy's built-in
-  workflow guide, works without it.
+- Internet access during the first setup.
+- Approximately 500 MB of free space for the application environment, plus
+  space for your projects and any optional local AI model.
 
-CST, HFSS, a paid API, and a cloud account are not required to install or
-launch the Studio. Solver data is exchanged through files when you choose to
-use an external simulator.
+Windows 10 and 11 are the primary tested platforms. CST, HFSS, an API key, and
+a cloud account are not required to install or launch the Studio.
 
-Windows 10/11 is the primary tested platform. The macOS/Linux launch scripts
-are provided, but this release was not freshly verified on those operating
-systems.
+## Windows: recommended installation
 
-## Windows: recommended setup
+1. Download the repository ZIP and extract it to a writable location such as
+   `Documents`, or clone it with Git.
+2. Open the extracted `AntennaSurrogateStudio` folder.
+3. Double-click **Start Antenna Surrogate Studio.bat**.
+4. Wait while the first-run setup creates `.venv` and installs the requirements.
+5. The Studio opens automatically.
 
-1. Clone the repository or download and extract its ZIP file.
-2. Keep the extracted folder in a writable location such as Documents.
-3. Double-click `Start Antenna Surrogate Studio.bat`.
-4. Allow the first-run setup to create `.venv` and install the requirements.
-   The Studio opens automatically when setup finishes.
+If Python is not installed and Windows Package Manager is available, setup may
+offer to install Python 3.12. Otherwise install 64-bit Python from
+[python.org](https://www.python.org/downloads/) and run the launcher again.
 
-Later launches reuse that same `.venv` and do not reinstall dependencies.
-If Python is missing and Windows Package Manager (`winget`) is available, the
-setup offers the standard Python 3.12 installation path automatically.
+### Launching after setup
 
-If the graphical launcher closes without opening the Studio, double-click
-`run_studio.bat`. It keeps the diagnostic message visible.
+Double-click **Start Antenna Surrogate Studio.bat** whenever you want to use the
+Studio. It reuses the existing `.venv`; do not create or activate another
+environment.
 
-Command-line cloning is optional:
+If the launcher closes before the Studio appears, run **run_studio.bat**. Its
+window remains open so you can read the error message.
 
-```powershell
-git clone https://github.com/sampreethsharma7/AntennaSurrogateStudio.git
-Set-Location AntennaSurrogateStudio
-```
+## Windows: manual command-line installation
 
-## Windows: explicit command-line setup
-
-Run these commands in PowerShell from the repository folder:
+From PowerShell in the repository folder:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -56,65 +50,106 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe app.py
 ```
 
-Activation is optional because every command addresses the private environment
-directly. Use `py -3.11` or `py -3.13` if that is the supported version already
-installed on the computer.
+Use `py -3.11` or `py -3.13` if that is the supported Python version already
+installed on your computer. Environment activation is optional because these
+commands address `.venv` directly.
 
 ## macOS and Linux
 
-From a terminal in the repository folder:
+Open a terminal in the repository folder and run:
 
 ```bash
 bash start_studio.sh
 ```
 
-The first launch runs `setup_macos_linux.sh`, creates `.venv`, installs the
-requirements, and opens the Studio. If Tk is unavailable on Debian/Ubuntu,
-install it first with your system package manager (commonly `python3-tk`). On
-macOS, the Python installer from python.org includes Tk support.
+The first launch creates `.venv`, installs the requirements, and opens the
+Studio. Later launches reuse the same environment.
 
-## Optional local SnowBuddy model
+If Linux reports that Tkinter is unavailable, install the Python Tk package for
+your distribution. On Debian or Ubuntu this is commonly:
 
-SnowBuddy can use Ollama entirely on the local computer. Install Ollama from
-<https://ollama.com/download>, start it, then open **SnowBuddy > Local model**
-inside the Studio and choose one profile:
+```bash
+sudo apt install python3-tk
+```
 
-- `qwen3:1.7b` — about 1.4 GB; suitable for lower-resource machines.
-- `qwen3:8b` — about 5.2 GB; recommended for machines with at least 16 GB RAM
-  or a suitable GPU.
+On macOS, the Python installer from python.org includes Tk support.
 
-Ollama and a Qwen download are not required to launch the Studio. Without them,
-SnowBuddy uses its built-in, project-aware workflow guidance.
+## Optional SnowBuddy local model
 
-## What setup creates
+The Studio works without an external AI service. To enable SnowBuddy's local
+conversational model:
 
-The source folder should contain `app.py`, `studio/`, `snowbuddy/`, and
-`requirements.txt`. Setup adds only the ignored `.venv/` directory there.
-Projects and Model Books are stored separately by default at:
+1. Install [Ollama](https://ollama.com/download).
+2. Start Ollama.
+3. Open the Studio.
+4. Open **SnowBuddy > Local model**.
+5. Choose `qwen3:1.7b` or `qwen3:8b` and follow the download prompt.
+
+The smaller model is intended for lower-resource computers. The 8B model is
+recommended when the computer has approximately 16 GB RAM or more.
+
+## Where projects are stored
+
+The default project library is:
 
 ```text
 Documents/Antenna Surrogate Studio Library/projects/
 ```
 
-Set `ANTENNA_STUDIO_LIBRARY` before launch to use another library location.
+To use a different location, set the `ANTENNA_STUDIO_LIBRARY` environment
+variable before launching the Studio.
 
-## Common fixes
+To move a project to another computer, copy its complete project folder into a
+location you can open from the Studio. The Python `.venv` does not need to be
+copied; it belongs to the application folder, not to a project.
 
-- **Python not found or unsupported:** install 64-bit Python 3.11–3.13 and
-  enable the Python launcher during installation.
-- **GitHub says the repository was not found:** this tester repository is
-  private. Ask the owner for repository access or use a ZIP supplied by them.
-- **Tkinter/Tk error:** reinstall Python with Tcl/Tk enabled; on Linux install
-  the distribution's Tk package.
-- **Dependency installation failed:** confirm internet access, delete only the
-  incomplete `.venv` folder, and run the setup again.
-- **Windows Application Control blocked a dependency:** keep the extracted
-  Studio in a writable Documents folder. On an organization-managed computer,
-  an administrator may need to allow Python scientific-package DLLs.
-- **Studio window did not appear on Windows:** run `run_studio.bat` and read the
-  retained error message.
-- **SnowBuddy says the local model is unavailable:** start Ollama and download
-  a model in **Local model**, or continue with the built-in workflow guide.
-- **Training feels slow:** begin with Linear Regression or a Medium search;
-  XGBoost, Neural Network, Ensemble Auto High, and large datasets need more CPU
-  time and memory.
+## Common setup problems
+
+### Python was not found
+
+Install 64-bit Python 3.11, 3.12, or 3.13 from python.org. On Windows, include
+the Python launcher during installation.
+
+### Dependency installation failed
+
+Check your internet connection. If the first setup was interrupted, delete only
+the incomplete `.venv` folder and start the launcher again. Do not delete your
+project library.
+
+### The Studio window did not appear
+
+On Windows, run `run_studio.bat` and read the retained error. On macOS or Linux,
+run `bash start_studio.sh` from a terminal and read the terminal output.
+
+### Tkinter or Tk is missing
+
+Reinstall Python with Tcl/Tk support. On Linux, install the distribution's
+Python Tk package.
+
+### Windows blocked a scientific-package file
+
+Keep the extracted Studio folder in a writable location such as `Documents`.
+On an organization-managed computer, an administrator may need to allow Python
+scientific-package DLLs.
+
+### SnowBuddy says the local model is unavailable
+
+Start Ollama and confirm the selected model is installed, or continue using
+SnowBuddy's built-in workflow guide without Ollama.
+
+### Training is slow
+
+Start with Linear Regression and Auto Medium. Larger datasets, Neural Network,
+XGBoost, Ensemble AI Engine, and High searches require more time and memory.
+
+## Removing the Studio
+
+Delete the downloaded application folder to remove the code and `.venv`.
+Projects are stored separately, so delete the project library only if you also
+want to remove your projects, models, results, and local conversations.
+
+## Support
+
+- Author: **Sai Sampreeth Indharapu**
+- Email: [sampreethsharma@gmail.com](mailto:sampreethsharma@gmail.com)
+- LinkedIn: [Sai Sampreeth Indharapu, Ph.D.](https://www.linkedin.com/in/sai-sampreeth-indharapu-ph-d-a98802110/)

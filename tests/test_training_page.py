@@ -1,6 +1,8 @@
 import csv
 import os
 import tempfile
+import threading
+import time
 import tkinter as tk
 import unittest
 from pathlib import Path
@@ -95,6 +97,14 @@ class ModelTrainingPageTests(unittest.TestCase):
         self.page._reset_ui_state()
         self.app.show_page("training", persist=False)
         self.app.update_idletasks()
+
+    def _wait_for_training(self, timeout: float = 15.0) -> None:
+        deadline = time.monotonic() + timeout
+        while self.page.training_in_progress and time.monotonic() < deadline:
+            self.app.update()
+            time.sleep(0.01)
+        self.app.update()
+        self.assertFalse(self.page.training_in_progress, "Training did not finish in time")
 
     @staticmethod
     def _successful_result(
@@ -275,6 +285,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showerror") as show_error,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         submit_request.assert_not_called()
         show_error.assert_called_once()
@@ -350,6 +361,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showerror") as show_error,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         submit_request.assert_not_called()
         show_error.assert_called_once()
@@ -394,6 +406,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo") as show_info,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         request = submit_request.call_args.args[0]
         self.assertEqual(request.model_name, "xgboost")
@@ -444,6 +457,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo") as show_info,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         request = submit.call_args.args[0]
         self.assertEqual(request.training_mode, "custom")
@@ -536,34 +550,40 @@ class ModelTrainingPageTests(unittest.TestCase):
         self.assertEqual(self.page.train_button.cget("state"), "normal")
 
     def test_train_model_button_state_lifecycle(self):
-        observed_during_training = {}
+        started = threading.Event()
+        release = threading.Event()
 
-        def observe_training_state(request, *, project_path):
-            observed_during_training["state"] = self.page.train_button.cget(
-                "state"
-            )
-            observed_during_training["text"] = self.page.train_button.cget(
-                "text"
-            )
-            observed_during_training["in_progress"] = (
-                self.page.training_in_progress
-            )
+        def blocked_training(request, *, project_path):
+            started.set()
+            release.wait(timeout=5.0)
             return self._successful_result()
 
         with (
             patch(
                 "studio.ui.submit_model_training_request",
-                side_effect=observe_training_state,
+                side_effect=blocked_training,
             ),
             patch("studio.ui.messagebox.showinfo"),
         ):
             self.page.train_button.invoke()
+            self.assertTrue(started.wait(timeout=2.0))
+            self.assertEqual(self.page.train_button.cget("state"), "disabled")
+            self.assertEqual(self.page.train_button.cget("text"), "Training…")
+            self.assertTrue(self.page.training_in_progress)
+            self.assertEqual(
+                self.page.training_status_label.winfo_manager(),
+                "grid",
+            )
+            ui_tick: list[bool] = []
+            self.app.after(0, lambda: ui_tick.append(True))
+            self.app.update()
+            self.assertEqual(ui_tick, [True])
+            release.set()
+            self._wait_for_training()
 
-        self.assertEqual(observed_during_training["state"], "disabled")
-        self.assertEqual(observed_during_training["text"], "Training…")
-        self.assertTrue(observed_during_training["in_progress"])
         self.assertEqual(self.page.train_button.cget("state"), "normal")
         self.assertEqual(self.page.train_button.cget("text"), TRAIN_BUTTON_LABEL)
+        self.assertEqual(self.page.training_status_label.winfo_manager(), "")
         self.assertFalse(self.page.training_in_progress)
 
     def test_clicking_train_in_auto_mode_creates_the_correct_request(self):
@@ -575,6 +595,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo") as show_info,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         submit_request.assert_called_once()
         request = submit_request.call_args.args[0]
@@ -619,6 +640,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo") as show_info,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         self.assertEqual(show_info.call_args.args[0], "Auto Search Completed")
         message = show_info.call_args.args[1]
@@ -638,6 +660,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo"),
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         self.assertEqual(self.page.latest_run_number, 3)
         self.assertEqual(self.page.latest_run_var.get(), "Latest Run: Run 3")
@@ -665,6 +688,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo") as show_info,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         submit_request.assert_called_once()
         request = submit_request.call_args.args[0]
@@ -699,6 +723,7 @@ class ModelTrainingPageTests(unittest.TestCase):
             patch("studio.ui.messagebox.showinfo") as show_info,
         ):
             self.page.train_button.invoke()
+            self._wait_for_training()
 
         submit_request.assert_not_called()
         show_info.assert_not_called()
@@ -717,6 +742,7 @@ class ModelTrainingPageTests(unittest.TestCase):
     def test_clicking_train_model_calls_real_backend(self):
         with patch("studio.ui.messagebox.showinfo") as show_info:
             self.page.train_button.invoke()
+            self._wait_for_training(timeout=60.0)
 
         show_info.assert_called_once()
         self.assertEqual(show_info.call_args.args[0], "Auto Search Completed")
