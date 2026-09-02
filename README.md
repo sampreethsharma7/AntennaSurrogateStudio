@@ -82,11 +82,15 @@ The Studio does not upload project data or conversations.
 
 - Setup help: [INSTALL.md](INSTALL.md)
 - User instructions: [USER_MANUAL.md](USER_MANUAL.md)
-- Issues and feedback: [GitHub Issues](https://github.com/sampreethsharma7/AntennaSurrogateStudio/issues)
-
 - Author: **Sai Sampreeth Indharapu**
 - Email: [sampreethsharma@gmail.com](mailto:sampreethsharma@gmail.com)
 - LinkedIn: [Sai Sampreeth Indharapu, Ph.D.](https://www.linkedin.com/in/sai-sampreeth-indharapu-ph-d-a98802110/)
+
+## Repository policy
+
+This repository is an author-maintained software release. External pull
+requests and code contributions are not accepted. For installation help or
+tester feedback, contact the author directly.
 
 ## License
 
