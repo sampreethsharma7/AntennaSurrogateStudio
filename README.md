@@ -19,6 +19,8 @@ conversations remain in your local project folders.
 - Multi-output inference and scientific plotting
 - Surrogate-driven inverse design with constraints
 
+![Antenna Surrogate Studio workflow](docs/antenna-surrogate-studio-workflow.svg)
+
 ## Install and launch
 
 ### Windows 10 or 11
