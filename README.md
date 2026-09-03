@@ -4,6 +4,35 @@ Antenna Surrogate Studio is a local desktop application for turning simulation
 data into reusable surrogate models, exploring predictions, and running inverse
 design studies.
 
+## Data → Surrogate Training → Inverse Design
+
+<table>
+  <tr>
+    <td width="33%">
+      <a href="docs/screenshots/01-data-preparation.png">
+        <img src="docs/screenshots/01-data-preparation.png" alt="A registered 1,000-sample CST phase-sweep dataset in Data Prep">
+      </a>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/02-model-comparison.png">
+        <img src="docs/screenshots/02-model-comparison.png" alt="Validation-backed Linear Regression and XGBoost model comparison">
+      </a>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/03-inverse-design.png">
+        <img src="docs/screenshots/03-inverse-design.png" alt="Inverse-design result and scientific radiation-pattern plot">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>1 · Prepare and validate data</strong></td>
+    <td align="center"><strong>2 · Train and compare surrogates</strong></td>
+    <td align="center"><strong>3 · Search and inspect designs</strong></td>
+  </tr>
+</table>
+
+<p align="center"><em>Shown with the included four-element patch-array phase-sweep sample. Select an image to view it full size.</em></p>
+
 Everything runs on your computer. Your projects, models, results, and SnowBuddy
 conversations remain in your local project folders.
 
