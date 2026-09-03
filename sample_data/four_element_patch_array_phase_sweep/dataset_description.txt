@@ -1,0 +1,7 @@
+The dataset was generated using a four-element microstrip patch antenna array modeled and simulated in CST Microwave Studio. A total of 1,000 samples were created by varying the excitation phases of the antenna elements.
+
+Each sample contains four input phase values, P1, P2, P3, and P4, along with the corresponding antenna radiation pattern. P1 was fixed at 0 degrees as a reference, while P2, P3, and P4 were varied between -180 and 180 degrees. Latin Hypercube Sampling (LHS) was used to generate well-distributed phase combinations across this range.
+
+For each phase configuration, the radiation pattern was extracted over 361 angular points from -180 to 180 degrees with a 1-degree resolution.
+
+The final dataset therefore contains 1,000 input phase configurations, each with four phase values, and 1,000 corresponding radiation patterns, each containing 361 angular samples.

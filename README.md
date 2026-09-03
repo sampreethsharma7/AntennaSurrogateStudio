@@ -67,6 +67,23 @@ For command-line setup, troubleshooting, and system requirements, see
 For detailed, page-by-page operating instructions, see the
 [Antenna Surrogate Studio User Manual](USER_MANUAL.md).
 
+## Try the included sample
+
+The repository includes a ready-to-use
+[four-element patch-array phase-sweep sample](sample_data/four_element_patch_array_phase_sweep/).
+It contains 1,000 CST parameter-sweep cases and a 361-point radiation pattern
+for each case.
+
+![Four-element microstrip patch antenna array](sample_data/four_element_patch_array_phase_sweep/PatchAntennaArray.png)
+
+To try it, create a project and choose **#Parameters sweep** in **Data Prep**.
+Browse to the complete sample folder, select **Parse**, then choose `P2`, `P3`,
+and `P4` as the model inputs and `Gain,Phi=0.0 []` as the output. Select
+**Save selection**, **Prepare input + output**, and **Validate and register**.
+
+For exact steps and a suggested first training run, open the
+[sample guide](sample_data/four_element_patch_array_phase_sweep/README.md).
+
 ## Optional SnowBuddy local AI
 
 SnowBuddy's built-in workflow guidance works without any additional service.
