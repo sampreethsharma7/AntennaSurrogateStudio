@@ -7,6 +7,18 @@ design studies.
 Everything runs on your computer. Your projects, models, results, and SnowBuddy
 conversations remain in your local project folders.
 
+## What it does
+
+- Latin Hypercube sample generation
+- Dataset preparation and validation
+- Linear Regression, XGBoost, and Neural Network models
+- Auto and Custom training
+- Ensemble AI Engine
+- Model comparison
+- Reusable Model Books
+- Multi-output inference and scientific plotting
+- Surrogate-driven inverse design with constraints
+
 ## Install and launch
 
 ### Windows 10 or 11
