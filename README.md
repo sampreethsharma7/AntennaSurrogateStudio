@@ -4,8 +4,51 @@ Antenna Surrogate Studio is a local desktop application for turning simulation
 data into reusable surrogate models, exploring predictions, and running inverse
 design studies.
 
+## Data → Surrogate Training → Inverse Design
+
+<table>
+  <tr>
+    <td width="33%">
+      <a href="docs/screenshots/01-data-preparation.png">
+        <img src="docs/screenshots/01-data-preparation.png" alt="A registered 1,000-sample CST phase-sweep dataset in Data Prep">
+      </a>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/02-model-comparison.png">
+        <img src="docs/screenshots/02-model-comparison.png" alt="Validation-backed Linear Regression and XGBoost model comparison">
+      </a>
+    </td>
+    <td width="33%">
+      <a href="docs/screenshots/03-inverse-design.png">
+        <img src="docs/screenshots/03-inverse-design.png" alt="Inverse-design result and scientific radiation-pattern plot">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>1 · Prepare and validate data</strong></td>
+    <td align="center"><strong>2 · Train and compare surrogates</strong></td>
+    <td align="center"><strong>3 · Search and inspect designs</strong></td>
+  </tr>
+</table>
+
+<p align="center"><em>Shown with the included four-element patch-array phase-sweep sample. Select an image to view it full size.</em></p>
+
 Everything runs on your computer. Your projects, models, results, and SnowBuddy
 conversations remain in your local project folders.
+
+## What it does
+
+- Latin Hypercube sample generation
+- Dataset preparation and validation
+- Linear Regression, XGBoost, and Neural Network models
+- Auto and Custom training
+- Ensemble AI Engine
+- Model comparison
+- Reusable Model Books
+- Multi-output inference and scientific plotting
+- Surrogate-driven inverse design with constraints
+
+![Antenna Surrogate Studio workflow](docs/antenna-surrogate-studio-workflow.svg)
 
 ## Install and launch
 
@@ -52,6 +95,23 @@ For command-line setup, troubleshooting, and system requirements, see
 
 For detailed, page-by-page operating instructions, see the
 [Antenna Surrogate Studio User Manual](USER_MANUAL.md).
+
+## Try the included sample
+
+The repository includes a ready-to-use
+[four-element patch-array phase-sweep sample](sample_data/four_element_patch_array_phase_sweep/).
+It contains 1,000 CST parameter-sweep cases and a 361-point radiation pattern
+for each case.
+
+![Four-element microstrip patch antenna array](sample_data/four_element_patch_array_phase_sweep/PatchAntennaArray.png)
+
+To try it, create a project and choose **#Parameters sweep** in **Data Prep**.
+Browse to the complete sample folder, select **Parse**, then choose `P2`, `P3`,
+and `P4` as the model inputs and `Gain,Phi=0.0 []` as the output. Select
+**Save selection**, **Prepare input + output**, and **Validate and register**.
+
+For exact steps and a suggested first training run, open the
+[sample guide](sample_data/four_element_patch_array_phase_sweep/README.md).
 
 ## Optional SnowBuddy local AI
 

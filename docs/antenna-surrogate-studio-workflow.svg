@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="280" viewBox="0 0 1000 280" role="img" aria-labelledby="title description">
+  <title id="title">Antenna Surrogate Studio workflow</title>
+  <desc id="description">Prepare and validate data, train and compare models, save a Model Book, then use it for inference or inverse design, with SnowBuddy available throughout.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect x="1" y="1" width="998" height="278" rx="18" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="500" y="31" text-anchor="middle" fill="#0f172a" font-family="Segoe UI, Arial, sans-serif" font-size="19" font-weight="700">From simulation data to reusable surrogate insight</text>
+
+  <g filter="url(#shadow)" font-family="Segoe UI, Arial, sans-serif">
+    <rect x="35" y="55" width="210" height="140" rx="14" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/>
+    <rect x="35" y="55" width="210" height="7" rx="4" fill="#2563eb"/>
+    <circle cx="62" cy="87" r="15" fill="#dbeafe"/>
+    <text x="62" y="92" text-anchor="middle" fill="#1d4ed8" font-size="15" font-weight="700">1</text>
+    <text x="84" y="93" fill="#0f172a" font-size="17" font-weight="700">Prepare Data</text>
+    <text x="140" y="127" text-anchor="middle" fill="#475569" font-size="14">LHS • CSV • Solver sweep</text>
+    <text x="140" y="153" text-anchor="middle" fill="#475569" font-size="14">Validate and register</text>
+
+    <rect x="275" y="55" width="210" height="140" rx="14" fill="#ffffff" stroke="#34d399" stroke-width="2"/>
+    <rect x="275" y="55" width="210" height="7" rx="4" fill="#059669"/>
+    <circle cx="302" cy="87" r="15" fill="#d1fae5"/>
+    <text x="302" y="92" text-anchor="middle" fill="#047857" font-size="15" font-weight="700">2</text>
+    <text x="324" y="93" fill="#0f172a" font-size="17" font-weight="700">Train &amp; Compare</text>
+    <text x="380" y="127" text-anchor="middle" fill="#475569" font-size="14">Linear • XGBoost • Neural</text>
+    <text x="380" y="153" text-anchor="middle" fill="#475569" font-size="14">Auto • Custom • Ensemble</text>
+
+    <rect x="515" y="55" width="210" height="140" rx="14" fill="#ffffff" stroke="#a78bfa" stroke-width="2"/>
+    <rect x="515" y="55" width="210" height="7" rx="4" fill="#7c3aed"/>
+    <circle cx="542" cy="87" r="15" fill="#ede9fe"/>
+    <text x="542" y="92" text-anchor="middle" fill="#6d28d9" font-size="15" font-weight="700">3</text>
+    <text x="564" y="93" fill="#0f172a" font-size="17" font-weight="700">Save Model Book</text>
+    <text x="620" y="127" text-anchor="middle" fill="#475569" font-size="14">Reusable surrogate model</text>
+    <text x="620" y="153" text-anchor="middle" fill="#475569" font-size="14">Activate from the library</text>
+
+    <rect x="755" y="55" width="210" height="140" rx="14" fill="#ffffff" stroke="#fb923c" stroke-width="2"/>
+    <rect x="755" y="55" width="210" height="7" rx="4" fill="#ea580c"/>
+    <circle cx="782" cy="87" r="15" fill="#ffedd5"/>
+    <text x="782" y="92" text-anchor="middle" fill="#c2410c" font-size="15" font-weight="700">4</text>
+    <text x="804" y="93" fill="#0f172a" font-size="17" font-weight="700">Predict &amp; Optimize</text>
+    <text x="860" y="127" text-anchor="middle" fill="#475569" font-size="14">Multi-output inference</text>
+    <text x="860" y="153" text-anchor="middle" fill="#475569" font-size="14">Constrained inverse design</text>
+  </g>
+
+  <path d="M 248 125 L 267 125" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M 488 125 L 507 125" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M 728 125 L 747 125" fill="none" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <rect x="155" y="218" width="690" height="40" rx="20" fill="#e0f2fe" stroke="#7dd3fc"/>
+  <text x="500" y="244" text-anchor="middle" fill="#075985" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="600">SnowBuddy • Local, project-aware guidance across every stage</text>
+</svg>
