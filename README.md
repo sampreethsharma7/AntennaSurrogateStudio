@@ -106,7 +106,7 @@ for each case.
 ![Four-element microstrip patch antenna array](sample_data/four_element_patch_array_phase_sweep/PatchAntennaArray.png)
 
 To try it, create a project and choose **#Parameters sweep** in **Data Prep**.
-Browse to the complete sample folder, select **Parse**, then choose `P2`, `P3`,
+Browse to the sample's `data` folder, select **Parse**, then choose `P2`, `P3`,
 and `P4` as the model inputs and `Gain,Phi=0.0 []` as the output. Select
 **Save selection**, **Prepare input + output**, and **Validate and register**.
 
