@@ -154,5 +154,7 @@ tester feedback, contact the author directly.
 
 ## License
 
-Copyright © 2026 Sai Sampreeth Indharapu. All rights reserved. See
-[LICENSE](LICENSE).
+Antenna Surrogate Studio is licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE). Noncommercial research,
+educational, and personal use are permitted. Commercial use requires separate
+permission from the author.
