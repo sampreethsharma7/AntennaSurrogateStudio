@@ -4,7 +4,7 @@ Contract version: 3.75
 Studio version: 0.33.2
 UI source SHA-256: 20735c81d96e69c134bded65fe2bf8181198ba8144ac5b33ff5447deb27edd1f
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
-Antenna Builder UI source SHA-256: 3cfc314b401c7d2887cdb5703409b9ceac0fc2e7159bcd8922fe2eef430f5539
+Antenna Builder UI source SHA-256: 0efccfebcda8c891a1ece7a8fac60f165fba46624109273385266eac79053fd8
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -143,7 +143,10 @@ antenna models. Save them as books. Reuse them anytime.”
   are excluded from active planner intent.
 - The conversation column's scrollable transcript is
   above the bordered, multiline **Design Request** composer, and automatically
-  returns to the newest entry after every render. User turns use a muted
+  returns to the newest entry after label reflow and scrollregion refresh on
+  every render. Mouse-wheel events are bound on transcript frames, labels, and
+  starter controls, so hovering over message text still scrolls the transcript.
+  User turns use a muted
   **you** gutter; successful/completed, clarification, and refusal entries use
   distinct success check, amber question-mark, and red refusal glyphs.
   Transcript copy is 30 percent larger than the standard small-body size and
@@ -222,6 +225,9 @@ antenna models. Save them as books. Reuse them anytime.”
   and height, are added to this same table, survive project reopen, and are
   removed when their owning composed operation is deleted. The compact
   selected-for-sweep count sits in the footer beside **Send selected to LHS**.
+  The footer has no general-purpose status label; complete conversational
+  feedback remains in the transcript, so long messages cannot displace its
+  actions.
 - The right side is a prominent depth-buffered VTK 3D preview evaluated from
   the same canonical primitive, transform, Boolean, and triangulated mesh graph
   used by export. Tk displays VTK's rendered framebuffer and forwards camera

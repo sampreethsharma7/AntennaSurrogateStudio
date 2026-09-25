@@ -287,6 +287,12 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.app.update_idletasks()
         canvas = self.page.conversation_frame._parent_canvas
         self.assertAlmostEqual(canvas.yview()[1], 1.0, places=3)
+        label = self.page.transcript_rows[-1]["label"]
+        native_label = label._label
+        self.assertTrue(native_label.bind("<MouseWheel>"))
+        self.assertTrue(native_label.bind("<Button-4>"))
+        self.assertTrue(native_label.bind("<Button-5>"))
+        self.assertEqual(tuple(map(int, canvas.cget("scrollregion").split())), canvas.bbox("all"))
 
     def test_transcript_text_is_thirty_percent_larger_and_rewraps_with_width(self):
         self.app.design_start_page.choose_template()

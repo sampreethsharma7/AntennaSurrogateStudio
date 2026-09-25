@@ -387,10 +387,14 @@ class AntennaBuilderPage(ctk.CTkFrame):
         )
         self.conversation_frame.grid(row=2, column=0, padx=16, pady=(0, 8), sticky="nsew")
         self.conversation_frame.grid_columnconfigure(0, weight=1)
-        self.conversation_frame.bind("<Configure>", self._conversation_resized)
+        self.conversation_frame.bind("<Configure>", self._conversation_inner_configured)
+        conversation_canvas = getattr(self.conversation_frame, "_parent_canvas", None)
+        if conversation_canvas is not None:
+            conversation_canvas.bind("<Configure>", self._conversation_resized, add="+")
         self.transcript_rows: list[dict[str, object]] = []
         self.starter_example_buttons: list[ctk.CTkButton] = []
         self._conversation_text_labels: list[ctk.CTkLabel] = []
+        self._conversation_scroll_pending = False
 
         instruction = ctk.CTkFrame(
             parent,
@@ -608,8 +612,9 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 )
                 ready.grid(row=0, column=0, padx=8, pady=10, sticky="ew")
                 self._conversation_text_labels.append(ready)
+            self._conversation_scroll_pending = True
             self.after_idle(self._conversation_resized)
-            self.after_idle(self._scroll_conversation_to_bottom)
+            self.after_idle(self._bind_conversation_wheel_tree)
             return
 
         for row, message in enumerate(self.conversation):
@@ -644,8 +649,9 @@ class AntennaBuilderPage(ctk.CTkFrame):
                     "label": message_label,
                 }
             )
+        self._conversation_scroll_pending = True
         self.after_idle(self._conversation_resized)
-        self.after_idle(self._scroll_conversation_to_bottom)
+        self.after_idle(self._bind_conversation_wheel_tree)
 
     def _conversation_wrap_width(self, width: int | None = None) -> int:
         available = width if width is not None else self.conversation_frame.winfo_width()
@@ -657,6 +663,47 @@ class AntennaBuilderPage(ctk.CTkFrame):
         for label in self._conversation_text_labels:
             if label.winfo_exists():
                 label.configure(wraplength=wraplength)
+        self.after_idle(self._refresh_conversation_scrollregion)
+
+    def _conversation_inner_configured(self, event: object | None = None) -> None:
+        self._conversation_resized(event)
+
+    def _refresh_conversation_scrollregion(self) -> None:
+        canvas = getattr(self.conversation_frame, "_parent_canvas", None)
+        if canvas is None or not canvas.winfo_exists():
+            return
+        self.conversation_frame.update_idletasks()
+        bounds = canvas.bbox("all")
+        if bounds is not None:
+            canvas.configure(scrollregion=bounds)
+        if self._conversation_scroll_pending:
+            self._conversation_scroll_pending = False
+            self.after_idle(self._scroll_conversation_to_bottom)
+
+    def _conversation_mousewheel(self, event: object) -> str:
+        canvas = getattr(self.conversation_frame, "_parent_canvas", None)
+        if canvas is None:
+            return "break"
+        number = getattr(event, "num", None)
+        if number == 4:
+            units = -1
+        elif number == 5:
+            units = 1
+        else:
+            delta = int(getattr(event, "delta", 0) or 0)
+            units = -int(delta / 120) if abs(delta) >= 120 else (-1 if delta > 0 else 1)
+        canvas.yview_scroll(units, "units")
+        return "break"
+
+    def _bind_conversation_wheel_tree(self, widget: object | None = None) -> None:
+        root = self.conversation_frame if widget is None else widget
+        bind = getattr(root, "bind", None)
+        if callable(bind):
+            bind("<MouseWheel>", self._conversation_mousewheel, add="+")
+            bind("<Button-4>", self._conversation_mousewheel, add="+")
+            bind("<Button-5>", self._conversation_mousewheel, add="+")
+        for child in getattr(root, "winfo_children", lambda: ())():
+            self._bind_conversation_wheel_tree(child)
 
     def _render_project_context(self) -> None:
         if self.session is None:
@@ -714,7 +761,10 @@ class AntennaBuilderPage(ctk.CTkFrame):
         canvas = getattr(self.conversation_frame, "_parent_canvas", None)
         if canvas is None:
             return
-        canvas.update_idletasks()
+        self.conversation_frame.update_idletasks()
+        bounds = canvas.bbox("all")
+        if bounds is not None:
+            canvas.configure(scrollregion=bounds)
         canvas.yview_moveto(1.0)
 
     def _rebuild_parameter_table(self) -> None:
@@ -876,13 +926,6 @@ class AntennaBuilderPage(ctk.CTkFrame):
             font=FONTS["button"],
             command=lambda: self.app.show_page("design_start"),
         ).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(
-            footer,
-            textvariable=self.status_var,
-            text_color=COLORS["muted"],
-            font=FONTS["caption"],
-            anchor="e",
-        ).grid(row=0, column=1, padx=12, sticky="e")
         self.export_button = ctk.CTkButton(
             footer,
             text="Export CST script",
