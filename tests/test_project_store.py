@@ -22,6 +22,7 @@ class ProjectStoreTests(unittest.TestCase):
 
         self.assertEqual(project.name, "8 Element Array")
         self.assertTrue((project.path / "project.json").exists())
+        self.assertTrue((project.path / "design").is_dir())
         self.assertTrue((project.path / "data" / "prepared").is_dir())
         self.assertTrue((project.path / "data" / "registered").is_dir())
         self.assertTrue((project.path / "data" / "templates").is_dir())
@@ -30,7 +31,8 @@ class ProjectStoreTests(unittest.TestCase):
         self.assertTrue((project.path / "inverse_design").is_dir())
         self.assertTrue((project.path / "inverse_design").is_dir())
         self.assertTrue((project.path / "assistant" / "chat_history.json").exists())
-        self.assertEqual(project.manifest["ui"]["last_page"], "data")
+        self.assertEqual(project.manifest["ui"]["last_page"], "design_start")
+        self.assertIsNone(project.manifest["design_start"]["choice"])
         self.assertEqual(project.manifest["dataset_registry"]["dataset_count"], 0)
         self.assertEqual(project.manifest["inference"]["run_count"], 0)
         self.assertEqual(project.manifest["inverse_design"]["run_count"], 0)
@@ -189,7 +191,7 @@ class ProjectStoreTests(unittest.TestCase):
     def test_resume_destination_follows_the_completed_workflow_stage(self):
         project = self.store.create_project("Stage Aware Resume")
         expected = {
-            "project_created": ("data", "Continue Data Prep"),
+            "project_created": ("design_start", "Choose a Design Start"),
             "data_prepared": ("data", "Validate & Register Data"),
             "dataset_registered": ("training", "Continue Model Training"),
             "model_trained": ("results", "Review Training Results"),
@@ -207,6 +209,20 @@ class ProjectStoreTests(unittest.TestCase):
         destination, action = project_resume_destination(project)
         self.assertEqual(destination, "inference")
         self.assertIn("Run Inference", action)
+
+    def test_project_created_resume_follows_selected_design_start(self):
+        project = self.store.create_project("Entry choice")
+
+        project.manifest["design_start"]["choice"] = "existing_design"
+        self.assertEqual(
+            project_resume_destination(project),
+            ("data", "Continue Data Prep  →"),
+        )
+        project.manifest["design_start"]["choice"] = "generated_template"
+        self.assertEqual(
+            project_resume_destination(project),
+            ("antenna_builder", "Continue Antenna Builder  →"),
+        )
 
     def test_last_page_is_persisted_without_losing_project_state(self):
         project = self.store.create_project("Continuity")

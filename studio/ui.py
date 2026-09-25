@@ -19,6 +19,7 @@ from typing import Callable
 import customtkinter as ctk
 
 from studio import __version__
+from studio.antenna_builder_ui import AntennaBuilderPage, DesignStartPage
 from studio.assistant import (
     MODEL_PROFILES,
     AssistantError,
@@ -70,6 +71,7 @@ from studio.project_store import (
 )
 from studio.results_ui import TrainingResultsPage
 from studio.sample_generator_ui import LHSSampleGeneratorDialog
+from studio.sample_generator import LHSVariable
 from studio.settings import load_appearance_mode, save_appearance_mode
 from studio.theme import COLORS, FONTS, status_palette
 from studio.training_ui import (
@@ -235,6 +237,14 @@ def project_resume_destination(project: Project) -> tuple[str, str]:
         if active_book_id:
             return "inference", "Run Inference  →"
         return "library", "Open Model Library  →"
+    if project.workflow_stage == "project_created":
+        design_start = project.manifest.get("design_start")
+        if isinstance(design_start, dict):
+            choice = design_start.get("choice")
+            if choice == "generated_template":
+                return "antenna_builder", "Continue Antenna Builder  →"
+            if choice != "existing_design":
+                return "design_start", "Choose a Design Start  →"
     return {
         "project_created": ("data", "Continue Data Prep  →"),
         "data_discovered": ("data", "Continue Data Prep  →"),
@@ -362,6 +372,8 @@ class StudioApp(ctk.CTk):
         self.page_host.grid_rowconfigure(0, weight=1)
 
         self.pages["start"] = StartPage(self.page_host, self)
+        self.pages["design_start"] = DesignStartPage(self.page_host, self)
+        self.pages["antenna_builder"] = AntennaBuilderPage(self.page_host, self)
         self.pages["data"] = DataPrepPage(self.page_host, self)
         self.pages["training"] = ModelTrainingPage(self.page_host, self)
         self.pages["results"] = TrainingResultsPage(self.page_host, self)
@@ -676,6 +688,7 @@ class StudioApp(ctk.CTk):
 
         self.nav_specs = {
             "start": ("⌂", "Start"),
+            "design_start": ("⌁", "Design Start"),
             "data": ("≋", "Data Prep"),
             "training": ("◇", "Model Training"),
             "results": ("◎", "Training Results"),
@@ -687,19 +700,26 @@ class StudioApp(ctk.CTk):
         self.nav_buttons["start"] = self._nav_button(
             self.sidebar, 2, "⌂", "Start", lambda: self.show_page("start")
         )
+        self.nav_buttons["design_start"] = self._nav_button(
+            self.sidebar,
+            3,
+            "⌁",
+            "Design Start",
+            lambda: self.show_page("design_start"),
+        )
         self.nav_buttons["data"] = self._nav_button(
-            self.sidebar, 3, "≋", "Data Prep", lambda: self.show_page("data")
+            self.sidebar, 4, "≋", "Data Prep", lambda: self.show_page("data")
         )
         self.nav_buttons["training"] = self._nav_button(
             self.sidebar,
-            4,
+            5,
             "◇",
             "Model Training",
             lambda: self.show_page("training"),
         )
         self.nav_buttons["results"] = self._nav_button(
             self.sidebar,
-            5,
+            6,
             "◎",
             "Training Results",
             lambda: self.show_page("results"),
@@ -707,21 +727,21 @@ class StudioApp(ctk.CTk):
 
         self.nav_buttons["library"] = self._nav_button(
             self.sidebar,
-            6,
+            7,
             "▤",
             "Model Library",
             lambda: self.show_page("library"),
         )
         self.nav_buttons["inference"] = self._nav_button(
             self.sidebar,
-            7,
+            8,
             "∿",
             "Inference",
             lambda: self.show_page("inference"),
         )
         self.nav_buttons["inverse_design"] = self._nav_button(
             self.sidebar,
-            8,
+            9,
             "⌾",
             "Inverse Design",
             lambda: self.show_page("inverse_design"),
@@ -735,7 +755,7 @@ class StudioApp(ctk.CTk):
             border_color=COLORS["border"],
         )
         self.sidebar_project_shell.grid(
-            row=9,
+            row=10,
             column=0,
             padx=16,
             pady=(18, 0),
@@ -780,7 +800,7 @@ class StudioApp(ctk.CTk):
         )
 
         self.sidebar_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.sidebar_footer.grid(row=10, column=0, padx=22, pady=20, sticky="ew")
+        self.sidebar_footer.grid(row=11, column=0, padx=22, pady=20, sticky="ew")
         self.sidebar_version_label = ctk.CTkLabel(
             self.sidebar_footer,
             text=f"Studio Preview  ·  v{__version__}",
@@ -854,6 +874,7 @@ class StudioApp(ctk.CTk):
         self.appearance_mode = mode
         ctk.set_appearance_mode(mode)
         self.appearance_control.set(mode.title())
+        self.antenna_builder_page.refresh_theme()
         self.results_page.refresh_theme()
         self.inference_page.refresh_theme()
         self.inverse_design_page.refresh_theme()
@@ -894,7 +915,17 @@ class StudioApp(ctk.CTk):
         return button
 
     def show_page(self, name: str, *, persist: bool = True) -> None:
-        if name in {"data", "training", "results", "library", "inference", "inverse_design"} and not self.current_project:
+        project_pages = {
+            "design_start",
+            "antenna_builder",
+            "data",
+            "training",
+            "results",
+            "library",
+            "inference",
+            "inverse_design",
+        }
+        if name in project_pages and not self.current_project:
             messagebox.showinfo(
                 "Open a project",
                 "Create or open a project before continuing the workflow.",
@@ -915,7 +946,7 @@ class StudioApp(ctk.CTk):
         if not self.snowbuddy_collapsed:
             self._place_snowbuddy_panel(force=True)
         for key, button in self.nav_buttons.items():
-            active = key == name
+            active = key == name or (key == "design_start" and name == "antenna_builder")
             button.configure(
                 fg_color=COLORS["nav_active"] if active else "transparent",
                 text_color=COLORS["cyan"] if active else COLORS["muted"],
@@ -923,7 +954,7 @@ class StudioApp(ctk.CTk):
         if (
             persist
             and self.current_project
-            and name in {"start", "data", "training", "results", "library", "inference", "inverse_design"}
+            and name in {"start", *project_pages}
             and self.current_project.manifest.get("ui", {}).get("last_page") != name
         ):
             self.current_project = self.store.update_project(
@@ -944,6 +975,8 @@ class StudioApp(ctk.CTk):
         self.sidebar_return_button.pack(fill="x", padx=12, pady=(0, 12))
         self.start_page.refresh()
         self.snowbuddy_panel.load_project(self.current_project)
+        self.design_start_page.set_project(self.current_project)
+        self.antenna_builder_page.set_project(self.current_project)
         self.data_page.set_project(self.current_project)
         self.training_page.set_project(self.current_project)
         self.results_page.set_project(self.current_project)
@@ -951,11 +984,11 @@ class StudioApp(ctk.CTk):
         self.inference_page.set_project(self.current_project)
         self.inverse_design_page.set_project(self.current_project)
         remembered_page = str(
-            self.current_project.manifest.get("ui", {}).get("last_page") or "data"
+            self.current_project.manifest.get("ui", {}).get("last_page") or "design_start"
         )
         destination = target_page or remembered_page
         if destination not in self.pages:
-            destination = "data"
+            destination = "design_start"
         self.show_page(destination)
 
     def return_to_welcome(self) -> None:
@@ -963,6 +996,8 @@ class StudioApp(ctk.CTk):
         self.sidebar_project_name.configure(text="No project open")
         self.sidebar_project_status.configure(text="Create or open a project")
         self.sidebar_return_button.pack_forget()
+        self.design_start_page.set_project(None)
+        self.antenna_builder_page.set_project(None)
         self.data_page.set_project(None)
         self.training_page.set_project(None)
         self.results_page.set_project(None)
@@ -989,6 +1024,18 @@ class StudioApp(ctk.CTk):
             # without clearing or re-rendering the active project conversation.
             self.snowbuddy_panel.current_project = self.current_project
         if (
+            hasattr(self, "design_start_page")
+            and self.design_start_page.project is not None
+            and self.design_start_page.project.path == self.current_project.path
+        ):
+            self.design_start_page.project = self.current_project
+        if (
+            hasattr(self, "antenna_builder_page")
+            and self.antenna_builder_page.project is not None
+            and self.antenna_builder_page.project.path == self.current_project.path
+        ):
+            self.antenna_builder_page.project = self.current_project
+        if (
             hasattr(self, "library_page")
             and self.library_page.project is not None
             and self.library_page.project.path == self.current_project.path
@@ -1011,6 +1058,14 @@ class StudioApp(ctk.CTk):
     @property
     def start_page(self) -> "StartPage":
         return self.pages["start"]  # type: ignore[return-value]
+
+    @property
+    def design_start_page(self) -> DesignStartPage:
+        return self.pages["design_start"]  # type: ignore[return-value]
+
+    @property
+    def antenna_builder_page(self) -> AntennaBuilderPage:
+        return self.pages["antenna_builder"]  # type: ignore[return-value]
 
     @property
     def data_page(self) -> "DataPrepPage":
@@ -1038,6 +1093,8 @@ class StudioApp(ctk.CTk):
 
     def snowbuddy_ui_state(self) -> str:
         page_label = {
+            "design_start": "Design Start",
+            "antenna_builder": "Experimental Antenna Builder",
             "data": "Data Prep",
             "training": "Model Training",
             "results": "Training Results",
@@ -1080,6 +1137,20 @@ class StudioApp(ctk.CTk):
                 f"Recent project cards: {len(self.store.recent_projects(limit=5))}"
             )
         if self.current_project:
+            design_visibility = (
+                "visible now"
+                if self.active_page in {"design_start", "antenna_builder"}
+                else "retained state; Design Start is not currently visible"
+            )
+            lines.append(f"Design Start UI ({design_visibility}):")
+            lines.extend(
+                f"- {item}"
+                for item in (
+                    self.antenna_builder_page.describe_ui_state()
+                    if self.active_page == "antenna_builder"
+                    else self.design_start_page.describe_ui_state()
+                )
+            )
             data_visibility = (
                 "visible now"
                 if self.active_page == "data"
@@ -1151,7 +1222,7 @@ class StudioApp(ctk.CTk):
         except ProjectError as exc:
             messagebox.showerror("Could not create project", str(exc), parent=self)
             return
-        self.set_project(project, target_page="data")
+        self.set_project(project, target_page="design_start")
 
     def open_project_dialog(self) -> None:
         path = filedialog.askdirectory(
@@ -3056,7 +3127,11 @@ class DataPrepPage(ctk.CTkFrame):
         self._maybe_load_pair()
         self._open_local_folder(folder, "Could not open template folder")
 
-    def open_lhs_sample_generator(self) -> None:
+    def open_lhs_sample_generator(
+        self,
+        *,
+        initial_variables: list[LHSVariable] | None = None,
+    ) -> None:
         if not self.project:
             messagebox.showwarning(
                 "Open a project",
@@ -3075,6 +3150,7 @@ class DataPrepPage(ctk.CTkFrame):
             self,
             project_path=self.project.path,
             on_export=self._lhs_samples_exported,
+            initial_variables=initial_variables,
         )
 
     def _lhs_samples_exported(self, path: Path) -> None:

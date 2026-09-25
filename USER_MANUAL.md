@@ -28,12 +28,13 @@ in that project.
 The left workflow bar follows this order:
 
 1. Start
-2. Data Prep
-3. Model Training
-4. Training Results
-5. Model Library
-6. Inference
-7. Inverse Design
+2. Design Start
+3. Data Prep
+4. Model Training
+5. Training Results
+6. Model Library
+7. Inference
+8. Inverse Design
 
 The sidebar can collapse to an icon-only rail. Hover over a compact icon to see
 its page name. The sidebar, plot divider, and SnowBuddy panel do not change your
@@ -48,7 +49,7 @@ project data.
 3. Add a description if useful.
 4. Confirm the project.
 
-The Studio creates the project and opens Data Prep.
+The Studio creates the project and opens Design Start.
 
 ### Open a project
 
@@ -59,7 +60,114 @@ runs, inverse-design runs, and project-specific SnowBuddy history.
 Use **File > Return to Welcome** when you want to close the active project
 without closing the Studio.
 
-## 4. Preparing data
+## 4. Choosing a design start
+
+Choose **I already have a design** to continue directly to Data Prep with
+existing simulation inputs or results.
+
+Choose **Design with antenna agent** to open the experimental builder. It opens
+with no assumed antenna, frequency, material, parameters, or geometry. Its
+installed validated recipes support an inset-fed rectangular microstrip patch,
+a probe-fed circular patch, and a center-fed dipole. Where geometrically valid,
+the same elements can be replicated into 1 by N linear or M by N planar arrays.
+The rectangular patch also accepts four subtractive circular corner cutouts.
+Their centers lie on the four patch corners and the default radius is one
+quarter of patch width. The radius ratio appears in the parameter table and can
+be sent to LHS.
+Array elements receive independent CST ports; the builder does not synthesize
+an array feed network.
+
+In the builder:
+
+1. Choose **Local Ollama**, **Gemini**, **Groq**, or **OpenRouter** in the
+   Provider menu, then choose a discovered Model. Models already validated with
+   the antenna agent are marked **Tested**; all other compatible catalog entries
+   are marked **Untested**. Local Ollama keeps the design context on this
+   computer. A cloud choice sends the current request, solver-neutral design
+   state, and runtime tool manifest to that provider. The
+   notice below the selector always states which behavior is active.
+2. Enter a supported instruction such as **Create an inset-fed rectangular
+   patch at 2.45 GHz on FR4**, **Create a circular patch at 5.8 GHz on Rogers
+   RT5880**, or **Create a simple dipole at 915 MHz**.
+3. Continue editing the same design with instructions or the parameter table.
+4. Left-drag the 3D preview to orbit, right- or middle-drag to pan, and use the
+   mouse wheel to zoom. VTK depth-renders the evaluated canonical mesh, so
+   hidden surfaces and overlapping objects remain correctly ordered while
+   circular and rectangular Boolean holes remain open. Red arrows show
+   canonical port endpoints.
+5. Use the **Vary** boxes to select CST parameters for sampling.
+6. Select **Export CST script** for the reliable parameterized construction
+   macro, or **Create CST project** on Windows for a named native unsolved model.
+7. Select **Send selected to LHS** to open the existing sample generator with
+   those parameter names and suggested bounds.
+
+To enable Gemini, copy `.env.example` to `.env` in the application/repository
+root, then edit the local file:
+
+```text
+GEMINI_API_KEY=your_key_from_Google_AI_Studio
+```
+
+The `.env` file is excluded by `.gitignore`. Do not commit it or paste the key
+into an antenna prompt. You may also set `GEMINI_API_KEY` in the process
+environment. If no key is found, the Studio shows a clear message and Local
+Ollama remains available.
+
+To enable Groq, set `GROQ_API_KEY` in the same ignored `.env` or process
+environment. `openai/gpt-oss-120b` is labeled Tested when returned by the
+provider. Never paste a cloud key into an antenna prompt.
+
+To enable Nemotron, set `OPENROUTER_API_KEY` in the same ignored `.env` or
+process environment. The loader also accepts `OPEN_ROUTER_API_KEY` for the
+existing local spelling. OpenRouter models are discovered from its catalog;
+**Free only** filters on provider pricing metadata.
+
+Provider/model choice and the OpenRouter filter are stored with the project.
+If a catalog request fails, the last valid model remains selected and the
+builder reports the failure. A provider listing is availability metadata, not
+proof that an untested model can satisfy the antenna ToolPlan contract.
+
+The selected planner backend receives the current solver-neutral design and a
+runtime manifest of installed recipes, modifiers, primitive tools, and the
+exact schemas of the thirteen planning tools it may call. Alongside five
+recipe/modifier actions, the safe primitive subset can create named parameters,
+rectangular or circular cutting geometry, translate or duplicate newly created
+tools, and apply validated union/subtraction operations. It must return an
+ordered registered-tool plan, one clarification question, or a refusal. The
+executor validates schemas, semantic object references, bounds, dependencies,
+and the complete resulting design before publishing it. Geometry creation and
+CST generation remain deterministic. Unsupported antenna families,
+cross-family parameters, invented geometry targets, extra arguments, and
+arbitrary CST operations are rejected without changing the current design.
+Successful primitive compositions are stored with the project. Later recipe
+parameter or table edits rebuild the base antenna and replay those operations
+against semantic element targets. If replay is no longer compatible, the edit
+is rejected and the previous valid design remains open.
+
+All selected models receive the same planner system instruction, design state,
+tool definitions, and exact ToolPlan schema. Local Ollama also supplies that schema
+to Ollama for constrained decoding. Gemini requests JSON output and relies on
+the shared strict parser and validators after generation because the Gemini API
+rejects this exact thirteen-tool union when used as an API response schema. No
+schema was simplified for Gemini. Groq first requests strict JSON Schema output
+with the same schema. If Groq rejects that exact strict request, it uses JSON
+object output followed by the same local parser and validator; the audit records
+which decoding mode was used. Nemotron's free endpoint does not enforce
+`response_format`; its generated text therefore goes directly through the same
+strict local ToolPlan parser and validators. All selected models pass through the same executor, repair
+limit, and validation gates. For comparison, the project-local
+`design/planner_ab.jsonl` file records the backend, decoding mode, request,
+returned plan, validation result, repair attempt, and final executed
+deterministic tool sequence. It never records the API key.
+
+The preview and analytical starting dimensions are design aids, not EM results.
+The preview is generated by evaluating the canonical primitives, transforms,
+and Boolean operations. If an operation falls outside the supported faithful
+mesh path, the preview suppresses the affected inputs and displays an explicit
+warning instead of showing an approximate uncut solid.
+Review materials, feeds, ports, boundaries, and mesh in CST before solving.
+
+## 5. Preparing data
 
 Data Prep is divided into connected subtasks. Only one subtask is expanded at a
 time, and each header shows its current status.
@@ -137,7 +245,7 @@ The result panel shows the registered dataset ID and its sample, input, and
 output counts. If validation fails, correct the named issue and run the action
 again. Registration does not start model training.
 
-## 5. Training a model
+## 6. Training a model
 
 Open **Model Training** after registering the dataset.
 
@@ -166,7 +274,7 @@ available again.
 
 Each click creates a new run. Earlier run folders and results are preserved.
 
-## 6. Reading Training Results
+## 7. Reading Training Results
 
 Training Results opens the latest completed run by default.
 
@@ -202,7 +310,7 @@ different dataset or incompatible setup are not mixed into the recommendation.
 - Select **Create Model Book** when you want to preserve the completed model for
   future use.
 
-## 7. Saving a Model Book
+## 8. Saving a Model Book
 
 A Model Book is the reusable form of a completed model.
 
@@ -214,7 +322,7 @@ A Model Book is the reusable form of a completed model.
 The source training run remains unchanged. Existing Model Books are not
 overwritten when a duplicate name is entered.
 
-## 8. Using Model Library
+## 9. Using Model Library
 
 Model Library lists the Model Books saved in the current project.
 
@@ -231,7 +339,7 @@ Select **Set as Active** for the Model Book you want to use. The active selectio
 is preserved when the project reopens. Inference and Inverse Design always use
 the active Model Book.
 
-## 9. Running inference
+## 10. Running inference
 
 Inference predicts one new input sample at a time.
 
@@ -255,7 +363,7 @@ Use:
 When several curves are present, select a curve in the Curves area before using
 View Raw Values or Export Prediction.
 
-## 10. Running inverse design
+## 11. Running inverse design
 
 Inverse Design searches for input values that satisfy one design goal.
 
@@ -310,7 +418,7 @@ all valid inverse-design curves for the active Model Book. Select any curve in
 the Curves area to see its objective, achieved value, constraints, and input
 settings.
 
-## 11. Scientific Plot Workbench
+## 12. Scientific Plot Workbench
 
 The plot workbench is shared across prediction and engineering result views.
 
@@ -331,7 +439,7 @@ Plot labels remain neutral when output meaning or units were not supplied in the
 saved data. You may edit them for presentation without changing prediction
 values.
 
-## 12. SnowBuddy
+## 13. SnowBuddy
 
 SnowBuddy is available from the top application bar throughout the workflow.
 
@@ -346,7 +454,7 @@ SnowBuddy can explain the current page, identify the next valid step, discuss
 saved results, and help recover from visible validation errors. Project data and
 chat are not sent to a paid cloud API.
 
-## 13. Saving, reopening, and moving projects
+## 14. Saving, reopening, and moving projects
 
 The Studio saves project state and successful run artifacts inside the project
 folder. To continue on another computer:
@@ -360,7 +468,7 @@ The active page, registered data, training runs, Model Books, active Model Book,
 saved prediction curves, inverse-design curves, and project SnowBuddy history
 travel with the complete project folder.
 
-## 14. Common operating issues
+## 15. Common operating issues
 
 ### Training is unavailable
 

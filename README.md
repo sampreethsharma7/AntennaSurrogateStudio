@@ -38,6 +38,8 @@ conversations remain in your local project folders.
 
 ## What it does
 
+- Experimental tool-using antenna design agent with patch, circular-patch, dipole, array recipes, and composable rectangular-patch corner cutouts
+- Interactive in-app 3D geometry preview and parameterized CST export
 - Latin Hypercube sample generation
 - Dataset preparation and validation
 - Linear Regression, XGBoost, and Neural Network models
@@ -85,16 +87,45 @@ For command-line setup, troubleshooting, and system requirements, see
 ## Start your first project
 
 1. Select **Create Project**.
-2. In **Data Prep**, load an input/output CSV pair or parse a supported parameter-sweep export.
-3. Select **Validate and register**.
-4. Open **Model Training**, choose a model and training mode, then select **Train Model**.
-5. Review the completed run in **Training Results**.
-6. Select **Create Model Book** to save the trained surrogate for reuse.
-7. Make the Model Book active in **Model Library**.
-8. Use **Inference** for new predictions or **Inverse Design** to search for suitable inputs.
+2. On **Design Start**, continue with an existing design or open the experimental antenna design agent.
+3. In **Data Prep**, load an input/output CSV pair, parse a supported parameter-sweep export, or receive selected builder parameters in the LHS generator.
+4. Select **Validate and register**.
+5. Open **Model Training**, choose a model and training mode, then select **Train Model**.
+6. Review the completed run in **Training Results**.
+7. Select **Create Model Book** to save the trained surrogate for reuse.
+8. Make the Model Book active in **Model Library**.
+9. Use **Inference** for new predictions or **Inverse Design** to search for suitable inputs.
+
+The experimental agent supports three controlled recipes: an inset-fed
+rectangular microstrip patch, a probe-fed circular patch, and a center-fed
+dipole. Where valid, each can be replicated into linear or planar arrays. The
+rectangular patch also supports four subtractive circular corner cutouts with
+their centers on the patch corners and a parametric radius ratio. The
+recipes compose a discoverable registry of small geometry and EM tools into one
+solver-neutral design graph. The parameter table, interactive preview, CST
+adapter, and LHS transfer all read that same validated graph. Every text request
+goes to the selected provider/model with the current design and runtime tool
+schemas. Local Ollama, Gemini, Groq, and OpenRouter models receive the same planner instructions,
+state, tool manifest, and output schema. The model may return only an explicit
+sequence of registered planning-tool calls, a clarification, or a refusal. The deterministic executor
+still owns recipes, geometry, validation, and CST generation; the model cannot
+add tools, geometry types, antenna families, or solver commands. A small
+planner-exposed primitive subset can compose validated rectangular and circular
+slots from named parameters, cutting geometry, and Boolean operations without a
+slot-specific modifier. Validated compositions persist with the project and are
+replayed after later recipe-parameter rebuilds using semantic antenna-element
+targets. Array elements use independent ports, while feed-network synthesis and
+EM verification remain in CST.
 
 For detailed, page-by-page operating instructions, see the
 [Antenna Surrogate Studio User Manual](USER_MANUAL.md).
+The extension boundary and validation ladder are documented in
+[Experimental Antenna Design Agent Architecture](docs/ANTENNA_AGENT_ARCHITECTURE.md).
+The controlled four-backend comparison is recorded in the
+[Antenna Planner A/B Report](docs/ANTENNA_PLANNER_AB_REPORT.md).
+For the complete implementation, antenna-engineering assessment, limitations,
+and roadmap, see
+[Text-Parametric Builder: Deep Technical and Design Overview](docs/TEXT_PARAMETRIC_BUILDER_DEEP_OVERVIEW.txt).
 
 ## Try the included sample
 
@@ -113,16 +144,53 @@ and `P4` as the model inputs and `Gain,Phi=0.0 []` as the output. Select
 For exact steps and a suggested first training run, open the
 [sample guide](sample_data/four_element_patch_array_phase_sweep/README.md).
 
-## Optional SnowBuddy local AI
+## Antenna planner backends
 
 SnowBuddy's built-in workflow guidance works without any additional service.
-For local conversational AI, install [Ollama](https://ollama.com/download),
-start it, and choose a model from **SnowBuddy > Local model**:
+The antenna builder defaults to the **Local Ollama** provider, which requires a
+running local [Ollama](https://ollama.com/download) instance. Its Model menu is
+populated from the models installed in that instance:
 
-- `qwen3:1.7b` for lower-resource computers.
-- `qwen3:8b` for computers with about 16 GB RAM or more.
+- `qwen3:8b` is the recommended and live-validated antenna-planner model for
+  computers with about 16 GB RAM or more.
+- `qwen3:1.7b` remains useful for SnowBuddy and simple edits on lower-resource
+  computers, but complex multi-tool antenna plans may be refused after strict
+  validation.
 
-Ollama is optional. No OpenAI API key or paid cloud account is required.
+The builder has separate **Provider** and **Model** menus. It discovers installed
+models from local Ollama and current catalogs from **Gemini**, **Groq**, and
+**OpenRouter**. Models exercised with the antenna agent are labeled **Tested**;
+other compatible text models are labeled **Untested**. Copy
+[`.env.example`](.env.example) to an untracked `.env` in the repository root
+and set the corresponding `GEMINI_API_KEY`, `GROQ_API_KEY`, or
+`OPENROUTER_API_KEY` value. OpenRouter includes a pricing-based **Free only**
+filter. `qwen3:8b`, `gemini-3.8-flash`, `openai/gpt-oss-120b`, and
+`nvidia/nemotron-3-ultra-550b-a55b:free` carry Tested metadata when their
+providers list them. Never commit
+`.env`; it is excluded by `.gitignore`. If a cloud key is missing, the builder
+reports the setup requirement and Local Ollama remains usable.
+
+Provider/model/filter choice persists with the project. A failed catalog request
+retains the last valid model and reports the failure. The selector states when
+design context will leave the computer. All models receive the same ToolPlan schema and use the same strict parser,
+deterministic executor, repair limits, and validators. Local Ollama also uses that
+schema for provider-constrained decoding. Gemini uses JSON response mode because
+its API rejects the current exact thirteen-branch ToolPlan union as a response
+schema; its output is then parsed and validated against the unchanged schema
+before any tool can run. Groq first requests strict JSON Schema output with the
+unchanged ToolPlan schema. If the provider rejects that exact strict request,
+it retries in JSON-object mode and uses the same local strict parser without
+simplifying the schema. The OpenRouter transport does not require provider
+`response_format` enforcement, so its selected model receives the same JSON
+instruction and schema in the shared context and relies on the same strict
+post-generation parser. Each project logs the backend, decoding mode, request,
+returned plan, validation, repair, and final executed tool sequence to
+`design/planner_ab.jsonl`; credentials are never logged. The parameter table,
+preview, validation, and exports remain deterministic. The preview evaluates
+the canonical primitive/transform/Boolean graph: inset unions, arbitrary circle
+or rectangle slots, edge unions, and arrays change the displayed mesh itself.
+It preserves true Z dimensions, draws canonical port endpoints, and explicitly
+warns and suppresses inputs if a Boolean cannot be rendered faithfully.
 
 ## Projects and privacy
 
@@ -136,7 +204,11 @@ To move a project to another computer, copy the complete project folder. Do not
 copy only the model file; the folder also contains the project state, Model
 Books, prediction and inverse-design histories, and local SnowBuddy history.
 
-The Studio does not upload project data or conversations.
+Local Ollama and SnowBuddy keep their design/chat context on this computer. When
+the user explicitly selects a cloud planner in the antenna builder, that
+instruction, the current antenna design state, and the runtime tool manifest
+are sent to Google Gemini, Groq, or OpenRouter for planning. Project files and
+CST outputs remain local.
 
 ## Help and contact
 

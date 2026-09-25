@@ -1,9 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.50
+Contract version: 3.72
 Studio version: 0.33.2
-UI source SHA-256: 39f075f35b720f2f0d7190063844b2d6e631edef4d454e051f36f7a3601f6a5b
-Sample Generator UI source SHA-256: 7c59e5fdd2f1ac1a92fe42cadeb914a3a9e36e6252432dae1d2be2298b39b6fe
+UI source SHA-256: 20735c81d96e69c134bded65fe2bf8181198ba8144ac5b33ff5447deb27edd1f
+Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
+Antenna Builder UI source SHA-256: 5b437d8d387724293f884701bdfcbd2cb041327536043f22609c8e10e7d7a0b8
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -66,7 +67,7 @@ adds the user’s current page, values, selections, and status.
   active page, project,
   form values, or chat. The choice is global for this local Studio library and
   is restored from `studio_settings.json` on the next launch.
-- The sidebar contains the AS brand badge, Start, Data Prep, Model Training,
+- The sidebar contains the AS brand badge, Start, Design Start, Data Prep, Model Training,
   Training Results, Model Library, Inference, and Inverse Design. Collapsed mode shows those same
   destinations as icons. All project workflow pages are available
   while a project is active. Selecting one without a project returns to Start
@@ -75,7 +76,7 @@ adds the user’s current page, values, selections, and status.
   status, or “No project open.” With a project active it also shows “Return to
   Welcome.”
 - A fresh application launch stays in Welcome mode with no project silently
-  preloaded. Creating a project opens Data Prep immediately. Opening an
+  preloaded. Creating a project opens Design Start immediately. Opening an
   existing project restores that project’s last active page.
 
 ## Start page
@@ -109,6 +110,128 @@ antenna models. Save them as books. Reuse them anytime.”
   the hero action. It is enabled only while a project is open and may read
   Continue Data Prep, Validate & Register Data, Continue Model Training,
   Review Training Results, Open Model Library, or Run Inference.
+
+## Design Start page
+
+- A new project opens this dedicated choice page before Data Prep.
+- **I already have a design** records the existing-design path and opens the
+  unchanged Data Prep workflow.
+- **Design with antenna agent** records the experimental-builder path and opens
+  a blank conversational antenna workspace with no selected family, frequency,
+  material, parameters, or geometry.
+- Returning to Design Start does not discard a saved generated design. Project
+  reopen restores the last selected page and saved builder state.
+
+## Experimental Parametric Antenna Builder page
+
+- A persistent amber experimental label identifies the constrained antenna
+  builder. A new project begins with no antenna design or hidden template.
+  Installed validated recipes cover an inset-fed rectangular
+  patch, probe-fed circular patch, and center-fed dipole. Each can be replicated
+  into a linear or planar array when its spacing validation passes.
+- The left work area begins with a bordered, multiline **Design Request**
+  composer. It grows from 92 through 154 pixels as text wraps or gains lines,
+  then scrolls instead of consuming the parameter workspace. A live character
+  and visual-line count stays in its header. Enter adds a line; Ctrl+Enter or
+  the prominent Apply button submits the complete request. Separate
+  **Provider** and **Model** option menus configure the planner. Provider offers
+  **Local Ollama**, **Gemini**, **Groq**, and **OpenRouter**. Changing provider
+  or selecting **Refresh** requests that provider's current model catalog;
+  Local Ollama uses its local tags endpoint. Models validated with the antenna
+  agent are labeled **Tested** and other compatible discovered text models are
+  labeled **Untested**. OpenRouter adds a **Free only** filter based on catalog
+  pricing. If discovery fails, the last valid model remains selected and the
+  notice states the failure. Local Ollama is the default and shows
+  **Private/offline: models are discovered from local Ollama; design context
+  stays on this computer.** Cloud notices state that design state and requests
+  are sent to the selected provider. Provider, model, and OpenRouter filter
+  persist with the project. Every submitted request goes to the
+  selected backend with the same complete current design, planner instruction,
+  runtime manifest of installed recipes/modifiers/primitives, exact registered
+  planning-tool schemas, and ToolPlan output schema. The model must return an
+  ordered sequence of registered calls, one clarification question, or a refusal. It cannot
+  return arbitrary code, geometry, files, CST commands, or solver operations.
+  The deterministic executor validates every call, compiles recipes and
+  modifiers to primitive tools, and applies layered validation before replacing
+  the live design. Validated LLM-composed primitive groups persist with the
+  project. Later conversational or parameter-table edits rebuild the base
+  recipe, reapply modifiers, resolve stored Boolean targets by semantic role
+  and array element, and replay those groups before publishing. An incompatible
+  topology or failed replay rejects the edit and leaves the prior design open.
+  Gemini requires `GEMINI_API_KEY`, Groq requires `GROQ_API_KEY`, and OpenRouter
+  requires `OPENROUTER_API_KEY` (with `OPEN_ROUTER_API_KEY` accepted as a local
+  compatibility alias) in the environment or ignored local `.env`; a missing
+  key produces a clear warning
+  and does not affect Local Ollama. Each
+  project records credential-free comparison metadata in
+  `design/planner_ab.jsonl`: backend, request, returned plan, validation,
+  repair, and final deterministic tool sequence.
+  A parameter owned by another recipe is rejected; for
+  example, conductor radius belongs to the dipole, while the circular patch
+  exposes patch radius and probe radius as separate parameters. The installed
+  circular-corner modifier composes four cylinder and Boolean-subtraction tool
+  calls over the rectangular-patch recipe. Each circle center is exactly on a
+  patch corner. Its default `CornerRadius` is `PatchW / 4`, represented as the
+  editable and LHS-selectable `CornerRadiusRatio` of 0.25. Later patch-width and
+  array edits rebuild the same modifier. Requests for added copper corner lobes
+  remain rejected instead of being improvised or routed to the circular-patch
+  recipe. When active, the preview note reads **Corner-circle centers sit on
+  patch corners. No array feed network is generated.** The sampling summary
+  uses the compact `LHS:` prefix so modifier parameters remain readable.
+- The editor pane has a larger minimum width and shares extra horizontal space
+  with the 3D preview. Parameters and Conversation are separate tabs. The
+  composer contracts after a successful submission, restoring vertical space
+  to the parameter table. The parameter table rebuilds
+  for the active recipe: inset-patch dimensions and substrate controls,
+  circular-patch radius/probe/substrate controls, or dipole arm/wire/gap
+  controls, plus frequency and array controls. Supported numeric rows have Vary
+  boxes with useful family-specific defaults.
+- The right side is a prominent depth-buffered VTK 3D preview evaluated from
+  the same canonical primitive, transform, Boolean, and triangulated mesh graph
+  used by export. Tk displays VTK's rendered framebuffer and forwards camera
+  input; it does not draw or sort individual geometry faces.
+  Left-drag orbits through top, edge, and underside views; right- or
+  middle-drag pans; the mouse wheel zooms; Reset view restores orbit, pan, and
+  zoom. The preview preserves millimetre Z dimensions instead of visually
+  exaggerating substrate or feed thickness. It resolves inset-patch conductor
+  unions, arbitrary rectangular and circular subtractions, circular unions,
+  arrays, translations, duplicates, and supported rotations into the displayed
+  mesh. A real depth buffer removes hidden surfaces, internal triangulation
+  edges are hidden, and clean feature boundaries preserve circular and
+  rectangular holes. Canonical port endpoints appear as red P-numbered arrows.
+  If a Boolean
+  cannot be evaluated faithfully, the affected inputs are suppressed and a red
+  preview warning names the operation rather than drawing a false solid. A
+  summary reports material, frequency, element count, and port count.
+- While the canonical design is null, the preview displays **No antenna design
+  yet. Describe the antenna you want to create.** and renders no geometry. The
+  parameter tab shows no fake values, while the conversation, request composer,
+  Apply action, provider/model controls, and cloud/local notice remain usable.
+  Parameter and material editing, Reset view, CST script export, native CST
+  creation, and LHS transfer are disabled. A first validated recipe/tool plan
+  publishes revision zero in place, displays its VTK geometry, rebuilds the
+  parameter table, and enables the design-dependent controls without reopening
+  the page. Capability questions, clarifications, validation rejections, and
+  refusals appear in Conversation and leave the workspace blank.
+- Single and array layouts retain the selected recipe geometry. Inset-fed,
+  probe-fed, and dipole elements receive an independent discrete port per
+  element. The visible warning states the applicable feed limitation.
+- **Export CST script** asks for a user-selected `.bas` name and writes the
+  parameterized construction script plus a `_design.json` record. **Create CST
+  project** asks for a new `.cst` filename, preserves the macro and design
+  record, creates one unsolved native project through installed CST on Windows,
+  and never overwrites an existing CST file. CST work runs outside the UI
+  thread. Neither export starts a solver.
+- **Send selected to LHS** opens Data Prep and the existing LHS dialog with the
+  selected meaningful CST parameter names and suggested editable bounds.
+- Builder state, raw conversation, and project engineering memory are
+  project-local under `design/` and restore when the project reopens. A blank
+  saved session reopens blank and opening the page alone does not create
+  `antenna_state.json`. A failed session load disables Apply and is never saved
+  as an intentional null design. The canonical state is solver-neutral and stores
+  parameters, materials, primitive geometry, relationships, ports, array data,
+  simulation setup, and validation records. CST is the first separate adapter.
+  The LLM never owns or directly constructs geometry.
 
 ## SnowBuddy companion panel
 
@@ -182,6 +305,9 @@ training.
   reserved `sample_id` name. Bounds must be finite numbers with Min below Max;
   sample count must be a whole number from 1 through 100,000; and a supplied seed
   must be a whole number from 0 through 4,294,967,295.
+- When opened through **Send selected to LHS** in the antenna builder, the same
+  dialog starts with the selected meaningful CST parameter names and suggested
+  ranges. The user can review and edit every range before generation.
 - Generation uses SciPy Latin Hypercube sampling. The same settings and seed
   reproduce the same samples. Coverage plots the first two variables, or one
   variable against sample index, without inventing units. Both axes show the
@@ -987,9 +1113,18 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
   Training redirect to Start with an “Open a project” message. Welcome chat can discuss Create
   project, Open project, recent projects, workflow, and local-model settings
   without fabricating project state.
-- Project created: Data Prep opens immediately; workflow step 1 of 5 and the
-  next action is loading and preparing antenna data. SnowBuddy switches to
-  Focus mode automatically.
+- Project created: Design Start opens immediately and asks whether the user has
+  an existing design or wants the experimental conversational-agent path.
+  SnowBuddy switches to Focus mode automatically.
+- Existing-design start selected: Data Prep opens and the original data,
+  training, inference, and inverse-design workflow remains unchanged.
+- Antenna-agent start selected: the builder opens with a null design, empty
+  geometry and parameter states, and an immediately usable conversation and
+  planner. The first validated recipe selection creates revision zero; saved
+  text or structured edits then update that project-local design ID and preview.
+  A capability question or unsupported request is persisted without creating
+  an antenna. The user can change an active recipe to a circular patch or dipole
+  while the revision history continues.
 - Project reopened: the last active page recorded in `project.json` is restored.
 - Return to Welcome: active-project context is cleared, the Start page appears,
   and SnowBuddy returns to the current launch’s Welcome session.
@@ -1069,14 +1204,26 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
 
 At question time SnowBuddy may receive:
 
-- Visible page: Start, Data Prep, Model Training, Training Results, Model Library,
-  Inference, or Inverse Design.
+- Visible page: Start, Design Start, Experimental Antenna Builder, Data Prep,
+  Model Training, Training Results, Model Library, Inference, or Inverse Design.
 - Appearance mode: Light or Dark.
 - Top application menu: File, Edit, Help.
 - Active project and workflow status.
 - On every page: SnowBuddy companion visibility, chat enabled state, and
   SnowBuddy mode (Welcome or Focus).
 - On Start: recent-project count.
+- On Design Start: current path choice and both existing-design and blank
+  conversational-agent actions.
+- On Experimental Antenna Builder with no canonical design: explicit
+  `awaiting_design` status, `Design: null`, no geometry or invented antenna
+  properties, persisted conversation count, enabled planner controls, and the
+  disabled design-dependent actions.
+- On Experimental Antenna Builder with a design: experimental status, recipe ID, solver-neutral
+  design ID and revision, topology, frequency, material properties, canonical
+  graph counts, validation stages, array spacing, selected LHS parameters,
+  selected planner, its private/local or cloud-transmission notice, planner
+  audit location, interactive-preview behavior, CST-adapter behavior, and the
+  explicit independent-port/feed limitation.
 - On Data Prep: source mode; input and output CSV paths or the #Parameters
   source path; the LHS sample-generator and Create templates actions; whether a
   generated input CSV is waiting for solver outputs; active accordion subtask;
@@ -1123,7 +1270,8 @@ Live snapshot values override defaults in this document.
 
 ## Maintenance rule
 
-Every change to `studio/ui.py`, `studio/results_ui.py`, `studio/library_ui.py`,
+Every change to `studio/ui.py`, `studio/antenna_builder_ui.py`,
+`studio/sample_generator_ui.py`, `studio/results_ui.py`, `studio/library_ui.py`,
 `studio/inference_ui.py`, `studio/inverse_design_ui.py`, or `studio/theme.py` must
 include a review of this file in the same change. Update affected descriptions,
 Studio/contract versions when appropriate, and all GUI SHA-256 values above.

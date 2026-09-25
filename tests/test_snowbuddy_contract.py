@@ -21,6 +21,8 @@ class SnowBuddyContractTests(unittest.TestCase):
 
         self.assertIn("Grounding hierarchy", character)
         self.assertIn("Start page", blind_gui)
+        self.assertIn("Design Start page", blind_gui)
+        self.assertIn("Experimental Parametric Antenna Builder page", blind_gui)
         self.assertIn("Data Prep page", blind_gui)
         self.assertIn("Model Training page", blind_gui)
         self.assertIn("Training Results page", blind_gui)
@@ -37,6 +39,10 @@ class SnowBuddyContractTests(unittest.TestCase):
         ui_match = re.search(r"UI source SHA-256: ([0-9a-f]{64})", content)
         sample_generator_ui_match = re.search(
             r"Sample Generator UI source SHA-256: ([0-9a-f]{64})",
+            content,
+        )
+        antenna_builder_ui_match = re.search(
+            r"Antenna Builder UI source SHA-256: ([0-9a-f]{64})",
             content,
         )
         results_ui_match = re.search(
@@ -63,6 +69,10 @@ class SnowBuddyContractTests(unittest.TestCase):
         self.assertIsNotNone(
             sample_generator_ui_match,
             "BLIND_GUI_READ.md must record studio/sample_generator_ui.py SHA-256.",
+        )
+        self.assertIsNotNone(
+            antenna_builder_ui_match,
+            "BLIND_GUI_READ.md must record studio/antenna_builder_ui.py SHA-256.",
         )
         self.assertIsNotNone(
             results_ui_match,
@@ -97,6 +107,11 @@ class SnowBuddyContractTests(unittest.TestCase):
             sample_generator_ui_match.group(1),
             sha256(ROOT / "studio" / "sample_generator_ui.py"),
             "studio/sample_generator_ui.py changed without updating BLIND_GUI_READ.md.",
+        )
+        self.assertEqual(
+            antenna_builder_ui_match.group(1),
+            sha256(ROOT / "studio" / "antenna_builder_ui.py"),
+            "studio/antenna_builder_ui.py changed without updating BLIND_GUI_READ.md.",
         )
         self.assertEqual(
             results_ui_match.group(1),

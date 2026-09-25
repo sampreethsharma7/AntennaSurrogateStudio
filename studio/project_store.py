@@ -16,6 +16,7 @@ from typing import Any
 PROJECT_SCHEMA_VERSION = 1
 WELCOME_SESSION_LIMIT = 50
 PROJECT_SUBDIRECTORIES = (
+    "design",
     "data/raw",
     "data/prepared",
     "data/registered",
@@ -228,7 +229,15 @@ class ProjectStore:
                 "next_action": "Load and prepare antenna data.",
             },
             "ui": {
-                "last_page": "data",
+                "last_page": "design_start",
+            },
+            "design_start": {
+                "choice": None,
+            },
+            "antenna_builder": {
+                "schema_version": 1,
+                "status": "not_started",
+                "template_id": None,
             },
             "data_prep": {},
             "dataset_registry": {

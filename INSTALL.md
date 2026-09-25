@@ -11,8 +11,11 @@ You need:
 - A 64-bit Windows, macOS, or Linux computer.
 - 64-bit Python 3.11, 3.12, or 3.13.
 - Internet access during the first setup.
-- Approximately 500 MB of free space for the application environment, plus
+- Approximately 1 GB of free space for the application environment, plus
   space for your projects and any optional local AI model.
+
+The depth-buffered antenna preview uses VTK. Its Windows download is about
+80 MB and its installed files use roughly 300 MB of the private environment.
 
 Windows 10 and 11 are the primary tested platforms. CST, HFSS, an API key, and
 a cloud account are not required to install or launch the Studio.

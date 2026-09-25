@@ -53,7 +53,11 @@ if errorlevel 1 goto setup_failed
 if errorlevel 1 goto setup_failed
 
 echo Checking the installed desktop and model dependencies...
-".venv\Scripts\python.exe" -c "import tkinter, customtkinter, numpy, sklearn, scipy, joblib, xgboost"
+".venv\Scripts\python.exe" -c "import tkinter, customtkinter, numpy, sklearn, scipy, joblib, xgboost, shapely, vtkmodules; from studio.ui import run"
+if errorlevel 1 goto setup_failed
+
+rem Record the exact requirements used so the launcher can refresh stale environments.
+".venv\Scripts\python.exe" -c "from pathlib import Path; import hashlib; requirements = Path('requirements.txt'); Path('.venv/requirements.sha256').write_text(hashlib.sha256(requirements.read_bytes()).hexdigest(), encoding='ascii')"
 if errorlevel 1 goto setup_failed
 
 where ollama >nul 2>&1

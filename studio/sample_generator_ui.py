@@ -49,6 +49,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         *,
         project_path: Path,
         on_export: Callable[[Path], None],
+        initial_variables: list[LHSVariable] | None = None,
     ) -> None:
         super().__init__(parent)
         self.project_path = Path(project_path)
@@ -83,8 +84,15 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             "write",
             lambda *_args: self._invalidate_generated_samples(),
         )
-        for _index in range(3):
-            self._append_editor()
+        if initial_variables:
+            for variable in initial_variables:
+                self._append_editor(variable)
+            self.status_var.set(
+                "Template parameters loaded. Review their ranges before generating samples."
+            )
+        else:
+            for _index in range(3):
+                self._append_editor()
         self._render_variable_page()
         self.after_idle(self._draw_empty_coverage)
 
@@ -380,11 +388,15 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         )
         self.export_button.grid(row=0, column=1, padx=(12, 0), sticky="e")
 
-    def _append_editor(self) -> None:
+    def _append_editor(self, initial: LHSVariable | None = None) -> None:
         editor = LHSVariableEditor(
-            name=ctk.StringVar(value=""),
-            minimum=ctk.StringVar(value=""),
-            maximum=ctk.StringVar(value=""),
+            name=ctk.StringVar(value=initial.name if initial else ""),
+            minimum=ctk.StringVar(
+                value=format(initial.minimum, ".12g") if initial else ""
+            ),
+            maximum=ctk.StringVar(
+                value=format(initial.maximum, ".12g") if initial else ""
+            ),
         )
         for variable in (editor.name, editor.minimum, editor.maximum):
             variable.trace_add(

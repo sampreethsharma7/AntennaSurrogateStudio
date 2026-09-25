@@ -492,7 +492,7 @@ class AssistantTests(unittest.TestCase):
         history = self.store.load_chat(self.project)
 
         self.assertFalse(used_local_model)
-        self.assertIn("Data Prep", reply)
+        self.assertIn("Design Start", reply)
         self.assertEqual(len(history), 2)
 
     def test_welcome_mode_works_without_project(self):

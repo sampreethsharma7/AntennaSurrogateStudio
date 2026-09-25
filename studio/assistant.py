@@ -194,13 +194,50 @@ KNOWLEDGE_BASE = (
     KnowledgeChunk(
         "Project workflow",
         (
-            "The Studio workflow is: create or open a project; discover and prepare "
+            "The Studio workflow is: create or open a project; choose Design Start; "
+            "either continue with an existing design or use the experimental antenna "
+            "design agent; discover and prepare "
             "simulation data; validate and register the prepared dataset; configure "
             "and train a surrogate; review the real results; save a completed run as "
             "a versioned Model Book; set a saved book active; then use that active "
             "book for inference or inverse design."
         ),
         ("project", "workflow", "next", "start", "steps"),
+    ),
+    KnowledgeChunk(
+        "Experimental parametric antenna builder",
+        (
+            "Design Start offers I already have a design or Design with antenna agent. "
+            "The agent opens with no assumed antenna and has validated recipes for an inset-fed "
+            "rectangular patch, probe-fed circular patch, and center-fed dipole, with "
+            "linear or planar replication where valid. Recipes compose registered "
+            "geometry, transformation, Boolean, parameter, material, port, and frequency "
+            "tools into one solver-neutral design graph. Direct supported phrasing updates "
+            "the same design ID and revision history; an optional configured local-AI "
+            "fallback may return only an installed recipe and allowlisted parameter fields, "
+            "which are revalidated before tools execute. The parameter table and native "
+            "interactive 3D preview derive from the same graph. Arrays have independent "
+            "element ports; no array feed network is synthesized. A separate CST adapter "
+            "can write a parameterized construction macro or "
+            "create one named native CST project on Windows, and neither action starts "
+            "the solver. Selected sweepable CST parameter names can be sent directly "
+            "to the existing LHS generator with editable bounds. The design remains an "
+            "experimental starting point until simulated and reviewed in CST."
+        ),
+        (
+            "antenna",
+            "builder",
+            "template",
+            "patch",
+            "circular",
+            "dipole",
+            "tools",
+            "recipe",
+            "array",
+            "geometry",
+            "cst",
+            "design start",
+        ),
     ),
     KnowledgeChunk(
         "Input and output CSV files",
@@ -590,6 +627,25 @@ def _workflow_next_action(project: Project, live_ui_state: str = "") -> str:
     prep = project.manifest.get("data_prep", {})
     library = project.manifest.get("model_library", {})
 
+    if page == "design start":
+        return (
+            "Choose **I already have a design** to continue into Data Prep, or choose "
+            "**Design with antenna agent** to open a blank conversational antenna workspace."
+        )
+    if page == "experimental antenna builder":
+        if (
+            "builder status: awaiting_design" in live_ui_state.casefold()
+            or "design: null" in live_ui_state.casefold()
+        ):
+            return (
+                "Describe the supported antenna you want to create, such as an inset-fed patch, circular patch, or simple dipole, "
+                "or ask what the installed antenna agent can currently build. CST export and LHS transfer become available after the first validated design."
+            )
+        return (
+            "Describe or edit a rectangular patch, circular patch, or dipole; inspect the live 3D preview; then "
+            "choose **Export CST script** or **Create CST project**. Select Vary boxes "
+            "and use **Send selected to LHS** when you are ready to define simulation samples."
+        )
     if page == "inference":
         return _inference_guidance(project)
     if page == "inverse design":
@@ -625,6 +681,13 @@ def _workflow_next_action(project: Project, live_ui_state: str = "") -> str:
         )
 
     if stage == "project_created":
+        design_start = project.manifest.get("design_start")
+        if isinstance(design_start, dict) and not design_start.get("choice"):
+            return (
+                "Open **Design Start**. Choose **I already have a design** for the "
+                "existing data workflow, or **Design with antenna agent** for the blank "
+                "conversational antenna workspace."
+            )
         if prep.get("mode") == "pair" and prep.get("source_input_path") and not prep.get(
             "source_output_path"
         ):
