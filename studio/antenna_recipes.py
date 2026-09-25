@@ -65,6 +65,27 @@ def _patch_dimensions(frequency_ghz: float, epsilon_r: float, height_mm: float) 
     return round(length, 4), round(width, 4)
 
 
+def _microstrip_width_50_ohm(epsilon_r: float, height_mm: float) -> float:
+    """Return the zero-thickness Hammerstad 50-ohm microstrip width in mm."""
+
+    impedance = 50.0
+    a = (
+        impedance / 60.0 * math.sqrt((epsilon_r + 1.0) / 2.0)
+        + (epsilon_r - 1.0) / (epsilon_r + 1.0) * (0.23 + 0.11 / epsilon_r)
+    )
+    narrow_ratio = 8.0 * math.exp(a) / (math.exp(2.0 * a) - 2.0)
+    if narrow_ratio <= 2.0:
+        width_height_ratio = narrow_ratio
+    else:
+        b = 377.0 * math.pi / (2.0 * impedance * math.sqrt(epsilon_r))
+        width_height_ratio = 2.0 / math.pi * (
+            b - 1.0 - math.log(2.0 * b - 1.0)
+            + (epsilon_r - 1.0) / (2.0 * epsilon_r)
+            * (math.log(b - 1.0) + 0.39 - 0.61 / epsilon_r)
+        )
+    return round(height_mm * width_height_ratio, 4)
+
+
 def _circular_radius(frequency_ghz: float, epsilon_r: float, height_mm: float) -> float:
     wavelength = SPEED_OF_LIGHT_MM_GHZ / frequency_ghz
     effective = (epsilon_r + 1.0) / 2.0
@@ -225,7 +246,7 @@ class InsetPatchRecipe(_RecipeBase):
         "boolean.union", "em.frequency.setup", "array.configure", "design.metadata.set",
     )
     parameter_rows = (
-        RecipeParameter("frequency_ghz", "FreqGHz", "Frequency", "GHz", 2.45, sweepable=True, minimum=0.1, maximum=100),
+        RecipeParameter("frequency_ghz", "FreqGHz", "Frequency", "GHz", 2.45, sweepable=False, minimum=0.1, maximum=100),
         RecipeParameter("material", "Material", "Substrate material", "", "FR4", kind="choice", choices=tuple(MATERIALS)),
         RecipeParameter("substrate_thickness_mm", "SubH", "Substrate thickness", "mm", 1.6, sweepable=True, minimum=0.05, maximum=20, sweep_lower_factor=0.8, sweep_upper_factor=1.2),
         RecipeParameter("copper_thickness_mm", "CopperT", "Copper thickness", "mm", 0.035, minimum=0.001, maximum=2),
@@ -244,7 +265,15 @@ class InsetPatchRecipe(_RecipeBase):
         values = super().defaults()
         material = MATERIALS[values["material"]]
         length, width = _patch_dimensions(values["frequency_ghz"], material.epsilon_r, values["substrate_thickness_mm"])
-        values.update(patch_length_mm=length, patch_width_mm=width, inset_depth_mm=round(length * 0.30, 4))
+        feed_width = _microstrip_width_50_ohm(
+            material.epsilon_r, values["substrate_thickness_mm"]
+        )
+        values.update(
+            patch_length_mm=length,
+            patch_width_mm=width,
+            feed_width_mm=feed_width,
+            inset_depth_mm=round(length * 0.30, 4),
+        )
         return values
 
     def normalize(self, values: dict[str, Any]) -> dict[str, Any]:
@@ -329,7 +358,7 @@ class CircularPatchRecipe(_RecipeBase):
         "em.port.create", "em.frequency.setup", "array.configure", "design.metadata.set",
     )
     parameter_rows = (
-        RecipeParameter("frequency_ghz", "FreqGHz", "Frequency", "GHz", 2.45, sweepable=True, minimum=0.1, maximum=100),
+        RecipeParameter("frequency_ghz", "FreqGHz", "Frequency", "GHz", 2.45, sweepable=False, minimum=0.1, maximum=100),
         RecipeParameter("material", "Material", "Substrate material", "", "FR4", kind="choice", choices=tuple(MATERIALS)),
         RecipeParameter("substrate_thickness_mm", "SubH", "Substrate thickness", "mm", 1.6, sweepable=True, minimum=0.05, maximum=20, sweep_lower_factor=0.8, sweep_upper_factor=1.2),
         RecipeParameter("copper_thickness_mm", "CopperT", "Copper thickness", "mm", 0.035, minimum=0.001, maximum=2),
@@ -406,7 +435,7 @@ class DipoleRecipe(_RecipeBase):
         "em.frequency.setup", "array.configure", "design.metadata.set",
     )
     parameter_rows = (
-        RecipeParameter("frequency_ghz", "FreqGHz", "Frequency", "GHz", 2.45, sweepable=True, minimum=0.1, maximum=100),
+        RecipeParameter("frequency_ghz", "FreqGHz", "Frequency", "GHz", 2.45, sweepable=False, minimum=0.1, maximum=100),
         RecipeParameter("arm_length_mm", "ArmLength", "Arm length", "mm", 28.8, sweepable=True, minimum=0.1),
         RecipeParameter("conductor_radius_mm", "WireRadius", "Conductor radius", "mm", 0.4, sweepable=True, minimum=0.01),
         RecipeParameter("feed_gap_mm", "FeedGap", "Feed gap", "mm", 1.2, sweepable=True, minimum=0.01),

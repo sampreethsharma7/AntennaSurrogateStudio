@@ -3,6 +3,7 @@ import unittest
 from studio.antenna_agent import create_default_agent
 from studio.antenna_design import evaluate_scalar, resolve_parameter_values
 from studio.antenna_geometry import build_geometry_scene
+from studio.antenna_recipes import MATERIALS, _microstrip_width_50_ohm
 from studio.cst_antenna_adapter import CSTAdapter
 
 
@@ -112,6 +113,34 @@ class InsetPatchFeedGeometryTests(unittest.TestCase):
             8.0,
             places=9,
         )
+
+    def test_substrate_and_material_changes_rederive_50_ohm_feed_width(self):
+        default = self._design()
+        thin = self.agent.update_parameters(
+            default, {"substrate_thickness_mm": 0.8}
+        ).design
+        self.assertAlmostEqual(
+            thin.feed_width_mm,
+            _microstrip_width_50_ohm(MATERIALS["FR4"].epsilon_r, 0.8),
+            places=9,
+        )
+        self.assertNotAlmostEqual(thin.feed_width_mm, 3.0, places=3)
+
+        rogers = self.agent.update_parameters(
+            thin, {"material": "Rogers RT5880"}
+        ).design
+        self.assertAlmostEqual(
+            rogers.feed_width_mm,
+            _microstrip_width_50_ohm(MATERIALS["Rogers RT5880"].epsilon_r, 0.8),
+            places=9,
+        )
+
+    def test_explicit_feed_width_is_preserved_when_substrate_changes_together(self):
+        changed = self.agent.update_parameters(
+            self._design(),
+            {"substrate_thickness_mm": 0.8, "feed_width_mm": 2.2},
+        ).design
+        self.assertAlmostEqual(changed.feed_width_mm, 2.2, places=9)
 
 
 if __name__ == "__main__":

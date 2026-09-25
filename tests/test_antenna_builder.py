@@ -213,6 +213,8 @@ class AntennaBuilderTests(unittest.TestCase):
         self.assertEqual([variable.name for variable in variables], ["PatchL", "PatchW", "Inset"])
         with self.assertRaisesRegex(AntennaBuilderError, "not a sweepable"):
             lhs_variables_for_state(state, ["ArrayRows"])
+        with self.assertRaisesRegex(AntennaBuilderError, "not a sweepable"):
+            lhs_variables_for_state(state, ["FreqGHz"])
 
     def test_ai_structured_patch_remains_allowlisted_and_revalidated(self):
         state = AntennaState.starting_design()

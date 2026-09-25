@@ -516,15 +516,28 @@ class AntennaBuilderPage(ctk.CTkFrame):
 
     def _build_parameter_table(self, parent: ctk.CTkFrame) -> None:
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(1, weight=1)
+        parent.grid_rowconfigure(2, weight=1)
         header = ctk.CTkFrame(parent, fg_color="transparent")
         header.grid(row=0, column=0, padx=(12, 24), pady=(2, 0), sticky="ew")
         header.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(header, text="PARAMETER", text_color=COLORS["subtle"], font=FONTS["mono"], anchor="w").grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(header, text="VALUE", text_color=COLORS["subtle"], font=FONTS["mono"], width=128).grid(row=0, column=1)
         ctk.CTkLabel(header, text="VARY", text_color=COLORS["subtle"], font=FONTS["mono"], width=44).grid(row=0, column=2)
+        self.sampling_policy_label = ctk.CTkLabel(
+            parent,
+            text=(
+                "Operating frequency is fixed during LHS sampling because it also drives "
+                "antenna dimensions, array spacing, and the solver range."
+            ),
+            text_color=COLORS["muted"],
+            font=FONTS["caption"],
+            justify="left",
+            anchor="w",
+            wraplength=520,
+        )
+        self.sampling_policy_label.grid(row=1, column=0, padx=13, pady=(3, 4), sticky="ew")
         self.parameter_table = ctk.CTkScrollableFrame(parent, fg_color="transparent", corner_radius=0)
-        self.parameter_table.grid(row=1, column=0, padx=8, pady=(0, 6), sticky="nsew")
+        self.parameter_table.grid(row=2, column=0, padx=8, pady=(0, 6), sticky="nsew")
         self._rebuild_parameter_table()
 
     def _use_starter_example(self, instruction: str) -> None:

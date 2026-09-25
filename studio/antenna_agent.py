@@ -32,7 +32,13 @@ from studio.antenna_design import (
 )
 from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.antenna_modifiers import active_modifier_ids
-from studio.antenna_recipes import MATERIALS, RecipeParameter, _circular_radius, _patch_dimensions
+from studio.antenna_recipes import (
+    MATERIALS,
+    RecipeParameter,
+    _circular_radius,
+    _microstrip_width_50_ohm,
+    _patch_dimensions,
+)
 from studio.antenna_tools import (
     CapabilityError,
     ToolCall,
@@ -1120,6 +1126,8 @@ class AntennaDesignAgent:
             raise AgentInstructionError("The requested fields are unavailable for this antenna: " + ", ".join(unknown) + ".")
         values = self.values_for_design(design)
         values.update({key: value for key, value in updates.items() if key in definition_map})
+        if set(updates) & {"frequency_ghz", "material", "substrate_thickness_mm"}:
+            self._reestimate_values(recipe, values, set(updates))
         groups = design.composed_operations
         for key, value in updates.items():
             if key in composed_parameters:
@@ -1467,31 +1475,46 @@ class AntennaDesignAgent:
         context.changes.append(f"modifier {modifier_id} removed")
 
     @staticmethod
+    def _reestimate_values(recipe, values: dict[str, Any], explicit_keys: set[str]) -> None:
+        frequency = float(values["frequency_ghz"])
+        if recipe.family == "rectangular_inset_patch":
+            material = MATERIALS[str(values["material"])]
+            height = float(values["substrate_thickness_mm"])
+            length, width = _patch_dimensions(frequency, material.epsilon_r, height)
+            derived = (
+                ("patch_length_mm", length),
+                ("patch_width_mm", width),
+                ("feed_width_mm", _microstrip_width_50_ohm(material.epsilon_r, height)),
+                ("inset_depth_mm", round(length * 0.30, 4)),
+            )
+            for key, value in derived:
+                if key not in explicit_keys:
+                    values[key] = value
+        elif recipe.family == "circular_patch":
+            material = MATERIALS[str(values["material"])]
+            radius = _circular_radius(frequency, material.epsilon_r, float(values["substrate_thickness_mm"]))
+            if "patch_radius_mm" not in explicit_keys:
+                values["patch_radius_mm"] = radius
+            if "feed_offset_mm" not in explicit_keys:
+                values["feed_offset_mm"] = round(radius * 0.33, 4)
+        elif recipe.family == "dipole":
+            wavelength = 299.792458 / frequency
+            if "feed_gap_mm" not in explicit_keys:
+                values["feed_gap_mm"] = round(wavelength * 0.01, 4)
+            if "arm_length_mm" not in explicit_keys:
+                values["arm_length_mm"] = round((0.475 * wavelength - float(values["feed_gap_mm"])) / 2, 4)
+            if "conductor_radius_mm" not in explicit_keys:
+                values["conductor_radius_mm"] = round(wavelength / 300, 4)
+
+    @staticmethod
     def _reestimate(context: _PlanningContext) -> None:
         if not (context.reset_or_family_change or context.dimension_driver_changed):
             return
-        frequency = float(context.values["frequency_ghz"])
-        if context.recipe.family == "rectangular_inset_patch":
-            material = MATERIALS[str(context.values["material"])]
-            length, width = _patch_dimensions(frequency, material.epsilon_r, float(context.values["substrate_thickness_mm"]))
-            for key, value in (("patch_length_mm", length), ("patch_width_mm", width), ("inset_depth_mm", round(length * 0.30, 4))):
-                if key not in context.explicit_keys:
-                    context.values[key] = value
-        elif context.recipe.family == "circular_patch":
-            material = MATERIALS[str(context.values["material"])]
-            radius = _circular_radius(frequency, material.epsilon_r, float(context.values["substrate_thickness_mm"]))
-            if "patch_radius_mm" not in context.explicit_keys:
-                context.values["patch_radius_mm"] = radius
-            if "feed_offset_mm" not in context.explicit_keys:
-                context.values["feed_offset_mm"] = round(radius * 0.33, 4)
-        elif context.recipe.family == "dipole":
-            wavelength = 299.792458 / frequency
-            if "feed_gap_mm" not in context.explicit_keys:
-                context.values["feed_gap_mm"] = round(wavelength * 0.01, 4)
-            if "arm_length_mm" not in context.explicit_keys:
-                context.values["arm_length_mm"] = round((0.475 * wavelength - float(context.values["feed_gap_mm"])) / 2, 4)
-            if "conductor_radius_mm" not in context.explicit_keys:
-                context.values["conductor_radius_mm"] = round(wavelength / 300, 4)
+        AntennaDesignAgent._reestimate_values(
+            context.recipe,
+            context.values,
+            context.explicit_keys,
+        )
 
     def _validate_primitive_applicability(
         self,

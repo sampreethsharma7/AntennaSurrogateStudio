@@ -844,6 +844,8 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertGreaterEqual(self.page.preview_panel.winfo_width(), 660)
         self.assertIs(self.page.parameter_panel.master, self.page.preview_panel)
         self.assertGreaterEqual(self.page.parameter_table.winfo_height(), 190)
+        self.assertIn("Operating frequency is fixed", self.page.sampling_policy_label.cget("text"))
+        self.assertFalse(self.page.sweep_vars["FreqGHz"].get())
         app_right = self.app.winfo_rootx() + self.app.winfo_width()
         app_bottom = self.app.winfo_rooty() + self.app.winfo_height()
         for button in (

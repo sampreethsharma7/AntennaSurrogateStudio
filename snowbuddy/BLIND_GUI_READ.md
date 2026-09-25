@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.75
+Contract version: 3.76
 Studio version: 0.33.2
 UI source SHA-256: 20735c81d96e69c134bded65fe2bf8181198ba8144ac5b33ff5447deb27edd1f
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
-Antenna Builder UI source SHA-256: 0efccfebcda8c891a1ece7a8fac60f165fba46624109273385266eac79053fd8
+Antenna Builder UI source SHA-256: 012b18886e8edaa51e51035ec7fd10d6e26e872055a456bac466c67d98f8486a
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -220,7 +220,11 @@ antenna models. Save them as books. Reuse them anytime.”
   active recipe: inset-patch dimensions and substrate controls,
   circular-patch radius/probe/substrate controls, or dipole arm/wire/gap
   controls, plus frequency and array controls. Supported numeric rows have Vary
-  boxes with useful family-specific defaults. Parameters created by persisted
+  boxes with useful family-specific defaults. Operating frequency remains
+  editable but its Vary box is disabled: frequency drives recipe dimensions,
+  wavelength-based array spacing, and the solver range, so it is deliberately
+  excluded from LHS variables to prevent a confounded geometry/frequency sweep.
+  This rule is stated directly above the parameter rows. Parameters created by persisted
   composed geometry, such as a circular-slot radius or rectangular-slot width
   and height, are added to this same table, survive project reopen, and are
   removed when their owning composed operation is deleted. The compact
