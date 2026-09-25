@@ -79,6 +79,14 @@ class BooleanOperation:
 
 
 @dataclass(frozen=True, slots=True)
+class PortCrossSection:
+    """Canonical geometry face used as a modal excitation cross-section."""
+
+    geometry_id: str
+    face: str
+
+
+@dataclass(frozen=True, slots=True)
 class PortSpec:
     port_id: str
     name: str
@@ -87,6 +95,10 @@ class PortSpec:
     negative_point: tuple[Scalar, Scalar, Scalar]
     impedance_ohms: float = 50.0
     element_index: int = 1
+    signal_terminal: str | None = None
+    reference_terminal: str | None = None
+    cross_section: PortCrossSection | None = None
+    mode_count: int = 1
 
 
 EXCITATION_STRATEGIES = (
@@ -585,6 +597,11 @@ class AntennaDesign:
                             **item,
                             "positive_point": tuple(item["positive_point"]),
                             "negative_point": tuple(item["negative_point"]),
+                            "cross_section": (
+                                PortCrossSection(**item["cross_section"])
+                                if item.get("cross_section") is not None
+                                else None
+                            ),
                         }
                     )
                     for item in payload["ports"]
@@ -631,6 +648,11 @@ class AntennaDesign:
                                     **item,
                                     "positive_point": tuple(item["positive_point"]),
                                     "negative_point": tuple(item["negative_point"]),
+                                    "cross_section": (
+                                        PortCrossSection(**item["cross_section"])
+                                        if item.get("cross_section") is not None
+                                        else None
+                                    ),
                                 }
                             )
                             for item in payload["ports"]

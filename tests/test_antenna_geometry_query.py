@@ -19,8 +19,11 @@ class EvaluatedGeometryQueryTests(unittest.TestCase):
         cls.states = representative_designs()
 
     def test_exact_pre_refactor_mesh_fingerprints(self):
-        # Captured from the original evaluator BEFORE it was refactored. Includes
-        # every vertex/face/order, color, source ID, volume, bounds, port and warning.
+        # The original evaluator baseline is deliberately re-frozen only when an
+        # accepted canonical recipe changes physical geometry. The current fixture
+        # includes the 50-ohm inset-feed synthesis and valid circular coax launch.
+        # It covers every vertex/face/order, color, source ID, volume, bounds,
+        # port, and warning.
         baseline = json.loads(Path(__file__).with_name("geometry_query_mesh_baseline.json").read_text())
         self.assertEqual(set(baseline), set(self.states))
         for name, state in self.states.items():
@@ -89,7 +92,7 @@ class EvaluatedGeometryQueryTests(unittest.TestCase):
         self.assertEqual(result.booleans[-1].operation, "union")
 
     def test_circular_patch_and_dipole_curvature_and_intervals(self):
-        for name, expected_solids in (("circular", 4), ("dipole", 2)):
+        for name, expected_solids in (("circular", 6), ("dipole", 2)):
             result = evaluate_geometry(self.states[name])
             self.assertEqual(len(result.physical_objects), expected_solids)
             self.assertTrue(all(c.status == "completed" for c in result.coverage))

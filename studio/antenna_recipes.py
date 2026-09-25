@@ -398,6 +398,9 @@ class CircularPatchRecipe(_RecipeBase):
             "element_spacing_mm": ("ElementSpacing", spacing, "299.792458/frequency_ghz*element_spacing_lambda"),
             "board_width_mm": ("BoardW", board_width, "2*patch_radius_mm+(array_columns-1)*element_spacing_mm+2*board_margin_mm"),
             "board_length_mm": ("BoardL", board_length, "2*patch_radius_mm+(array_rows-1)*element_spacing_mm+2*board_margin_mm"),
+            "coax_dielectric_radius_mm": ("CoaxDielectricRadius", 3.5 * values["probe_radius_mm"], "3.5*probe_radius_mm"),
+            "coax_outer_radius_mm": ("CoaxOuterRadius", 4.0 * values["probe_radius_mm"], "4*probe_radius_mm"),
+            "coax_launch_length_mm": ("CoaxLength", 3.0 * values["substrate_thickness_mm"], "3*substrate_thickness_mm"),
         }
         design = self._new_design(design_id, revision)
         calls: list[ToolCall] = []
@@ -405,6 +408,7 @@ class CircularPatchRecipe(_RecipeBase):
         material = MATERIALS[values["material"]]
         design = self._run(registry, design, calls, "material.define", material_id="copper", name="Copper", kind="conductor", conductivity_s_per_m=5.8e7)
         design = self._run(registry, design, calls, "material.define", material_id="substrate", name=material.name, kind="dielectric", epsilon_r=material.epsilon_r, loss_tangent=material.loss_tangent)
+        design = self._run(registry, design, calls, "material.define", material_id="coax_dielectric", name="PTFE", kind="dielectric", epsilon_r=2.1, loss_tangent=0.0002)
         design = self._run(registry, design, calls, "design.metadata.set", key="substrate_material", value=material.name)
         for object_id, material_id, tags, z0, z1 in (
             ("ground", "copper", ("ground",), "-copper_thickness_mm", 0),
@@ -418,9 +422,41 @@ class CircularPatchRecipe(_RecipeBase):
                 element += 1
                 cx = _center(column, columns)
                 probe_x = f"{cx}+feed_offset_mm"
-                design = self._run(registry, design, calls, "geometry.cylinder", object_id=f"element_{element}_patch", name=f"CircularPatch_{element}", material_id="copper", axis="z", tags=("circular_patch_element", f"element_{element}"), dimensions={"center_1": cx, "center_2": cy, "radius": "patch_radius_mm", "start": "substrate_thickness_mm", "end": "substrate_thickness_mm+copper_thickness_mm"})
-                design = self._run(registry, design, calls, "geometry.cylinder", object_id=f"element_{element}_probe", name=f"Probe_{element}", material_id="copper", axis="z", tags=("probe_feed", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "probe_radius_mm", "start": 0, "end": "substrate_thickness_mm+copper_thickness_mm"})
-                design = self._run(registry, design, calls, "em.port.create", port_id=f"port_{element}", name=f"Port {element}", kind="discrete", positive_point=(probe_x, cy, "substrate_thickness_mm"), negative_point=(probe_x, cy, 0), element_index=element)
+                prefix = f"element_{element}"
+                patch_id = f"{prefix}_patch"
+                probe_id = f"{prefix}_probe"
+                dielectric_id = f"{prefix}_coax_dielectric"
+                outer_id = f"{prefix}_coax_outer"
+                clearance_id = f"{prefix}_ground_clearance_tool"
+                pin_bore_id = f"{prefix}_coax_pin_bore_tool"
+                outer_bore_id = f"{prefix}_coax_outer_bore_tool"
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=patch_id, name=f"CircularPatch_{element}", material_id="copper", axis="z", tags=("circular_patch_element", f"element_{element}"), dimensions={"center_1": cx, "center_2": cy, "radius": "patch_radius_mm", "start": "substrate_thickness_mm", "end": "substrate_thickness_mm+copper_thickness_mm"})
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=probe_id, name=f"ProbePin_{element}", material_id="copper", axis="z", tags=("probe_feed", "coax_signal", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "probe_radius_mm", "start": "-coax_launch_length_mm", "end": "substrate_thickness_mm+copper_thickness_mm"})
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=clearance_id, name=f"GroundClearanceTool_{element}", material_id="coax_dielectric", axis="z", tags=("ground_clearance_tool", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "coax_dielectric_radius_mm", "start": "-copper_thickness_mm", "end": 0})
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=dielectric_id, name=f"CoaxDielectric_{element}", material_id="coax_dielectric", axis="z", tags=("coax_dielectric", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "coax_dielectric_radius_mm", "start": "-coax_launch_length_mm", "end": 0})
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=pin_bore_id, name=f"CoaxPinBoreTool_{element}", material_id="copper", axis="z", tags=("coax_pin_bore_tool", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "probe_radius_mm", "start": "-coax_launch_length_mm", "end": 0})
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=outer_id, name=f"CoaxOuter_{element}", material_id="copper", axis="z", tags=("coax_reference", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "coax_outer_radius_mm", "start": "-coax_launch_length_mm", "end": 0})
+                design = self._run(registry, design, calls, "geometry.cylinder", object_id=outer_bore_id, name=f"CoaxOuterBoreTool_{element}", material_id="coax_dielectric", axis="z", tags=("coax_outer_bore_tool", f"element_{element}"), dimensions={"center_1": probe_x, "center_2": cy, "radius": "coax_dielectric_radius_mm", "start": "-coax_launch_length_mm", "end": 0})
+                design = self._run(registry, design, calls, "boolean.subtract", operation_id=f"{prefix}_ground_clearance_subtract", target_id="ground", tool_ids=(clearance_id,))
+                design = self._run(registry, design, calls, "boolean.subtract", operation_id=f"{prefix}_coax_dielectric_subtract", target_id=dielectric_id, tool_ids=(pin_bore_id,))
+                design = self._run(registry, design, calls, "boolean.subtract", operation_id=f"{prefix}_coax_outer_subtract", target_id=outer_id, tool_ids=(outer_bore_id,))
+                reference_x = f"{probe_x}+(coax_dielectric_radius_mm+coax_outer_radius_mm)/2"
+                design = self._run(
+                    registry,
+                    design,
+                    calls,
+                    "em.port.create",
+                    port_id=f"port_{element}",
+                    name=f"Port {element}",
+                    kind="modal_cross_section",
+                    positive_point=(probe_x, cy, "-coax_launch_length_mm"),
+                    negative_point=(reference_x, cy, "-coax_launch_length_mm"),
+                    signal_terminal=probe_id,
+                    reference_terminal=outer_id,
+                    cross_section={"geometry_id": dielectric_id, "face": "z_min"},
+                    mode_count=1,
+                    element_index=element,
+                )
         design = replace(design, excitation=recipe_excitation_definition(design))
         return validate_design(design), tuple(calls)
 

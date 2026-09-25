@@ -52,10 +52,10 @@ class CanonicalGeometryEvaluationTests(unittest.TestCase):
     def test_circular_patch_and_probe_match_canonical_primitives(self):
         state = self.agent.create_design("circular_patch")
         scene = build_geometry_scene(state)
-        self.assertEqual(len(scene.solids), 4)
+        self.assertEqual(len(scene.solids), 6)
         self.assertEqual(sum("circular_patch_element" in item.tags for item in scene.solids), 1)
         self.assertEqual(sum("probe_feed" in item.tags for item in scene.solids), 1)
-        self.assertFalse(scene.evaluated_operations)
+        self.assertEqual(len(scene.evaluated_operations), 3)
         self.assertFalse(scene.warnings)
 
     def test_dipole_preserves_two_separate_cylindrical_arms(self):

@@ -26,6 +26,7 @@ from studio.antenna_design import (
     GeometryObject,
     MaterialSpec,
     PortSpec,
+    PortCrossSection,
     SimulationSetup,
     TransformSpec,
 )
@@ -471,6 +472,15 @@ def _port(design: AntennaDesign, args: dict[str, Any]) -> AntennaDesign:
     negative = tuple(args["negative_point"])
     if len(positive) != 3 or len(negative) != 3:
         raise CapabilityError("Port endpoints require three coordinates.")
+    cross_section_payload = args.get("cross_section")
+    cross_section = None
+    if cross_section_payload is not None:
+        if not isinstance(cross_section_payload, dict):
+            raise CapabilityError("Port cross-section must be a structured geometry reference.")
+        cross_section = PortCrossSection(
+            geometry_id=str(cross_section_payload["geometry_id"]),
+            face=str(cross_section_payload["face"]),
+        )
     port = PortSpec(
         port_id=port_id,
         name=str(args.get("name", port_id)),
@@ -479,6 +489,10 @@ def _port(design: AntennaDesign, args: dict[str, Any]) -> AntennaDesign:
         negative_point=negative,
         impedance_ohms=_finite(args.get("impedance_ohms", 50.0), "port impedance"),
         element_index=int(args.get("element_index", len(design.ports) + 1)),
+        signal_terminal=(str(args["signal_terminal"]) if args.get("signal_terminal") is not None else None),
+        reference_terminal=(str(args["reference_terminal"]) if args.get("reference_terminal") is not None else None),
+        cross_section=cross_section,
+        mode_count=int(args.get("mode_count", 1)),
     )
     return replace(design, ports=(*design.ports, port))
 

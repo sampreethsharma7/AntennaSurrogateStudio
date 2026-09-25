@@ -230,31 +230,77 @@ class CSTAdapter:
                     )
                 )
         for number, port in enumerate(design.ports, start=1):
-            p1 = tuple(self._expression(design, value) for value in port.negative_point)
-            p2 = tuple(self._expression(design, value) for value in port.positive_point)
+            port_label = port.name or f"P{number}"
+            if port.kind == "discrete":
+                p1 = tuple(self._expression(design, value) for value in port.negative_point)
+                p2 = tuple(self._expression(design, value) for value in port.positive_point)
+                rows = [
+                    "With DiscretePort",
+                    ".Reset",
+                    f'.PortNumber "{number}"',
+                    '.Type "SParameter"',
+                    f'.Impedance "{port.impedance_ohms:.12g}"',
+                    '.Voltage "1"',
+                    '.Current "1"',
+                    '.Monitor "True"',
+                    '.Radius "0"',
+                    f'.SetP1 "False", "{p1[0]}", "{p1[1]}", "{p1[2]}"',
+                    f'.SetP2 "False", "{p2[0]}", "{p2[1]}", "{p2[2]}"',
+                    '.InvertDirection "False"',
+                    '.LocalCoordinates "False"',
+                    '.Wire ""',
+                    '.Position "end1"',
+                    ".Create",
+                    "End With",
+                ]
+            elif port.kind == "modal_cross_section":
+                if port.cross_section is None or port.reference_terminal is None:
+                    raise CSTAdapterError(f"Modal port {port.port_id} lacks its canonical cross-section or reference terminal.")
+                cross_section = by_id[port.cross_section.geometry_id]
+                reference = by_id[port.reference_terminal]
+                cross_dimensions = cross_section.dimension_map()
+                reference_dimensions = reference.dimension_map()
+                if cross_section.axis != "z" or reference.axis != "z":
+                    raise CSTAdapterError("CST coax modal ports currently require a z-axis canonical cross-section.")
+                center_x = self._expression(design, cross_dimensions["center_1"])
+                center_y = self._expression(design, cross_dimensions["center_2"])
+                outer_radius = self._expression(design, reference_dimensions["radius"])
+                face_key = "start" if port.cross_section.face == "z_min" else "end"
+                plane_z = self._expression(design, cross_dimensions[face_key])
+                orientation = "zmin" if port.cross_section.face == "z_min" else "zmax"
+                rows = [
+                    "With Port",
+                    ".Reset",
+                    f'.PortNumber "{number}"',
+                    f'.Label "{port_label}"',
+                    f'.NumberOfModes "{port.mode_count}"',
+                    '.AdjustPolarization "False"',
+                    '.PolarizationAngle "0.0"',
+                    '.ReferencePlaneDistance "0.0"',
+                    '.TextSize "50"',
+                    '.TextMaxLimit "1"',
+                    '.Coordinates "Free"',
+                    f'.Orientation "{orientation}"',
+                    '.PortOnBound "False"',
+                    '.ClipPickedPortToBound "False"',
+                    f'.Xrange "({center_x})-({outer_radius})", "({center_x})+({outer_radius})"',
+                    f'.Yrange "({center_y})-({outer_radius})", "({center_y})+({outer_radius})"',
+                    f'.Zrange "{plane_z}", "{plane_z}"',
+                    '.XrangeAdd "0.0", "0.0"',
+                    '.YrangeAdd "0.0", "0.0"',
+                    '.ZrangeAdd "0.0", "0.0"',
+                    '.SingleEnded "False"',
+                    '.ConsiderForStructureBoundary "False"',
+                    ".Create",
+                    "End With",
+                ]
+            else:
+                raise CSTAdapterError(f"Unsupported CST port kind: {port.kind}.")
             operations.append(
                 self._operation(
                     f"define port: {port.name or f'P{number}'}",
                     "port",
-                    [
-                        "With DiscretePort",
-                        ".Reset",
-                        f'.PortNumber "{number}"',
-                        '.Type "SParameter"',
-                        f'.Impedance "{port.impedance_ohms:.12g}"',
-                        '.Voltage "1"',
-                        '.Current "1"',
-                        '.Monitor "True"',
-                        '.Radius "0"',
-                        f'.SetP1 "False", "{p1[0]}", "{p1[1]}", "{p1[2]}"',
-                        f'.SetP2 "False", "{p2[0]}", "{p2[1]}", "{p2[2]}"',
-                        '.InvertDirection "False"',
-                        '.LocalCoordinates "False"',
-                        '.Wire ""',
-                        '.Position "end1"',
-                        ".Create",
-                        "End With",
-                    ],
+                    rows,
                 )
             )
         minimum = self._expression(design, design.simulation.frequency_min_ghz)

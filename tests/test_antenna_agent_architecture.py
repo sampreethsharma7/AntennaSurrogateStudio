@@ -408,7 +408,8 @@ class AntennaAgentArchitectureTests(unittest.TestCase):
         )).design
         script = CSTAdapter().macro(circular)
         self.assertIn('StoreParameter "PatchRadius"', script)
-        self.assertEqual(script.count("With DiscretePort"), 2)
+        self.assertEqual(script.count("With Port"), 2)
+        self.assertNotIn("With DiscretePort", script)
         self.assertNotIn("Solver.Start", script)
         self.assertNotIn("solver_command", str(circular.to_dict()).casefold())
 

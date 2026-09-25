@@ -26,6 +26,163 @@ def _record(stage: str, errors: list[str]) -> ValidationRecord:
     return ValidationRecord(stage=stage, passed=not errors, messages=tuple(errors))
 
 
+def _circular_coax_errors(design: AntennaDesign, values: dict[str, float]) -> list[str]:
+    """Validate the canonical probe/coax transition before any solver adapter runs."""
+
+    errors: list[str] = []
+    by_id = {item.object_id: item for item in design.geometry}
+    materials = {item.material_id: item for item in design.materials}
+    booleans = {
+        (operation.operation, operation.target_id, tool_id)
+        for operation in design.booleans
+        for tool_id in operation.tool_ids
+    }
+
+    def tagged(element: int, role: str):
+        element_tag = f"element_{element}"
+        return [item for item in design.geometry if role in item.tags and element_tag in item.tags]
+
+    def radius(item) -> float:
+        return evaluate_scalar(item.dimension_map()["radius"], values)
+
+    def center(item) -> tuple[float, float]:
+        dimensions = item.dimension_map()
+        return (
+            evaluate_scalar(dimensions["center_1"], values) + item.transform.translate_mm[0],
+            evaluate_scalar(dimensions["center_2"], values) + item.transform.translate_mm[1],
+        )
+
+    ground = by_id.get("ground")
+    if ground is None:
+        return ["The circular-patch coax feed requires a ground conductor."]
+    if materials.get(ground.material_id) is None or materials[ground.material_id].kind != "conductor":
+        errors.append("The circular-patch ground reference must be conductive.")
+
+    for element in range(1, design.array.element_count + 1):
+        port = next((item for item in design.ports if item.element_index == element), None)
+        if port is None:
+            continue
+        if port.kind != "modal_cross_section":
+            errors.append(
+                f"{port.port_id} uses invalid axial discrete-port excitation; circular probe feeds require a modal coax cross-section."
+            )
+            continue
+        if port.mode_count != 1:
+            errors.append(f"{port.port_id} must excite exactly one coaxial mode.")
+        if not port.signal_terminal or not port.reference_terminal:
+            errors.append(f"{port.port_id} requires explicit signal and reference terminals.")
+            continue
+        if port.signal_terminal == port.reference_terminal:
+            errors.append(f"{port.port_id} signal and reference terminals must be different conductors.")
+        signal = by_id.get(port.signal_terminal)
+        reference = by_id.get(port.reference_terminal)
+        if signal is None or reference is None:
+            errors.append(f"{port.port_id} references missing signal or reference conductor geometry.")
+            continue
+        if any(materials.get(item.material_id) is None or materials[item.material_id].kind != "conductor" for item in (signal, reference)):
+            errors.append(f"{port.port_id} signal and reference terminals must resolve to conductors.")
+        if signal.object_id == ground.object_id:
+            errors.append(f"{port.port_id} probe and ground must be different conductor objects.")
+
+        if port.cross_section is None:
+            errors.append(f"{port.port_id} requires a modal cross-section geometry reference.")
+            continue
+        dielectric = by_id.get(port.cross_section.geometry_id)
+        if dielectric is None:
+            errors.append(f"{port.port_id} references a missing coax dielectric cross-section.")
+            continue
+        if port.cross_section.face not in {"z_min", "z_max"}:
+            errors.append(f"{port.port_id} modal cross-section must reference a z-normal face.")
+        dielectric_material = materials.get(dielectric.material_id)
+        if dielectric_material is None or dielectric_material.kind != "dielectric":
+            errors.append(f"{port.port_id} modal cross-section must resolve to dielectric geometry.")
+
+        patches = tagged(element, "circular_patch_element")
+        probes = tagged(element, "probe_feed")
+        clearances = tagged(element, "ground_clearance_tool")
+        dielectrics = tagged(element, "coax_dielectric")
+        references = tagged(element, "coax_reference")
+        if any(len(items) != 1 for items in (patches, probes, clearances, dielectrics, references)):
+            errors.append(f"Circular-patch element {element} requires one patch, probe, clearance, coax dielectric, and coax reference conductor.")
+            continue
+        patch, probe, clearance, tagged_dielectric, tagged_reference = (
+            patches[0], probes[0], clearances[0], dielectrics[0], references[0]
+        )
+        if signal.object_id != probe.object_id or reference.object_id != tagged_reference.object_id:
+            errors.append(f"{port.port_id} terminals do not resolve to this element's probe and coax reference conductor.")
+        if dielectric.object_id != tagged_dielectric.object_id:
+            errors.append(f"{port.port_id} cross-section does not resolve to this element's coax dielectric.")
+
+        probe_radius = radius(probe)
+        clearance_radius = radius(clearance)
+        dielectric_radius = radius(dielectric)
+        reference_radius = radius(reference)
+        if not probe_radius < clearance_radius:
+            errors.append(f"Element {element} probe is not isolated by a larger ground clearance.")
+        if abs(clearance_radius - dielectric_radius) > 1e-9:
+            errors.append(f"Element {element} ground clearance and coax dielectric radii must coincide.")
+        if not dielectric_radius < reference_radius:
+            errors.append(f"Element {element} coax reference conductor must surround the dielectric.")
+        if ("subtract", ground.object_id, clearance.object_id) not in booleans:
+            errors.append(f"Element {element} probe lacks a Boolean ground-clearance hole.")
+        if not any(
+            operation.operation == "subtract"
+            and operation.target_id == dielectric.object_id
+            and probe.object_id not in operation.tool_ids
+            and any("coax_pin_bore_tool" in by_id[tool_id].tags for tool_id in operation.tool_ids if tool_id in by_id)
+            for operation in design.booleans
+        ):
+            errors.append(f"Element {element} coax dielectric lacks an isolated inner-pin bore.")
+        if not any(
+            operation.operation == "subtract"
+            and operation.target_id == reference.object_id
+            and any("coax_outer_bore_tool" in by_id[tool_id].tags for tool_id in operation.tool_ids if tool_id in by_id)
+            for operation in design.booleans
+        ):
+            errors.append(f"Element {element} coax reference conductor lacks its dielectric bore.")
+
+        patch_bounds = object_bounds(design, patch)
+        probe_bounds = object_bounds(design, probe)
+        dielectric_bounds = object_bounds(design, dielectric)
+        reference_bounds = object_bounds(design, reference)
+        patch_center = center(patch)
+        probe_center = center(probe)
+        dielectric_center = center(dielectric)
+        reference_center = center(reference)
+        radial_distance = math.hypot(probe_center[0] - patch_center[0], probe_center[1] - patch_center[1])
+        probe_patch_overlap = min(probe_bounds[5], patch_bounds[5]) - max(probe_bounds[4], patch_bounds[4])
+        if radial_distance + probe_radius > radius(patch) + 1e-9 or probe_patch_overlap <= 1e-9:
+            errors.append(f"Element {element} probe does not contact the circular patch conductor.")
+        ground_bounds = object_bounds(design, ground)
+        clearance_bounds = object_bounds(design, clearance)
+        if clearance_bounds[4] > ground_bounds[4] + 1e-9 or clearance_bounds[5] < ground_bounds[5] - 1e-9:
+            errors.append(f"Element {element} ground clearance does not pass through the full ground thickness.")
+        if any(
+            math.hypot(point[0] - probe_center[0], point[1] - probe_center[1]) > 1e-9
+            for point in (dielectric_center, reference_center)
+        ):
+            errors.append(f"Element {element} coax pin, dielectric, and reference conductor must be concentric.")
+        if abs(reference_bounds[5] - ground_bounds[5]) > 1e-9 or reference_radius <= clearance_radius:
+            errors.append(f"Element {element} coax reference conductor is not electrically joined to the ground plane.")
+
+        cross_section_z = dielectric_bounds[4] if port.cross_section.face == "z_min" else dielectric_bounds[5]
+        positive = tuple(evaluate_scalar(value, values) for value in port.positive_point)
+        negative = tuple(evaluate_scalar(value, values) for value in port.negative_point)
+        if abs(positive[2] - cross_section_z) > 1e-9 or abs(negative[2] - cross_section_z) > 1e-9:
+            errors.append(f"{port.port_id} terminals must lie on its modal cross-section plane.")
+        positive_radius = math.hypot(positive[0] - probe_center[0], positive[1] - probe_center[1])
+        negative_radius = math.hypot(negative[0] - probe_center[0], negative[1] - probe_center[1])
+        if positive_radius > probe_radius + 1e-9:
+            errors.append(f"{port.port_id} signal terminal is outside the inner probe conductor.")
+        if not dielectric_radius - 1e-9 <= negative_radius <= reference_radius + 1e-9:
+            errors.append(f"{port.port_id} reference terminal is outside the coax outer conductor.")
+        if not probe_bounds[4] - 1e-9 <= cross_section_z <= probe_bounds[5] + 1e-9:
+            errors.append(f"{port.port_id} signal conductor does not intersect the modal cross-section.")
+        if not reference_bounds[4] - 1e-9 <= cross_section_z <= reference_bounds[5] + 1e-9:
+            errors.append(f"{port.port_id} reference conductor does not intersect the modal cross-section.")
+    return errors
+
+
 def validate_design(design: AntennaDesign, *, raise_on_error: bool = True) -> AntennaDesign:
     """Validate parameters, primitives, recipe structure, and simulation setup."""
 
@@ -114,6 +271,8 @@ def validate_design(design: AntennaDesign, *, raise_on_error: bool = True) -> An
             recipe_errors.append("Each circular-patch element requires one circular conductor.")
         if tags.count("probe_feed") != expected_ports:
             recipe_errors.append("Each circular-patch element requires one probe feed.")
+        if values and not primitive_errors:
+            recipe_errors.extend(_circular_coax_errors(design, values))
     elif design.family == "dipole":
         if tags.count("dipole_arm") != expected_ports * 2:
             recipe_errors.append("Each dipole element requires two conductor arms.")
