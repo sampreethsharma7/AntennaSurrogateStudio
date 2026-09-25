@@ -25,7 +25,11 @@ from studio.model_training import (
 from studio.parser_engine import TrainingRequest
 from studio.project_store import ProjectStore
 from studio.scientific_plot import MAX_SCATTER_MARKERS
-from studio.ui import StudioApp, responsive_window_layout
+from studio.ui import (
+    StudioApp,
+    _content_sized_dialog_dimensions,
+    responsive_window_layout,
+)
 
 
 GUI_MAY_BE_AVAILABLE = (
@@ -53,6 +57,28 @@ class ResponsiveWindowLayoutTests(unittest.TestCase):
                     1.0,
                 )
                 self.assertTrue(layout.compact)
+
+    def test_content_sized_dialogs_keep_actions_visible_at_common_scaling(self):
+        for dpi_scaling in (1.0, 1.25, 1.5):
+            with self.subTest(dpi_scaling=dpi_scaling):
+                window_scaling = 1.0 / dpi_scaling
+                for requested_width, requested_height, minimum_width, minimum_height in (
+                    (540, 428, 540, 430),
+                    (580, 620, 580, 540),
+                ):
+                    width, height = _content_sized_dialog_dimensions(
+                        requested_width,
+                        requested_height,
+                        window_scaling=window_scaling,
+                        screen_width_px=1366,
+                        screen_height_px=768,
+                        minimum_width=minimum_width,
+                        minimum_height=minimum_height,
+                    )
+                    self.assertGreaterEqual(round(width * window_scaling), requested_width)
+                    self.assertGreaterEqual(round(height * window_scaling), requested_height)
+                    self.assertLessEqual(round(width * window_scaling), 1326)
+                    self.assertLessEqual(round(height * window_scaling), 728)
 
 
 def create_active_book(project, *, output_count=1, name="Page Model"):

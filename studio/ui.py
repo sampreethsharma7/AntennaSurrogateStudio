@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import math
 import queue
 import subprocess
 import sys
@@ -169,6 +170,30 @@ def _window_dpi_scaling(window: tk.Misc) -> float:
         except (AttributeError, OSError, ValueError):
             pass
     return max(1.0, float(getattr(window, "_window_scaling", 1.0)))
+
+
+def _content_sized_dialog_dimensions(
+    requested_width_px: int,
+    requested_height_px: int,
+    *,
+    window_scaling: float,
+    screen_width_px: int,
+    screen_height_px: int,
+    minimum_width: int,
+    minimum_height: int,
+    padding_px: int = 20,
+) -> tuple[int, int]:
+    """Return logical CTk dimensions that contain the measured physical content."""
+
+    scale = max(0.1, float(window_scaling))
+    desired_width = math.ceil((requested_width_px + padding_px) / scale)
+    desired_height = math.ceil((requested_height_px + padding_px) / scale)
+    maximum_width = max(320, math.floor((screen_width_px - 40) / scale))
+    maximum_height = max(320, math.floor((screen_height_px - 40) / scale))
+    return (
+        min(max(minimum_width, desired_width), maximum_width),
+        min(max(minimum_height, desired_height), maximum_height),
+    )
 
 
 class HoverTooltip:
@@ -5385,10 +5410,10 @@ class CreateProjectDialog(ctk.CTkToplevel):
         self.callback = callback
         self.title("Create antenna project")
         self.geometry("540x430")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
-        self.after(20, self._center)
+        self.after_idle(self._fit_to_content)
 
         ctk.CTkLabel(
             self,
@@ -5481,11 +5506,28 @@ class CreateProjectDialog(ctk.CTkToplevel):
         self.destroy()
         self.callback(name, description)
 
-    def _center(self) -> None:
+    def _fit_to_content(self) -> None:
+        if not self.winfo_exists():
+            return
+        self.update_idletasks()
+        reverse_100 = max(1, self._reverse_window_scaling(100))
+        window_scaling = 100.0 / reverse_100
+        width, height = _content_sized_dialog_dimensions(
+            self.winfo_reqwidth(),
+            self.winfo_reqheight(),
+            window_scaling=window_scaling,
+            screen_width_px=self.winfo_screenwidth(),
+            screen_height_px=self.winfo_screenheight(),
+            minimum_width=540,
+            minimum_height=430,
+        )
+        self.minsize(width, height)
         parent = self.master
-        x = parent.winfo_rootx() + (parent.winfo_width() - 540) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 430) // 2
-        self.geometry(f"540x430+{max(0, x)}+{max(0, y)}")
+        physical_width = round(width * window_scaling)
+        physical_height = round(height * window_scaling)
+        x = parent.winfo_rootx() + (parent.winfo_width() - physical_width) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - physical_height) // 2
+        self.geometry(f"{width}x{height}+{max(0, x)}+{max(0, y)}")
 
 
 class LocalModelDialog(ctk.CTkToplevel):
@@ -5501,7 +5543,7 @@ class LocalModelDialog(ctk.CTkToplevel):
         self.selected_model = ctk.StringVar(value=service.model)
         self.title("SnowBuddy local model")
         self.geometry("580x540")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.transient(parent.winfo_toplevel())
         self.grab_set()
 
@@ -5630,7 +5672,7 @@ class LocalModelDialog(ctk.CTkToplevel):
             command=self._use_selected,
         )
         self.use_button.pack(side="right")
-        self.after(10, self._center)
+        self.after_idle(self._fit_to_content)
         self.after(80, self._check_runtime)
 
     def _selection_changed(self) -> None:
@@ -5722,11 +5764,28 @@ class LocalModelDialog(ctk.CTkToplevel):
         self.callback()
         self.destroy()
 
-    def _center(self) -> None:
+    def _fit_to_content(self) -> None:
+        if not self.winfo_exists():
+            return
+        self.update_idletasks()
+        reverse_100 = max(1, self._reverse_window_scaling(100))
+        window_scaling = 100.0 / reverse_100
+        width, height = _content_sized_dialog_dimensions(
+            self.winfo_reqwidth(),
+            self.winfo_reqheight(),
+            window_scaling=window_scaling,
+            screen_width_px=self.winfo_screenwidth(),
+            screen_height_px=self.winfo_screenheight(),
+            minimum_width=580,
+            minimum_height=540,
+        )
+        self.minsize(width, height)
         parent = self.master.winfo_toplevel()
-        x = parent.winfo_rootx() + (parent.winfo_width() - 580) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 540) // 2
-        self.geometry(f"580x540+{max(0, x)}+{max(0, y)}")
+        physical_width = round(width * window_scaling)
+        physical_height = round(height * window_scaling)
+        x = parent.winfo_rootx() + (parent.winfo_width() - physical_width) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - physical_height) // 2
+        self.geometry(f"{width}x{height}+{max(0, x)}+{max(0, y)}")
 
 
 def _friendly_date(value: str) -> str:

@@ -1,8 +1,8 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.76
+Contract version: 3.77
 Studio version: 0.33.2
-UI source SHA-256: 20735c81d96e69c134bded65fe2bf8181198ba8144ac5b33ff5447deb27edd1f
+UI source SHA-256: 2dbd87e84790b93572a9676b13c934ec69dc4df8a8edd9c9b01f2fbc914c79ce
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
 Antenna Builder UI source SHA-256: 012b18886e8edaa51e51035ec7fd10d6e26e872055a456bac466c67d98f8486a
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
@@ -104,6 +104,9 @@ antenna models. Save them as books. Reuse them anytime.”
 - Clicking a project card opens that project.
 - When empty, the card says “Your project shelf is empty” and offers “Create
   project.”
+- The Create antenna project dialog measures its rendered content before
+  centering, is resizable, and keeps the Cancel and Create project actions
+  visible at 100%, 125%, and 150% Windows display scaling.
 - The five cards share one fixed responsive row. The Start page has no page
   scrollbar.
 - A fixed bottom workflow footer mirrors the same stage-aware destination as
@@ -1153,6 +1156,9 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
   the selected model is ready locally.
 - Actions: “Get Ollama,” “Download selected,” and “Use selected.”
 - An installed model disables the download action and displays “Installed.”
+
+- The local-model dialog measures its rendered content, is resizable, and keeps
+  all actions reachable across the supported Windows display scaling levels.
 
 ## Important interface states
 
