@@ -799,7 +799,7 @@ def _load_local_api_key(name: str, *, env_file: str | Path | None = None) -> str
     ]
     for path in dict.fromkeys(candidates):
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
+            lines = path.read_text(encoding="utf-8-sig").splitlines()
         except OSError:
             continue
         for line in lines:

@@ -226,6 +226,13 @@ class LLMPlannerTests(unittest.TestCase):
             with patch.dict(os.environ, {}, clear=True):
                 self.assertEqual(load_gemini_api_key(env_file=env_file), "file-key")
 
+    def test_first_env_key_can_be_loaded_when_file_has_utf8_bom(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_file = Path(directory) / ".env"
+            env_file.write_text("GEMINI_API_KEY=bom-key\n", encoding="utf-8-sig")
+            with patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(load_gemini_api_key(env_file=env_file), "bom-key")
+
     def test_gemini_post_generation_validation_gets_one_schema_repair(self):
         requests = []
         responses = iter((
