@@ -199,6 +199,29 @@ class AgentRunnerBuilderIntegrationTests(unittest.TestCase):
         self.assertIsNone(empty_result.session.design)
         self.assertFalse((empty_path / "design" / "antenna_state.json").exists())
 
+    def test_refusal_transcript_hides_internal_modifier_and_composition_ids(self):
+        session = BuilderProjectSession(design=create_default_agent().create_design("inset_patch"))
+        raw = (
+            "corner_circle_cutouts_v1 cannot edit composition_1 operation "
+            "call_4eace2c0bda22601."
+        )
+        result = execute_builder_turn(
+            self.project_path,
+            session,
+            "Try an unavailable feature edit.",
+            planner=ScriptedAgentPlanner(step(status="refuse", message=raw)),
+            turn_id="turn-friendly-refusal",
+        )
+
+        displayed = result.session.conversation[-1]["content"]
+        self.assertIn("circular corner notches", displayed)
+        self.assertIn("composed feature", displayed)
+        self.assertIn("geometry operation", displayed)
+        self.assertNotIn("corner_circle_cutouts_v1", displayed)
+        self.assertNotIn("composition_1", displayed)
+        self.assertNotIn("call_4eace2c0bda22601", displayed)
+        self.assertEqual(result.update.message, displayed)
+
     def _assert_rollback(self, planner, expected_exception=None, *, expected_outcome=None, budgets=None):
         baseline = create_default_agent().create_design("inset_patch")
         session = BuilderProjectSession(design=baseline)

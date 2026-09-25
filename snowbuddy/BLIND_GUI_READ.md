@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.77
+Contract version: 3.78
 Studio version: 0.33.2
-UI source SHA-256: 2dbd87e84790b93572a9676b13c934ec69dc4df8a8edd9c9b01f2fbc914c79ce
+UI source SHA-256: 87130666db6e9ab14919387f5c038e11e2e5328bbe83aea4b6d98812c13a61bf
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
-Antenna Builder UI source SHA-256: 012b18886e8edaa51e51035ec7fd10d6e26e872055a456bac466c67d98f8486a
+Antenna Builder UI source SHA-256: 74fe17be81a46fc9dce613275b779a64b178f338188cd00d031b3c4e79b34ec7
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -67,7 +67,7 @@ adds the user’s current page, values, selections, and status.
   active page, project,
   form values, or chat. The choice is global for this local Studio library and
   is restored from `studio_settings.json` on the next launch.
-- The sidebar contains the AS brand badge, Start, Design Start, Data Prep, Model Training,
+- The sidebar contains the AS brand badge, Start, Text / CAD Design, Data Prep, Model Training,
   Training Results, Model Library, Inference, and Inverse Design. Collapsed mode shows those same
   destinations as icons. All project workflow pages are available
   while a project is active. Selecting one without a project returns to Start
@@ -81,15 +81,18 @@ adds the user’s current page, values, selections, and status.
 
 ## Start page
 
-The page heading is “Your surrogate workspace” with the subtitle “Build trusted
-antenna models. Save them as books. Reuse them anytime.”
+The page heading is “Your surrogate workspace” with a subtitle that introduces
+the full path: describe a supported antenna, inspect generated geometry, then
+build a trusted surrogate model.
 
 ### Active workspace hero
 
 - A pale blue instrument card in Light mode or blue-black instrument card in
   Dark mode, with a teal/cyan border, shows the active project name, next
   action, progress bar, and completed-step count.
-- With no project it says “Start something precise” and “No active project.”
+- With no project it says “Start something precise” and explains that the user
+  can create a project, describe an antenna in plain language, or bring an
+  existing design.
 - With no project, the hero offers “+ Create project” and “Open project.”
 - With a project active, those empty-state actions disappear and the hero shows
   one stage-aware resume action: Continue Data Prep, Validate & Register Data,
@@ -155,11 +158,12 @@ antenna models. Save them as books. Reuse them anytime.”
   Transcript copy is 30 percent larger than the standard small-body size and
   reflows whenever the conversation pane width changes; it has no fixed-width
   wrapping boundary. A new,
-  empty project shows four clickable starters for an inset-fed patch, circular
-  patch, center-fed dipole, and patch array. Clicking one fills the composer.
-  The empty state also states the supported three-family/array/slot/cutout
-  scope and explicitly lists horns, Vivaldi antennas, spirals, feed networks,
-  and solver runs as unsupported.
+  empty project shows four concise, untruncated clickable starters for an inset
+  patch, circular patch, center-fed dipole, and patch array. Clicking one fills
+  the composer with the complete detailed request. The empty state also states
+  the supported three-family/array/slot/circular-corner-notch scope and
+  explicitly lists horns, Vivaldi antennas, spirals, feed networks, and solver
+  runs as unsupported.
 - The composer grows from 92 through 154 pixels as text wraps or gains lines,
   then scrolls. A live character and visual-line count stays in its header.
   Enter adds a line; Ctrl+Enter or the prominent Apply button submits the
@@ -185,6 +189,8 @@ antenna models. Save them as books. Reuse them anytime.”
   planning-tool schemas, and ToolPlan output schema. The model must return an
   ordered sequence of registered calls, one clarification question, or a refusal. It cannot
   return arbitrary code, geometry, files, CST commands, or solver operations.
+  Transcript and status copy uses user-facing feature names; internal modifier,
+  composition-group, and operation IDs remain confined to planner audit data.
   The deterministic executor validates every call, compiles recipes and
   modifiers to primitive tools, and applies layered validation before replacing
   the live design. Validated LLM-composed primitive groups persist with the

@@ -557,10 +557,10 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self._conversation_text_labels.append(introduction)
         self.starter_example_buttons = []
         labels = (
-            "Inset-fed rectangular patch at 2.45 GHz on FR4",
-            "Probe-fed circular patch at 5.8 GHz on RT5880",
-            "Centre-fed dipole at 915 MHz",
-            "Patch at 2.45 GHz as a 1×4 array, 0.55λ spacing",
+            "Inset patch · 2.45 GHz · FR4",
+            "Circular patch · 5.8 GHz · RT5880",
+            "Dipole · 915 MHz",
+            "1×4 patch array · 2.45 GHz · 0.55λ",
         )
         for row, (label, instruction) in enumerate(zip(labels, STARTER_EXAMPLES), start=1):
             button = ctk.CTkButton(
@@ -581,7 +581,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
         scope = ctk.CTkLabel(
             self.conversation_frame,
             text=(
-                "Supported: 3 antenna families · arrays to 16×16 · circular and rectangular slots · corner cutouts\n"
+                "Supported: 3 antenna families · arrays to 16×16 · circular and rectangular slots · circular corner notches\n"
                 "Not supported: horns, Vivaldi, spirals, feed networks, solver runs"
             ),
             text_color=COLORS["muted"],

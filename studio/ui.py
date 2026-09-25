@@ -713,7 +713,7 @@ class StudioApp(ctk.CTk):
 
         self.nav_specs = {
             "start": ("⌂", "Start"),
-            "design_start": ("⌁", "Design Start"),
+            "design_start": ("⌁", "Text / CAD Design"),
             "data": ("≋", "Data Prep"),
             "training": ("◇", "Model Training"),
             "results": ("◎", "Training Results"),
@@ -729,7 +729,7 @@ class StudioApp(ctk.CTk):
             self.sidebar,
             3,
             "⌁",
-            "Design Start",
+            "Text / CAD Design",
             lambda: self.show_page("design_start"),
         )
         self.nav_buttons["data"] = self._nav_button(
@@ -1292,13 +1292,14 @@ class StartPage(ctk.CTkFrame):
             font=FONTS["display"],
             anchor="w",
         ).pack(anchor="w")
-        ctk.CTkLabel(
+        self.workspace_subtitle = ctk.CTkLabel(
             heading,
-            text="Build trusted antenna models. Save them as books. Reuse them anytime.",
+            text="Describe a supported antenna, inspect generated geometry, then build a trusted surrogate model.",
             text_color=COLORS["muted"],
             font=FONTS["body"],
             anchor="w",
-        ).pack(anchor="w", pady=(4, 0))
+        )
+        self.workspace_subtitle.pack(anchor="w", pady=(4, 0))
 
         date_text = datetime.now().strftime("%A  ·  %B %d")
         ctk.CTkLabel(
@@ -1410,7 +1411,7 @@ class StartPage(ctk.CTkFrame):
         self.hero_title.pack(anchor="w", pady=(6, 3))
         self.hero_subtitle = ctk.CTkLabel(
             left,
-            text="Create a project or reopen an existing antenna workspace.",
+            text="Create a project, then describe an antenna in plain language or bring an existing design.",
             text_color=COLORS["muted"],
             font=FONTS["body_small"],
             anchor="w",
@@ -1512,7 +1513,7 @@ class StartPage(ctk.CTkFrame):
         else:
             self.hero_title.configure(text="Start something precise")
             self.hero_subtitle.configure(
-                text="Create a project or reopen an existing antenna workspace."
+                text="Create a project, then describe an antenna in plain language or bring an existing design."
             )
             self.progress_bar.set(0.0)
             self.progress_text.configure(text="No active project")

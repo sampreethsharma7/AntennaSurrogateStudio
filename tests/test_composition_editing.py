@@ -311,6 +311,22 @@ class CompositionEditingTests(unittest.TestCase):
         self.assertFalse(self._tools(empty))
         self.assertIn("patch_width_mm", empty.parameter_map())
 
+    def test_composition_change_summaries_are_user_facing(self):
+        design = self._circle()
+        group = design.composed_operations[0]
+        cylinder = self._call(design, group.group_id, "geometry.cylinder")
+        edited = self.agent.execute_llm_plan(
+            design,
+            plan(("composition.update_operation", {
+                "group_id": group.group_id,
+                "operation_id": cylinder.operation_id,
+                "argument_updates": {"dimensions": {"center_1": 2.0}},
+            })),
+        )
+        self.assertIn("composed feature geometry updated", edited.changes)
+        self.assertFalse(any(group.group_id in change for change in edited.changes))
+        self.assertFalse(any(cylinder.operation_id in change for change in edited.changes))
+
     def test_edit_delete_round_trip_and_legacy_call_ids(self):
         design = self._circle()
         group = design.composed_operations[0]

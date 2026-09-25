@@ -169,6 +169,12 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertEqual(self.page.native_cst_button.cget("state"), "disabled")
         self.assertEqual(self.page.lhs_button.cget("state"), "disabled")
         self.assertEqual(len(self.page.starter_example_buttons), 4)
+        starter_labels = [button.cget("text") for button in self.page.starter_example_buttons]
+        self.assertEqual(
+            [label.split()[0] for label in starter_labels],
+            ["Inset", "Circular", "Dipole", "1\u00d74"],
+        )
+        self.assertTrue(all(len(label) <= 38 for label in starter_labels))
         self.assertIn("Not supported: horns", self.page.conversation_frame.winfo_children()[-1].cget("text"))
         self.page.starter_example_buttons[0].invoke()
         self.assertIn("inset-fed rectangular patch", self.page.instruction_var.get())
@@ -185,6 +191,21 @@ class AntennaBuilderPageTests(unittest.TestCase):
         snapshot = "\n".join(self.page.describe_ui_state())
         self.assertIn("Builder status: awaiting_design", snapshot)
         self.assertIn("Design: null", snapshot)
+
+    def test_welcome_and_sidebar_advertise_text_to_geometry_workflow(self):
+        self.assertIn("Describe a supported antenna", self.app.start_page.workspace_subtitle.cget("text"))
+        self.assertEqual(
+            self.app.nav_buttons["design_start"].accessible_name,
+            "Text / CAD Design",
+        )
+        current_project = self.app.current_project
+        try:
+            self.app.current_project = None
+            self.app.start_page.refresh()
+            self.assertIn("plain language", self.app.start_page.hero_subtitle.cget("text"))
+        finally:
+            self.app.current_project = current_project
+            self.app.start_page.refresh()
 
     def test_first_inset_design_publishes_revision_zero_and_enables_controls(self):
         planner = self._create_inset_design()

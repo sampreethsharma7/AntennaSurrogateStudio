@@ -933,7 +933,7 @@ class AntennaDesignAgent:
                     f"Stored composition {group.group_id!r} is no longer compatible with the rebuilt design: {exc}"
                 ) from exc
             replayed_calls.extend(executed)
-            changes.append(f"stored composition {group.group_id} replayed")
+            changes.append("composed feature preserved")
         rebuilt = validate_design(replace(
             rebuilt,
             composed_operations=groups,
@@ -1284,7 +1284,12 @@ class AntennaDesignAgent:
         if not found:
             raise CapabilityUnavailableError(f"Persisted composition {group_id!r} does not exist.")
         context.composed_groups = updated
-        context.changes.append(f"stored composition {group_id} scope set to {scope}")
+        scope_label = {
+            "all": "every array element",
+            "single": "one array element",
+            "selected": "the selected array elements",
+        }[scope]
+        context.changes.append(f"composed feature applied to {scope_label}")
 
     @staticmethod
     def _merge_argument_updates(current: Mapping[str, Any], updates: Mapping[str, Any]) -> dict[str, Any]:
@@ -1428,9 +1433,7 @@ class AntennaDesignAgent:
                 )
 
         context.composed_groups[group_index] = replace(group, calls=tuple(updated_calls))
-        context.changes.append(
-            f"stored composition {group_id} operation {operation_id} updated"
-        )
+        context.changes.append("composed feature geometry updated")
 
     def _tool_delete_composition(self, context: _PlanningContext, arguments: dict[str, Any]) -> None:
         self._require_exact(arguments, {"group_id"}, "composition.delete")
@@ -1450,7 +1453,7 @@ class AntennaDesignAgent:
             for key, value in context.composed_parameters.items()
             if key in retained_parameter_keys
         }
-        context.changes.append(f"stored composition {group_id} deleted")
+        context.changes.append("composed feature removed")
 
     def _tool_apply_modifier(self, context: _PlanningContext, arguments: dict[str, Any]) -> None:
         self._require_exact(arguments, {"modifier_id"}, "modifier.apply")
@@ -1459,20 +1462,25 @@ class AntennaDesignAgent:
             raise AgentInstructionError("modifier.apply requires a string modifier_id.")
         modifier = self.registry.modifier(modifier_id)
         if context.recipe.family not in modifier.applicable_families:
-            raise CapabilityUnavailableError(f"Modifier {modifier_id} does not apply to {context.recipe.display_name}.")
+            raise CapabilityUnavailableError(
+                f"{modifier.display_name} does not apply to {context.recipe.display_name}."
+            )
         if modifier_id not in context.modifier_ids:
             context.modifier_ids.append(modifier_id)
             for key, value in modifier.defaults().items():
                 context.values.setdefault(key, value)
-            context.changes.append(f"modifier {modifier_id} applied")
+            context.changes.append(f"{modifier.display_name} applied")
 
     def _tool_remove_modifier(self, context: _PlanningContext, arguments: dict[str, Any]) -> None:
         self._require_exact(arguments, {"modifier_id"}, "modifier.remove")
         modifier_id = arguments["modifier_id"]
+        modifier = self.registry.modifier(modifier_id)
         if modifier_id not in context.modifier_ids:
-            raise CapabilityUnavailableError(f"Modifier {modifier_id!r} is not active on this design.")
+            raise CapabilityUnavailableError(
+                f"{modifier.display_name} is not active on this design."
+            )
         context.modifier_ids.remove(modifier_id)
-        context.changes.append(f"modifier {modifier_id} removed")
+        context.changes.append(f"{modifier.display_name} removed")
 
     @staticmethod
     def _reestimate_values(recipe, values: dict[str, Any], explicit_keys: set[str]) -> None:

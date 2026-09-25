@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sys
 import threading
 import uuid
@@ -75,6 +76,16 @@ class StateUpdate:
         if not self.changes:
             return "No antenna design change was needed."
         return "Updated " + "; ".join(self.changes) + "."
+
+
+def user_facing_builder_text(value: Any) -> str:
+    """Replace implementation identifiers in transcript copy while retaining audit data."""
+
+    text = str(value or "")
+    text = text.replace("corner_circle_cutouts_v1", "circular corner notches")
+    text = re.sub(r"\bcomposition_[A-Za-z0-9_]+\b", "composed feature", text)
+    text = re.sub(r"\bcall_[0-9a-fA-F]{8,}\b", "geometry operation", text)
+    return text
 
 
 def _agent() -> AntennaDesignAgent:
@@ -1774,6 +1785,7 @@ def execute_builder_turn(
                     terminal,
                     message=_with_disclosure(terminal.message, disclosure),
                 )
+            user_message = user_facing_builder_text(terminal.message)
             executor_summaries = tuple(
                 str(change["summary"])
                 for change in terminal.aggregate_changes
@@ -1785,6 +1797,7 @@ def execute_builder_turn(
             published_design = baseline
             changes = ()
             outcome_status = "completed"
+            user_message = user_facing_builder_text(terminal.message)
         executed_tools = tuple(
             ToolCall(call.name, dict(call.arguments)) for call in terminal.aggregate_calls
         )
@@ -1792,11 +1805,11 @@ def execute_builder_turn(
             published_design,
             changes,
             executed_tools=executed_tools,
-            message=(None if terminal.has_publishable_change else terminal.message),
+            message=(None if terminal.has_publishable_change else user_message),
         )
         outcome = BuilderInteractionOutcome(
             status=outcome_status,
-            message=terminal.message,
+            message=user_message,
             instruction=instruction,
             planner_calls=terminal.aggregate_calls,
             changes=changes,
@@ -1836,9 +1849,10 @@ def execute_builder_turn(
             else "duplicate_rejection"
         ),
     }.get(terminal.outcome, terminal.outcome)
+    user_message = user_facing_builder_text(terminal.message)
     outcome = BuilderInteractionOutcome(
         status=outcome_status,
-        message=terminal.message,
+        message=user_message,
         instruction=instruction,
     )
     proposals = (
@@ -1870,7 +1884,7 @@ def execute_builder_turn(
         update = StateUpdate(
             baseline,
             (),
-            message=terminal.message,
+            message=user_message,
         )
         return BuilderTurnResult(published, update, current_turn_id, terminal)
     raise CapabilityError(terminal.message)

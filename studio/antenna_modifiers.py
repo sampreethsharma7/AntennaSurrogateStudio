@@ -23,6 +23,7 @@ class CornerCircleCutoutModifier:
     """Cut four circles from a rectangular patch with centers on its corners."""
 
     modifier_id = "corner_circle_cutouts_v1"
+    display_name = "Circular corner notches"
     aliases = ("circular corner cutouts", "corner circles", "circular fractal corners")
     applicable_families = ("rectangular_inset_patch",)
     required_tools = (
