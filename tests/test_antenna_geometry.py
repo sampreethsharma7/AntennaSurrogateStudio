@@ -7,6 +7,7 @@ from shapely.geometry import Point, Polygon
 
 from studio.antenna_agent import create_default_agent
 from studio.antenna_builder import apply_text_instruction, build_geometry_scene, cst_history
+from studio.antenna_design import DesignValidationError, evaluate_scalar
 from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.antenna_validation import validate_design
 
@@ -32,6 +33,11 @@ def _radiator(scene):
 class CanonicalGeometryEvaluationTests(unittest.TestCase):
     def setUp(self):
         self.agent = create_default_agent()
+
+    def test_overly_deep_scalar_expression_is_a_validation_error(self):
+        expression = "+".join(["1"] * 5000)
+        with self.assertRaisesRegex(DesignValidationError, "too deeply nested"):
+            evaluate_scalar(expression, {})
 
     def test_inset_patch_unions_recipe_pieces_before_rendering(self):
         state = self.agent.create_design("inset_patch")

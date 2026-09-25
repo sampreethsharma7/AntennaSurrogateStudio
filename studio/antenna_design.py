@@ -669,6 +669,10 @@ def evaluate_scalar(value: Scalar, parameter_values: Mapping[str, float]) -> flo
         try:
             tree = ast.parse(value, mode="eval")
             number = _eval_node(tree, parameter_values)
+        except RecursionError as exc:
+            raise DesignValidationError(
+                "Parameter expression is too deeply nested."
+            ) from exc
         except (SyntaxError, ZeroDivisionError) as exc:
             raise DesignValidationError(f"Invalid parameter expression: {value}.") from exc
     else:
