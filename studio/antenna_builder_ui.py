@@ -22,6 +22,7 @@ from studio.antenna_builder import (
     build_geometry_scene,
     create_native_cst_project,
     execute_builder_turn,
+    evaluate_project_constraints,
     lhs_variables_for_state,
     load_builder_session,
     publish_builder_state_update,
@@ -346,8 +347,36 @@ class AntennaBuilderPage(ctk.CTkFrame):
 
     def _build_editor(self, parent: ctk.CTkFrame) -> None:
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(1, weight=1, minsize=160)
+        parent.grid_rowconfigure(2, weight=1, minsize=160)
         ctk.CTkLabel(parent, text="Describe the design", text_color=COLORS["ink"], font=FONTS["card_title"], anchor="w").grid(row=0, column=0, padx=16, pady=(14, 5), sticky="ew")
+
+        self.project_context_frame = ctk.CTkFrame(
+            parent,
+            fg_color=COLORS["surface_alt"],
+            corner_radius=8,
+            border_width=1,
+            border_color=COLORS["border"],
+        )
+        self.project_context_frame.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="ew")
+        self.project_context_frame.grid_columnconfigure(0, weight=1)
+        self.project_context_title = ctk.CTkLabel(
+            self.project_context_frame,
+            text="PROJECT CONTEXT",
+            text_color=COLORS["subtle"],
+            font=FONTS["mono"],
+            anchor="w",
+        )
+        self.project_context_title.grid(row=0, column=0, padx=10, pady=(7, 1), sticky="ew")
+        self.project_context_label = ctk.CTkLabel(
+            self.project_context_frame,
+            text="No active project memory.",
+            text_color=COLORS["muted"],
+            font=FONTS["caption"],
+            justify="left",
+            anchor="w",
+            wraplength=390,
+        )
+        self.project_context_label.grid(row=1, column=0, padx=10, pady=(0, 7), sticky="ew")
 
         self.conversation_frame = ctk.CTkScrollableFrame(
             parent,
@@ -356,7 +385,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
         )
-        self.conversation_frame.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="nsew")
+        self.conversation_frame.grid(row=2, column=0, padx=16, pady=(0, 8), sticky="nsew")
         self.conversation_frame.grid_columnconfigure(0, weight=1)
         self.conversation_frame.bind("<Configure>", self._conversation_resized)
         self.transcript_rows: list[dict[str, object]] = []
@@ -370,7 +399,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
         )
-        instruction.grid(row=2, column=0, padx=16, pady=(0, 12), sticky="ew")
+        instruction.grid(row=3, column=0, padx=16, pady=(0, 12), sticky="ew")
         instruction.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             instruction,
@@ -628,6 +657,58 @@ class AntennaBuilderPage(ctk.CTkFrame):
         for label in self._conversation_text_labels:
             if label.winfo_exists():
                 label.configure(wraplength=wraplength)
+
+    def _render_project_context(self) -> None:
+        if self.session is None:
+            self.project_context_title.configure(text="PROJECT CONTEXT")
+            self.project_context_label.configure(
+                text="No project memory is loaded.",
+                text_color=COLORS["muted"],
+            )
+            return
+        memory = self.session.memory
+        evaluations = evaluate_project_constraints(memory, self.state)
+        lines: list[str] = []
+        violations = [item for item in evaluations if item.status == "violating"]
+        for item in evaluations:
+            if item.status in {"satisfied", "violating"}:
+                marker = "VIOLATING" if item.status == "violating" else "satisfied"
+                lines.append(f"Constraint · {item.message} [{marker}]")
+            elif item.status == "unevaluated":
+                lines.append(f"Constraint · {item.label}: {item.limit} {item.unit or ''} [not evaluated]")
+        active_intent = [
+            item
+            for collection in (memory.requirements, memory.decisions)
+            for item in collection
+            if item.source == "user_semantic"
+            and item.status == "active"
+            and item.semantic_kind != "constraint"
+        ]
+        if active_intent:
+            rendered = "; ".join(
+                f"{item.key.replace('_', ' ')}: {item.value}{(' ' + item.unit) if item.unit else ''}"
+                for item in active_intent
+            )
+            lines.append(f"Intent · {rendered}")
+        unsupported = [
+            item for collection in (memory.requirements, memory.decisions)
+            for item in collection if item.status == "requested_unsupported"
+        ]
+        if unsupported:
+            lines.append(f"Unsupported requests retained for traceability: {len(unsupported)}")
+        if memory.open_questions:
+            lines.append(f"Open questions: {len([item for item in memory.open_questions if item.status == 'active'])}")
+        if memory.limitations:
+            lines.append(f"Recorded limitations: {len([item for item in memory.limitations if item.status == 'active'])}")
+        self.project_context_title.configure(
+            text="PROJECT CONTEXT · CONSTRAINT VIOLATION" if violations else "PROJECT CONTEXT",
+            text_color=COLORS["danger"] if violations else COLORS["subtle"],
+        )
+        self.project_context_label.configure(
+            text="\n".join(lines) if lines else "No active project memory.",
+            text_color=COLORS["danger"] if violations else COLORS["muted"],
+            wraplength=max(220, self.editor_panel.winfo_width() - 54),
+        )
 
     def _scroll_conversation_to_bottom(self) -> None:
         canvas = getattr(self.conversation_frame, "_parent_canvas", None)
@@ -1414,6 +1495,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self._render_state()
 
     def _render_state(self) -> None:
+        self._render_project_context()
         if self.state is None:
             self.preview.clear_scene()
             self.preview.grid_remove()

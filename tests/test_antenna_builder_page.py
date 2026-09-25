@@ -2,6 +2,7 @@ import os
 import tempfile
 import tkinter as tk
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
@@ -15,7 +16,7 @@ from studio.antenna_builder_ui import (
     OPENROUTER_NEMOTRON_LABEL,
     TRANSCRIPT_BODY_FONT,
 )
-from studio.antenna_builder import load_builder_session, save_project_design
+from studio.antenna_builder import ProjectMemoryItem, load_builder_session, save_project_design
 from studio.antenna_design import AntennaDesign
 from studio.antenna_llm_planner import AgentStep, EngineeringDisposition, LLMToolPlan, PlannedToolCall
 from studio.planner_model_discovery import GEMINI, ModelDiscoveryError, PlannerModel
@@ -206,6 +207,31 @@ class AntennaBuilderPageTests(unittest.TestCase):
             [tool["name"] for tool in planner.requests[0]["capability_manifest"]["callable_tools"]],
             ["recipe.select", "parameter.set"],
         )
+
+    def test_project_context_persistently_marks_active_constraint_violation(self):
+        self._create_inset_design()
+        constraint = ProjectMemoryItem(
+            item_id="semantic:board_width_limit:test:value",
+            key="board_width_limit",
+            value=10.0,
+            unit="mm",
+            status="active",
+            source_turn_id="test",
+            source="user_semantic",
+            semantic_kind="constraint",
+            evidence_quote="Keep the board under 10 mm.",
+            constraint_operator="max",
+        )
+        self.page.session.memory = replace(
+            self.page.session.memory,
+            requirements=(*self.page.session.memory.requirements, constraint),
+        )
+
+        self.page._render_state()
+        self.app.update_idletasks()
+
+        self.assertIn("CONSTRAINT VIOLATION", self.page.project_context_title.cget("text"))
+        self.assertIn("active maximum of 10 mm", self.page.project_context_label.cget("text"))
 
     def test_capability_question_persists_conversation_and_keeps_workspace_blank(self):
         self.app.design_start_page.choose_template()

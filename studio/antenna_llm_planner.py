@@ -25,7 +25,7 @@ PLAN_SCHEMA_VERSION = 1
 # Contract v2 removes Boolean semantic-memory placeholder values from the
 # AgentStep schema, strict parser, and shared provider-neutral instruction.
 # The on-wire AgentStep schema version remains 1 for compatible valid payloads.
-AGENT_STEP_CONTRACT_VERSION = 2
+AGENT_STEP_CONTRACT_VERSION = 3
 AGENT_STEP_SCHEMA_VERSION = 1
 AGENT_OBSERVATION_SCHEMA_VERSION = 1
 AGENT_TRAJECTORY_SCHEMA_VERSION = 1
@@ -278,8 +278,10 @@ class AgentStep:
             not isinstance(item, SemanticMemoryProposal) for item in self.memory_proposals
         ):
             raise ValueError("AgentStep semantic-memory proposals are invalid.")
-        if self.memory_proposals and self.status == "execute":
-            raise ValueError("Semantic-memory proposals are available only on terminal AgentStep outcomes.")
+        if self.memory_proposals and self.status in {"execute", "refuse"}:
+            raise ValueError(
+                "Semantic-memory proposals are available only on finish or clarify outcomes."
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -725,14 +727,15 @@ def build_agent_step_exchange(
         "A rejected finish returns structured disposition feedback for correction on the next decision within the normal remaining budgets."
     )
     system_instruction += (
-        " Terminal finish, clarify, and refuse decisions may include memory_proposals for durable intent explicitly stated in the CURRENT user instruction. "
+        " Terminal finish and clarify decisions may include memory_proposals for durable intent explicitly stated in the CURRENT user instruction. "
+        "A refuse decision must not include memory_proposals: an unsupported or rejected request is not an accepted project goal. "
         "Every proposal must quote an exact nonempty substring of that instruction in evidence_quote. "
         "Use the explicitly stated semantic value itself; never substitute true or false for a named value such as RHCP, corporate feed, or manufacturing simplicity. "
         "Use at most six proposals and only for durable requirements, constraints, preferences, goals, future intent, priorities, or explicit decisions likely to matter later. "
         "Do not propose memory for transient execution commands, current physical state already represented by the canonical design, tool history, feature coordinates, or engineering measurements. "
         "Distinguish future goals and preferences from what is physically realized now, and never infer an unstated preference. "
         "Use a concise normalized snake_case key. Use supersede for a changed active value and resolve when the user explicitly withdraws an earlier item. "
-        "Do not include memory_proposals on execute; wait for the terminal decision so the runtime can validate and publish them once."
+        "Do not include memory_proposals on execute or refuse; wait for a finish or clarify decision so the runtime can validate and publish them once."
     )
     user_payload: dict[str, Any] = {
         "instruction": instruction,

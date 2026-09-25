@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.74
+Contract version: 3.75
 Studio version: 0.33.2
 UI source SHA-256: 20735c81d96e69c134bded65fe2bf8181198ba8144ac5b33ff5447deb27edd1f
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
-Antenna Builder UI source SHA-256: 874a96192c859237904e54f05e85a30016b5689bed0f813607388edccbbc2165
+Antenna Builder UI source SHA-256: 3cfc314b401c7d2887cdb5703409b9ceac0fc2e7159bcd8922fe2eef430f5539
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -130,6 +130,18 @@ antenna models. Save them as books. Reuse them anytime.”
   patch, probe-fed circular patch, and center-fed dipole. Each can be replicated
   into a linear or planar array when its spacing validation passes.
 - The left work area is the conversation column. A scrollable transcript is
+  preceded by a persistent **Project context** card. The card shows active
+  project constraints, durable user intent, open-question and limitation
+  counts, and unsupported requests retained only for traceability. Supported
+  constraints are measured against the current canonical design. A violated
+  board-width maximum changes the card heading to **CONSTRAINT VIOLATION** in
+  red and states the measured and allowed widths. The publication gate also
+  appends that violation to the assistant's transcript response; recording a
+  constraint never implies that later geometry will silently satisfy it.
+  Refused requests cannot create active project goals. Legacy semantic-memory
+  items associated with a recorded refusal load as `requested_unsupported` and
+  are excluded from active planner intent.
+- The conversation column's scrollable transcript is
   above the bordered, multiline **Design Request** composer, and automatically
   returns to the newest entry after every render. User turns use a muted
   **you** gutter; successful/completed, clarification, and refusal entries use

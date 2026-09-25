@@ -108,6 +108,31 @@ class BuilderProjectSessionTests(unittest.TestCase):
 
         self.assertEqual(restored.memory, memory)
 
+    def test_legacy_refusal_semantic_memory_is_not_restored_as_active_intent(self):
+        refused = ProjectMemoryItem(
+            item_id="semantic:feed_network_future_goal:turn-refused:value",
+            key="feed_network_future_goal",
+            value="corporate_feed",
+            status="active",
+            source_turn_id="turn-refused",
+            source="user_semantic",
+            semantic_kind="future_intent",
+            evidence_quote="Use a corporate feed.",
+        )
+        session = BuilderProjectSession(
+            conversation=[
+                {"turn_id": "turn-refused", "role": "user", "content": "Use a corporate feed.", "outcome": "request"},
+                {"turn_id": "turn-refused", "role": "builder", "content": "That capability is unavailable.", "outcome": "refusal"},
+            ],
+            memory=ProjectMemory(requirements=(refused,)),
+        )
+        save_builder_session(self.project_path, session)
+
+        restored = load_builder_session(self.project_path)
+
+        self.assertEqual(restored.memory.requirements[0].status, "requested_unsupported")
+        self.assertNotIn("project_intent", restored.memory.to_planner_dict())
+
     def test_existing_antenna_project_restores_design_unchanged(self):
         design = AntennaDesign.starting_design()
         save_project_design(self.project_path, design, [])

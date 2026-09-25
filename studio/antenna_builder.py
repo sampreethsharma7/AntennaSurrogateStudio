@@ -639,6 +639,113 @@ class ProjectMemory:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectConstraintEvaluation:
+    """Deterministic comparison of one active memory constraint with canonical state."""
+
+    item_id: str
+    key: str
+    label: str
+    operator: str | None
+    limit: Any
+    unit: str | None
+    status: str
+    actual: float | None = None
+    actual_unit: str | None = None
+    message: str = ""
+
+
+def _length_in_mm(value: Any, unit: str | None) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    factor = {"mm": 1.0, "cm": 10.0, "m": 1000.0}.get(unit or "mm")
+    return None if factor is None else float(value) * factor
+
+
+def active_project_constraints(memory: ProjectMemory) -> tuple[ProjectMemoryItem, ...]:
+    """Return active, user-grounded constraints without interpreting conversation text."""
+
+    return tuple(
+        item
+        for collection in (memory.requirements, memory.decisions)
+        for item in collection
+        if item.source == "user_semantic"
+        and item.semantic_kind == "constraint"
+        and item.status == "active"
+    )
+
+
+def evaluate_project_constraints(
+    memory: ProjectMemory,
+    design: AntennaDesign | None,
+) -> tuple[ProjectConstraintEvaluation, ...]:
+    """Evaluate registered constraint identities against one canonical candidate."""
+
+    results: list[ProjectConstraintEvaluation] = []
+    for item in active_project_constraints(memory):
+        normalized = normalize_semantic_proposal(
+            key=item.key,
+            value=item.value,
+            unit=item.unit,
+            semantic_kind="constraint",
+            evidence_quote=item.evidence_quote or "",
+        )
+        key = normalized.semantic_key
+        operator = item.constraint_operator or normalized.constraint_operator
+        if design is None:
+            results.append(ProjectConstraintEvaluation(
+                item.item_id, key, key.replace("_", " ").title(), operator,
+                normalized.canonical_value, normalized.unit, "not_applicable",
+                message="No canonical antenna design exists yet.",
+            ))
+            continue
+        if key != "board_width_limit":
+            results.append(ProjectConstraintEvaluation(
+                item.item_id, key, key.replace("_", " ").title(), operator,
+                normalized.canonical_value, normalized.unit, "unevaluated",
+                message="No deterministic evaluator is registered for this constraint.",
+            ))
+            continue
+        limit_mm = _length_in_mm(normalized.canonical_value, normalized.unit)
+        actual_mm = float(design.board_width_mm)
+        if limit_mm is None or operator != "max":
+            results.append(ProjectConstraintEvaluation(
+                item.item_id, key, "Board width", operator,
+                normalized.canonical_value, normalized.unit, "unevaluated",
+                actual=actual_mm, actual_unit="mm",
+                message="The board-width constraint has an unsupported value, unit, or operator.",
+            ))
+            continue
+        violating = actual_mm > limit_mm + 1e-9
+        status = "violating" if violating else "satisfied"
+        relation = "exceeds" if violating else "is within"
+        results.append(ProjectConstraintEvaluation(
+            item.item_id, key, "Board width", "max", limit_mm, "mm", status,
+            actual=actual_mm, actual_unit="mm",
+            message=(
+                f"Board width {actual_mm:.6g} mm {relation} the active maximum "
+                f"of {limit_mm:.6g} mm."
+            ),
+        ))
+    return tuple(results)
+
+
+def _constraint_disclosure(
+    evaluations: tuple[ProjectConstraintEvaluation, ...],
+) -> str | None:
+    violations = [item.message for item in evaluations if item.status == "violating"]
+    if not violations:
+        return None
+    return "Constraint violation: " + " ".join(violations)
+
+
+def _with_disclosure(message: str, disclosure: str | None) -> str:
+    if not disclosure:
+        return message
+    base = message.strip()
+    return f"{base}\n\n{disclosure}" if base else disclosure
+
+
 @dataclass(slots=True)
 class BuilderProjectSession:
     """Persisted state for one project's experimental antenna builder."""
@@ -1389,6 +1496,29 @@ def load_builder_session(project_path: str | Path) -> BuilderProjectSession:
             else None
         )
         memory = ProjectMemory.empty(canonical_ref=canonical_ref)
+    refused_turn_ids = {
+        str(record.get("turn_id"))
+        for record in conversation
+        if record.get("role") == "builder"
+        and record.get("outcome") == "refusal"
+        and record.get("turn_id")
+    }
+    if refused_turn_ids:
+        def retire_refused(items: tuple[ProjectMemoryItem, ...]) -> tuple[ProjectMemoryItem, ...]:
+            return tuple(
+                replace(item, status="requested_unsupported")
+                if item.source == "user_semantic"
+                and item.status == "active"
+                and item.source_turn_id in refused_turn_ids
+                else item
+                for item in items
+            )
+
+        memory = replace(
+            memory,
+            requirements=retire_refused(memory.requirements),
+            decisions=retire_refused(memory.decisions),
+        )
     return BuilderProjectSession(
         design=design,
         conversation=conversation,
@@ -1611,6 +1741,13 @@ def execute_builder_turn(
     if terminal.outcome == "finished":
         if terminal.has_publishable_change:
             published_design = _published_agent_design(baseline, terminal)
+            evaluations = evaluate_project_constraints(session.memory, published_design)
+            disclosure = _constraint_disclosure(evaluations)
+            if disclosure:
+                terminal = replace(
+                    terminal,
+                    message=_with_disclosure(terminal.message, disclosure),
+                )
             executor_summaries = tuple(
                 str(change["summary"])
                 for change in terminal.aggregate_changes
@@ -1680,7 +1817,7 @@ def execute_builder_turn(
     )
     proposals = (
         terminal.final_step.memory_proposals
-        if terminal.final_step is not None and terminal.outcome in {"clarify", "refuse"}
+        if terminal.final_step is not None and terminal.outcome == "clarify"
         else ()
     )
     published, semantic_audit = _publish_builder_outcome(

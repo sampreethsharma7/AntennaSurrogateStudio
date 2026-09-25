@@ -8,6 +8,7 @@ from studio.antenna_builder import (
     BuilderProjectSession,
     ProjectMemory,
     execute_builder_turn,
+    evaluate_project_constraints,
     load_builder_session,
     save_builder_session,
 )
@@ -352,7 +353,7 @@ class SemanticProjectMemoryTests(unittest.TestCase):
         rejected = self.audit()[-1]["semantic_memory"]["rejected"]
         self.assertEqual(rejected[0]["reason"], "unsupported_action")
 
-    def test_clarify_and_refuse_persist_grounded_intent_without_design_change(self):
+    def test_clarify_persists_grounded_intent_but_refuse_cannot_propose_memory(self):
         baseline = self.session.design
         clarify_text = "I eventually want RHCP, but which supported antenna should I start with?"
         clarify = self.run_terminal(
@@ -364,22 +365,51 @@ class SemanticProjectMemoryTests(unittest.TestCase):
         self.assertEqual(clarify.terminal_result.outcome, "clarify")
         self.assertIs(self.session.design, baseline)
 
-        refuse_text = "I may want a corporate feed later, even if it is unavailable now."
-        refused = self.run_terminal(
-            refuse_text,
-            proposal(
+        with self.assertRaisesRegex(ValueError, "finish or clarify"):
+            step(
+                status="refuse",
+                message="Corporate feed synthesis is unavailable.",
+                proposals=(proposal(
                 "upsert", "future_intent", "feed_network_future_goal",
-                "corporate_feed", "I may want a corporate feed later",
-            ),
-            status="refuse",
-            turn_id="turn-refuse",
-        )
-        self.assertEqual(refused.terminal_result.outcome, "refuse")
+                    "corporate_feed", "I may want a corporate feed later",
+                ),),
+            )
         self.assertIs(self.session.design, baseline)
         self.assertEqual(
             {item.key for item in self.semantic_items(self.session.memory) if item.status == "active"},
-            {"target_polarization", "feed_network_future_goal"},
+            {"target_polarization"},
         )
+
+    def test_active_board_constraint_is_measured_and_disclosed_before_publication(self):
+        constraint_text = "Keep the board under 60 mm wide."
+        self.run_terminal(
+            constraint_text,
+            proposal(
+                "upsert", "constraint", "board_width_limit", 60,
+                constraint_text, unit="mm",
+            ),
+            turn_id="turn-board-constraint",
+        )
+        initial = evaluate_project_constraints(self.session.memory, self.session.design)
+        self.assertEqual(initial[0].status, "satisfied")
+
+        result = execute_builder_turn(
+            self.project_path,
+            self.session,
+            "Increase the board margin to 50 mm.",
+            planner=Planner(
+                step(("parameter.set", {"key": "board_margin_mm", "value": 50.0})),
+                step(status="finish", message="The board margin was increased."),
+            ),
+            turn_id="turn-violate-board",
+        )
+
+        self.assertGreater(result.session.design.board_width_mm, 60.0)
+        evaluation = evaluate_project_constraints(result.session.memory, result.session.design)[0]
+        self.assertEqual(evaluation.status, "violating")
+        self.assertIn("Constraint violation", result.terminal_result.message)
+        self.assertIn("active maximum of 60 mm", result.session.conversation[-1]["content"])
+        self.assertEqual(result.session.memory.canonical_ref.revision, result.session.design.revision)
 
     def test_provider_error_after_provisional_action_publishes_no_semantic_memory(self):
         baseline = self.session.design
@@ -488,7 +518,7 @@ class SemanticProjectMemoryTests(unittest.TestCase):
                 ).to_dict(),
                 callable_tool_names=(),
             )
-        with self.assertRaisesRegex(ValueError, "terminal"):
+        with self.assertRaisesRegex(ValueError, "finish or clarify"):
             step(
                 ("parameter.set", {"key": "patch_width_mm", "value": 40}),
                 proposals=(proposal(

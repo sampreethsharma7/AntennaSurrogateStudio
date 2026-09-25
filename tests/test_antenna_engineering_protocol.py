@@ -210,14 +210,14 @@ class EngineeringProtocolTests(unittest.TestCase):
         manifest = create_default_agent().capability_manifest(None)
         exchange = build_agent_step_exchange(instruction="Inspect installed capabilities.", current_design=None,
                                             capability_manifest=manifest, remaining_budgets=AgentLoopBudgets())
-        # Deliberately re-frozen for AgentStep contract v2. Contract v2 removed
-        # Boolean semantic-memory placeholders from the output schema and strict
-        # parser, and added the matching provider-neutral instruction. The user
-        # content changed because it embeds that schema; ToolPlan remains unchanged.
-        # Stage-5E v1 observations are retained but explicitly marked superseded.
+        # Deliberately re-frozen for AgentStep contract v3. Contract v3 prevents
+        # refused requests from proposing active semantic project memory and adds
+        # the matching provider-neutral instruction. The output schema, embedded
+        # user content, and ToolPlan remain unchanged; the strict AgentStep parser
+        # enforces the status-dependent rule after decoding.
         fixtures = (
             (exchange.user_content, "26ec12dc412004106e74b25b02d66b02c42b4272702dde2b09dc4e66e28ca2a8"),
-            (exchange.system_instruction, "41e129895ab22c6cedfc3864460f536e0a705020fd39d6445b6fe22bdf9eec35"),
+            (exchange.system_instruction, "a6cabca28cde746fb76584818f2a2f12f31e5277279ee4bae4c45197b4a820f8"),
             (json.dumps(exchange.schema, sort_keys=True), "f06755d0110a353ae37da7b64772029fb066bf3ff241f24f4803a9ee47c8ecde"),
             (json.dumps(plan_json_schema(tuple(manifest["callable_tools"])), sort_keys=True),
              "553cc402a0599a9f119598def0485fb09ce3c3222402de3999eb29dd6d8aee19"),
