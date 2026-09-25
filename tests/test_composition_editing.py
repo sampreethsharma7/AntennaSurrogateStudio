@@ -323,6 +323,10 @@ class CompositionEditingTests(unittest.TestCase):
             restored, _ = load_project_design(folder)
         self.assertEqual(restored, edited)
         self.assertEqual(restored.value("slot_radius_mm"), 4.0)
+        restored_definitions = self.agent.parameter_definitions_for_design(restored)
+        self.assertIn("slot_radius_mm", {item.key for item in restored_definitions})
+        slot_definition = next(item for item in restored_definitions if item.key == "slot_radius_mm")
+        self.assertEqual((slot_definition.label, slot_definition.unit, slot_definition.sweepable), ("slot radius", "mm", True))
 
         payload = edited.to_dict()
         for call in payload["composed_operations"][0]["calls"]:
@@ -339,6 +343,10 @@ class CompositionEditingTests(unittest.TestCase):
             reopened, _ = load_project_design(folder)
         self.assertFalse(reopened.composed_operations)
         self.assertNotIn("slot_radius_mm", reopened.parameter_map())
+        self.assertNotIn(
+            "slot_radius_mm",
+            {item.key for item in self.agent.parameter_definitions_for_design(reopened)},
+        )
 
     def test_invalid_ids_schema_and_boolean_replay_are_atomic(self):
         design = self._circle()

@@ -32,7 +32,7 @@ from studio.antenna_design import (
 )
 from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.antenna_modifiers import active_modifier_ids
-from studio.antenna_recipes import MATERIALS, _circular_radius, _patch_dimensions
+from studio.antenna_recipes import MATERIALS, RecipeParameter, _circular_radius, _patch_dimensions
 from studio.antenna_tools import (
     CapabilityError,
     ToolCall,
@@ -955,6 +955,25 @@ class AntennaDesignAgent:
         rows = list(self.registry.recipe(design.recipe_id).parameter_definitions())
         for modifier_id in active_modifier_ids(design):
             rows.extend(self.registry.modifier(modifier_id).parameter_definitions())
+        existing_keys = {row.key for row in rows}
+        parameter_map = design.parameter_map()
+        for group in design.composed_operations:
+            for call in group.calls:
+                if call.name != "parameter.create":
+                    continue
+                key = str(call.arguments().get("key") or "")
+                parameter = parameter_map.get(key)
+                if not key or key in existing_keys or parameter is None:
+                    continue
+                rows.append(RecipeParameter(
+                    key=parameter.key,
+                    name=parameter.name,
+                    label=parameter.label,
+                    unit=parameter.unit,
+                    default=parameter.value,
+                    sweepable=parameter.sweepable,
+                ))
+                existing_keys.add(key)
         return tuple(rows)
 
     def values_for_design(self, design: AntennaDesign) -> dict[str, Any]:

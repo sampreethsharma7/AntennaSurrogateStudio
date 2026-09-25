@@ -67,6 +67,9 @@ STARTER_EXAMPLES = (
     "Create a center-fed dipole at 915 MHz.",
     "Create a patch at 2.45 GHz as a 1×4 array with 0.55 lambda spacing.",
 )
+TRANSCRIPT_BODY_FONT = (FONTS["body_small"][0], round(FONTS["body_small"][1] * 1.30))
+TRANSCRIPT_CAPTION_FONT = (FONTS["caption"][0], round(FONTS["caption"][1] * 1.30))
+TRANSCRIPT_ROLE_FONT = (FONTS["mono"][0], round(FONTS["mono"][1] * 1.30))
 
 
 def _active_color(value: str | tuple[str, str]) -> str:
@@ -355,8 +358,10 @@ class AntennaBuilderPage(ctk.CTkFrame):
         )
         self.conversation_frame.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="nsew")
         self.conversation_frame.grid_columnconfigure(0, weight=1)
+        self.conversation_frame.bind("<Configure>", self._conversation_resized)
         self.transcript_rows: list[dict[str, object]] = []
         self.starter_example_buttons: list[ctk.CTkButton] = []
+        self._conversation_text_labels: list[ctk.CTkLabel] = []
 
         instruction = ctk.CTkFrame(
             parent,
@@ -495,13 +500,15 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.instruction_entry.mark_set("insert", "end-1c")
 
     def _render_empty_conversation(self) -> None:
-        ctk.CTkLabel(
+        introduction = ctk.CTkLabel(
             self.conversation_frame,
             text="Start from one of these, or describe your own:",
             text_color=COLORS["ink"],
-            font=FONTS["body_small"],
+            font=TRANSCRIPT_BODY_FONT,
             anchor="w",
-        ).grid(row=0, column=0, padx=8, pady=(8, 6), sticky="ew")
+        )
+        introduction.grid(row=0, column=0, padx=8, pady=(8, 6), sticky="ew")
+        self._conversation_text_labels.append(introduction)
         self.starter_example_buttons = []
         labels = (
             "Inset-fed rectangular patch at 2.45 GHz on FR4",
@@ -513,30 +520,32 @@ class AntennaBuilderPage(ctk.CTkFrame):
             button = ctk.CTkButton(
                 self.conversation_frame,
                 text=label,
-                height=34,
+                height=40,
                 fg_color=COLORS["surface"],
                 hover_color=COLORS["control_hover"],
                 border_width=1,
                 border_color=COLORS["border"],
                 text_color=COLORS["ink"],
-                font=FONTS["body_small"],
+                font=TRANSCRIPT_BODY_FONT,
                 anchor="w",
                 command=lambda value=instruction: self._use_starter_example(value),
             )
             button.grid(row=row, column=0, padx=8, pady=(0, 4), sticky="ew")
             self.starter_example_buttons.append(button)
-        ctk.CTkLabel(
+        scope = ctk.CTkLabel(
             self.conversation_frame,
             text=(
                 "Supported: 3 antenna families · arrays to 16×16 · circular and rectangular slots · corner cutouts\n"
                 "Not supported: horns, Vivaldi, spirals, feed networks, solver runs"
             ),
             text_color=COLORS["muted"],
-            font=FONTS["caption"],
+            font=TRANSCRIPT_CAPTION_FONT,
             justify="left",
             anchor="w",
-            wraplength=390,
-        ).grid(row=len(labels) + 1, column=0, padx=8, pady=(6, 10), sticky="ew")
+            wraplength=self._conversation_wrap_width(),
+        )
+        scope.grid(row=len(labels) + 1, column=0, padx=8, pady=(6, 10), sticky="ew")
+        self._conversation_text_labels.append(scope)
 
     @staticmethod
     def _transcript_style(message: dict[str, object]) -> tuple[str, object]:
@@ -556,17 +565,21 @@ class AntennaBuilderPage(ctk.CTkFrame):
             child.destroy()
         self.transcript_rows = []
         self.starter_example_buttons = []
+        self._conversation_text_labels = []
         if not self.conversation:
             if self.state is None:
                 self._render_empty_conversation()
             else:
-                ctk.CTkLabel(
+                ready = ctk.CTkLabel(
                     self.conversation_frame,
                     text="The design is ready. Describe the next change.",
                     text_color=COLORS["muted"],
-                    font=FONTS["body_small"],
+                    font=TRANSCRIPT_BODY_FONT,
                     anchor="w",
-                ).grid(row=0, column=0, padx=8, pady=10, sticky="ew")
+                )
+                ready.grid(row=0, column=0, padx=8, pady=10, sticky="ew")
+                self._conversation_text_labels.append(ready)
+            self.after_idle(self._conversation_resized)
             self.after_idle(self._scroll_conversation_to_bottom)
             return
 
@@ -580,22 +593,41 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 text=marker,
                 width=44,
                 text_color=color,
-                font=FONTS["mono"],
+                font=TRANSCRIPT_ROLE_FONT,
                 anchor="nw",
             ).grid(row=0, column=0, padx=(0, 6), sticky="nw")
-            ctk.CTkLabel(
+            message_label = ctk.CTkLabel(
                 block,
                 text=str(message.get("content", "")),
                 text_color=COLORS["ink"],
-                font=FONTS["body_small"],
+                font=TRANSCRIPT_BODY_FONT,
                 justify="left",
                 anchor="nw",
-                wraplength=390,
-            ).grid(row=0, column=1, sticky="ew")
-            self.transcript_rows.append(
-                {"marker": marker, "outcome": message.get("outcome"), "frame": block}
+                wraplength=self._conversation_wrap_width(),
             )
+            message_label.grid(row=0, column=1, sticky="ew")
+            self._conversation_text_labels.append(message_label)
+            self.transcript_rows.append(
+                {
+                    "marker": marker,
+                    "outcome": message.get("outcome"),
+                    "frame": block,
+                    "label": message_label,
+                }
+            )
+        self.after_idle(self._conversation_resized)
         self.after_idle(self._scroll_conversation_to_bottom)
+
+    def _conversation_wrap_width(self, width: int | None = None) -> int:
+        available = width if width is not None else self.conversation_frame.winfo_width()
+        return max(180, int(available) - 92)
+
+    def _conversation_resized(self, event: object | None = None) -> None:
+        width = getattr(event, "width", None)
+        wraplength = self._conversation_wrap_width(width)
+        for label in self._conversation_text_labels:
+            if label.winfo_exists():
+                label.configure(wraplength=wraplength)
 
     def _scroll_conversation_to_bottom(self) -> None:
         canvas = getattr(self.conversation_frame, "_parent_canvas", None)
@@ -1145,6 +1177,11 @@ class AntennaBuilderPage(ctk.CTkFrame):
         )
 
     def _apply_parameter_fields(self) -> None:
+        if self._field_update_job is not None:
+            try:
+                self.after_cancel(self._field_update_job)
+            except tk.TclError:
+                pass
         self._field_update_job = None
         if self.state is None or self.session is None or self.project is None:
             return

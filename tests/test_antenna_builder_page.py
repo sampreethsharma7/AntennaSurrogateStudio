@@ -13,6 +13,7 @@ from studio.antenna_builder_ui import (
     INSTRUCTION_COMPOSER_MIN_HEIGHT,
     LOCAL_QWEN_LABEL,
     OPENROUTER_NEMOTRON_LABEL,
+    TRANSCRIPT_BODY_FONT,
 )
 from studio.antenna_builder import load_builder_session, save_project_design
 from studio.antenna_design import AntennaDesign
@@ -260,6 +261,25 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.app.update_idletasks()
         canvas = self.page.conversation_frame._parent_canvas
         self.assertAlmostEqual(canvas.yview()[1], 1.0, places=3)
+
+    def test_transcript_text_is_thirty_percent_larger_and_rewraps_with_width(self):
+        self.app.design_start_page.choose_template()
+        self.page.conversation = [{
+            "role": "builder",
+            "content": "A long engineering response that must reflow as the conversation pane changes width. " * 3,
+            "outcome": "clarification",
+        }]
+        self.page._render_conversation()
+        label = self.page.transcript_rows[0]["label"]
+
+        self.page._conversation_resized(SimpleNamespace(width=360))
+        narrow_wrap = int(label.cget("wraplength"))
+        self.page._conversation_resized(SimpleNamespace(width=700))
+        wide_wrap = int(label.cget("wraplength"))
+
+        self.assertEqual(TRANSCRIPT_BODY_FONT[1], round(16 * 1.30))
+        self.assertGreater(wide_wrap, narrow_wrap)
+        self.assertEqual((narrow_wrap, wide_wrap), (268, 608))
 
     def test_planning_disables_composer_and_apply_becomes_cancel(self):
         self.app.design_start_page.choose_template()
@@ -551,6 +571,52 @@ class AntennaBuilderPageTests(unittest.TestCase):
         )
         self.assertEqual(preview_patch.bounds[1] - preview_patch.bounds[0], 38.0)
         self.assertIn("geometry updated", self.page.status_var.get())
+
+    def test_composed_parameters_appear_persist_reopen_and_disappear_on_delete(self):
+        self._create_inset_design()
+        self._apply_llm_plan(
+            "Add a 3 mm circular slot at the patch center.",
+            ("parameter.create", {
+                "key": "slot_radius_mm", "label": "Slot radius", "value": 3.0,
+                "unit": "mm", "sweepable": True,
+            }),
+            ("geometry.cylinder", {
+                "object_id": "center_slot_tool", "material_id": "copper", "axis": "z",
+                "tags": ["planner_created", "boolean_tool", "slot"],
+                "dimensions": {
+                    "center_1": 0, "center_2": 0, "radius": "slot_radius_mm",
+                    "start": "substrate_thickness_mm",
+                    "end": "substrate_thickness_mm+copper_thickness_mm",
+                },
+            }),
+            ("boolean.subtract", {
+                "operation_id": "center_slot_subtract",
+                "target_id": "element_1_1_patch",
+                "tool_ids": ["center_slot_tool"],
+            }),
+        )
+        group_id = self.page.state.composed_operations[0].group_id
+        self.assertEqual(self.page.parameter_vars["slot_radius_mm"].get(), "3")
+        self.assertIn("SlotRadius", self.page.sweep_vars)
+        self.page.parameter_vars["slot_radius_mm"].set("4")
+        self.page._apply_parameter_fields()
+        self.assertEqual(self.page.state.value("slot_radius_mm"), 4.0)
+
+        reopened = self.store.open_project(self.project.path, touch=False)
+        self.app.set_project(reopened, target_page="antenna_builder")
+        self.assertIn("slot_radius_mm", self.page.parameter_vars)
+        self.assertEqual(self.page.parameter_vars["slot_radius_mm"].get(), "4")
+
+        self._apply_llm_plan(
+            "Remove the circular slot.",
+            ("composition.delete", {"group_id": group_id}),
+        )
+        self.assertNotIn("slot_radius_mm", self.page.parameter_vars)
+        self.assertNotIn("SlotRadius", self.page.sweep_vars)
+
+        reopened = self.store.open_project(self.project.path, touch=False)
+        self.app.set_project(reopened, target_page="antenna_builder")
+        self.assertNotIn("slot_radius_mm", self.page.parameter_vars)
 
     def test_corner_cutout_prompt_adds_live_parameter_and_curved_preview(self):
         self._create_inset_design()
