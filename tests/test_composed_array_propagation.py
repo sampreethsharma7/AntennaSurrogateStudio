@@ -8,8 +8,12 @@ from shapely.geometry import Point, Polygon
 
 from studio.antenna_agent import CapabilityUnavailableError, create_default_agent
 from studio.antenna_builder import load_project_design, save_project_design
-from studio.antenna_design import object_bounds, resolved_dimensions
+from studio.antenna_design import AntennaDesign, object_bounds, resolved_dimensions
 from studio.antenna_geometry import build_geometry_scene
+from studio.antenna_engineering_checks import (
+    COMPOSED_UNIFORMITY_CHECK,
+    run_engineering_checks,
+)
 from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.cst_antenna_adapter import CSTAdapter
 
@@ -79,6 +83,88 @@ class ComposedArrayPropagationTests(unittest.TestCase):
                 ),
             ),
         ).design
+
+    def test_feature_authored_on_one_element_defaults_to_all_and_replicates_on_growth(self):
+        authored = self._center_slot()
+        self.assertEqual(authored.composed_operations[0].target_selector.scope, "all")
+        self.assertEqual(authored.composed_operations[0].target_selector.elements, ())
+
+        array = self.agent.update_parameters(
+            authored,
+            {"array_rows": 1, "array_columns": 2},
+        ).design
+        self.assertEqual(len(self._slot_tools(array)), 2)
+        self.assertEqual(
+            {item.target_id for item in array.booleans if item.operation == "subtract"},
+            {"element_1_1_patch", "element_1_2_patch"},
+        )
+        radiators = [
+            item for item in build_geometry_scene(array).solids
+            if "patch_element" in item.tags
+        ]
+        self.assertEqual(len(radiators), 2)
+        self.assertAlmostEqual(
+            radiators[0].evaluated_volume_mm3,
+            radiators[1].evaluated_volume_mm3,
+            places=9,
+        )
+        operations = CSTAdapter().history_operations(array)
+        self.assertEqual(
+            sum(
+                item.category == "primitive" and "center_slot" in item.name
+                for item in operations
+            ),
+            2,
+        )
+        self.assertEqual(CSTAdapter().macro(array).count("Solid.Subtract"), 2)
+        report = run_engineering_checks(array, checks=[COMPOSED_UNIFORMITY_CHECK])
+        self.assertFalse(report.findings)
+
+    def test_explicit_single_element_scope_survives_growth_and_warns(self):
+        authored = self._center_slot()
+        single = self.agent.execute_llm_plan(
+            authored,
+            plan((
+                "composition.set_scope",
+                {
+                    "group_id": "composition_1",
+                    "scope": "single",
+                    "elements": [{"row": 1, "column": 1}],
+                },
+            )),
+        ).design
+        array = self.agent.update_parameters(
+            single,
+            {"array_rows": 1, "array_columns": 2},
+        ).design
+
+        self.assertEqual(len(self._slot_tools(array)), 1)
+        self.assertEqual(
+            [item.target_id for item in array.booleans if item.operation == "subtract"],
+            ["element_1_1_patch"],
+        )
+        report = run_engineering_checks(array, checks=[COMPOSED_UNIFORMITY_CHECK])
+        warnings = [
+            item for item in report.findings
+            if item.category == "composed_feature_nonuniform"
+        ]
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings[0].severity, "warning")
+        self.assertEqual(warnings[0].affected_elements, ((1, 2),))
+        self.assertEqual(warnings[0].relationship_key, "composition_1")
+        self.assertEqual(warnings[0].measured_values["feature_element_count"].value, 1)
+        self.assertEqual(warnings[0].measured_values["missing_element_count"].value, 1)
+
+    def test_legacy_group_without_selector_loads_with_explicit_conservative_scope(self):
+        payload = self._center_slot().to_dict()
+        payload["composed_operations"][0]["target_selector"] = None
+
+        restored = AntennaDesign.from_dict(payload)
+
+        selector = restored.composed_operations[0].target_selector
+        self.assertIsNotNone(selector)
+        self.assertEqual(selector.scope, "single")
+        self.assertEqual(selector.elements, ((1, 1),))
 
     @staticmethod
     def _slot_tools(design):
@@ -318,7 +404,8 @@ class ComposedArrayPropagationTests(unittest.TestCase):
         manifest = self.agent.capability_manifest(design)
         scope_tool = next(item for item in manifest["callable_tools"] if item["name"] == "composition.set_scope")
         self.assertEqual(scope_tool["arguments"]["properties"]["group_id"]["enum"], ["composition_1"])
-        self.assertEqual(manifest["composed_features"][0]["target_selector"]["scope"], "single")
+        self.assertEqual(manifest["composed_features"][0]["target_selector"]["scope"], "all")
+        self.assertEqual(manifest["composed_features"][0]["target_selector"]["elements"], [])
         self.assertEqual(manifest["composed_features"][0]["coordinate_frame"], "target_local")
 
     def test_legacy_world_frame_feature_is_promoted_when_scope_changes(self):

@@ -288,7 +288,11 @@ def validate_design(design: AntennaDesign, *, raise_on_error: bool = True) -> An
         selector = group.target_selector
         if group.coordinate_frame not in {"world", "target_local"}:
             composition_errors.append(f"{group.group_id} has an invalid coordinate frame.")
-        if selector is not None:
+        if selector is None:
+            composition_errors.append(
+                f"{group.group_id} must declare an explicit composed-feature target scope."
+            )
+        else:
             if not selector.role or selector.scope not in {"single", "selected", "all"}:
                 composition_errors.append(f"{group.group_id} has an invalid target selector.")
             if selector.scope == "all" and selector.elements:

@@ -321,6 +321,42 @@ def _composed_calls_from_payload(payloads: Any) -> tuple[ComposedToolCall, ...]:
     return tuple(calls)
 
 
+def _composed_group_from_payload(payload: Mapping[str, Any]) -> ComposedOperationGroup:
+    """Load one group and give legacy groups an explicit single-element scope."""
+
+    calls = _composed_calls_from_payload(payload["calls"])
+    selector_payload = payload.get("target_selector")
+    if selector_payload is not None:
+        selector = ComposedTargetSelector(
+            role=str(selector_payload["role"]),
+            scope=str(selector_payload.get("scope", "single")),
+            elements=tuple(
+                (int(element[0]), int(element[1]))
+                for element in selector_payload.get("elements", ((1, 1),))
+            ),
+        )
+    else:
+        targets = {
+            (call.semantic_target.role,
+             call.semantic_target.element_row,
+             call.semantic_target.element_column)
+            for call in calls
+            if call.semantic_target is not None
+        }
+        selector = None
+        if len(targets) == 1:
+            role, row, column = next(iter(targets))
+            selector = ComposedTargetSelector(role, "single", ((row, column),))
+    return ComposedOperationGroup(
+        group_id=str(payload["group_id"]),
+        source_recipe_id=str(payload["source_recipe_id"]),
+        source_family=str(payload["source_family"]),
+        target_selector=selector,
+        coordinate_frame=str(payload.get("coordinate_frame", "world")),
+        calls=calls,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class AntennaDesign:
     """Canonical design state; no field contains a solver command."""
@@ -602,25 +638,7 @@ class AntennaDesign:
                     )
                 ),
                 composed_operations=tuple(
-                    ComposedOperationGroup(
-                        group_id=str(group["group_id"]),
-                        source_recipe_id=str(group["source_recipe_id"]),
-                        source_family=str(group["source_family"]),
-                        target_selector=(
-                            ComposedTargetSelector(
-                                role=str(group["target_selector"]["role"]),
-                                scope=str(group["target_selector"].get("scope", "single")),
-                                elements=tuple(
-                                    (int(element[0]), int(element[1]))
-                                    for element in group["target_selector"].get("elements", ((1, 1),))
-                                ),
-                            )
-                            if group.get("target_selector") is not None
-                            else None
-                        ),
-                        coordinate_frame=str(group.get("coordinate_frame", "world")),
-                        calls=_composed_calls_from_payload(group["calls"]),
-                    )
+                    _composed_group_from_payload(group)
                     for group in payload.get("composed_operations", ())
                 ),
                 metadata=tuple((str(k), str(v)) for k, v in payload.get("metadata", ())),

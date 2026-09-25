@@ -22,8 +22,15 @@ CONTACT_CHECK = "conductor_contact_clearance"
 PORT_CHECK = "port_attachment_distinctness"
 CONTAINMENT_CHECK = "substrate_support_containment"
 EXCITATION_CHECK = "excitation_consistency"
-CHECK_VERSIONS = {CONTACT_CHECK: "2", PORT_CHECK: "1", CONTAINMENT_CHECK: "1", EXCITATION_CHECK: "1"}
-SUITE_VERSION = "geometry_checks_v3"
+COMPOSED_UNIFORMITY_CHECK = "composed_feature_uniformity"
+CHECK_VERSIONS = {
+    CONTACT_CHECK: "2",
+    PORT_CHECK: "1",
+    CONTAINMENT_CHECK: "1",
+    EXCITATION_CHECK: "1",
+    COMPOSED_UNIFORMITY_CHECK: "1",
+}
+SUITE_VERSION = "geometry_checks_v4"
 _LIMITS = (
     "Geometry only: no impedance, modal excitation, calibration, or RF performance conclusion.",
     "Curved boundaries use the evaluator's polygonal approximation; near-boundary relationships may be unknown.",
@@ -58,15 +65,18 @@ def _elements(objects=(), ports=()):
 
 
 def _observation(query, check, category, message, *, objects=(), ports=(), severity="info",
-                 measurements=None, relationship="", assumptions=(), elements=()):
+                  measurements=None, relationship="", assumptions=(), elements=(),
+                  source_method="resolved_planar_extrusions_and_evaluated_endpoints",
+                  source_applicability="Supported world-XY conductive extrusions and geometrically evaluated port segments.",
+                  source_limitations=_LIMITS):
     roles = tuple(f"{obj.object_id}: role={obj.semantic_role}, element={obj.element}." for obj in objects)
     return EngineeringObservation(
         check_id=check, check_version=CHECK_VERSIONS[check], severity=severity,
         category=category, message=message,
         source=EngineeringSource(
-            method="resolved_planar_extrusions_and_evaluated_endpoints",
-            applicability="Supported world-XY conductive extrusions and geometrically evaluated port segments.",
-            evaluated_geometry_hash=query.geometry_hash, limitations=_LIMITS,
+            method=source_method,
+            applicability=source_applicability,
+            evaluated_geometry_hash=query.geometry_hash, limitations=source_limitations,
         ),
         affected_objects=tuple(sorted({obj.object_id for obj in objects})),
         affected_ports=tuple(sorted({port.port_id for port in ports})),
@@ -80,7 +90,8 @@ def _coverage(check, status, reason):
         {CONTACT_CHECK: "Resolved conductor geometry.",
          PORT_CHECK: "Discrete-port geometric attachment and evaluated segment distinctness.",
          CONTAINMENT_CHECK: "Resolved planar conductor footprints and unambiguously associated support regions.",
-         EXCITATION_CHECK: "Canonical per-element port indexing and evaluated physical segment groups."}[check],
+         EXCITATION_CHECK: "Canonical per-element port indexing and evaluated physical segment groups.",
+         COMPOSED_UNIFORMITY_CHECK: "Canonical composed-feature target scopes across logical array elements."}[check],
         reason, _LIMITS)
 
 
@@ -636,13 +647,97 @@ def check_excitation_consistency(query, config=EngineeringCheckConfig()):
         "Element-indexed collection inspected. Findings describe structural coverage, not RF excitation correctness.")
 
 
+def check_composed_feature_uniformity(
+    design: AntennaDesign,
+    query: EvaluatedGeometryQueryResult,
+    _config=EngineeringCheckConfig(),
+):
+    """Report persisted features whose explicit scope covers only part of an array."""
+
+    if not query.objects:
+        return (), _coverage(
+            COMPOSED_UNIFORMITY_CHECK,
+            "not_applicable",
+            "No canonical geometry exists to associate with composed-feature scope.",
+        )
+    incomplete = any(item.status != "completed" for item in query.objects)
+    if design.array.element_count <= 1 or not design.composed_operations:
+        return (), _coverage(
+            COMPOSED_UNIFORMITY_CHECK,
+            "unknown" if incomplete else "completed",
+            "Incomplete canonical geometry prevents a clean composed-feature scope conclusion."
+            if incomplete else
+            "No multi-element composed-feature scope comparison is required.",
+        )
+
+    expected = {
+        (row, column)
+        for row in range(1, design.array.rows + 1)
+        for column in range(1, design.array.columns + 1)
+    }
+    findings = []
+    for group in design.composed_operations:
+        selector = group.target_selector
+        if selector is None:
+            covered = set()
+            scope = "missing"
+        elif selector.scope == "all":
+            covered = set(expected)
+            scope = "all"
+        else:
+            covered = set(selector.elements) & expected
+            scope = selector.scope
+        missing = expected - covered
+        if not missing:
+            continue
+        findings.append(_observation(
+            query,
+            COMPOSED_UNIFORMITY_CHECK,
+            "composed_feature_nonuniform",
+            "A persisted composed feature is applied to only part of the array. "
+            "The array elements are not geometrically uniform for this feature scope.",
+            severity="warning",
+            elements=tuple(sorted(missing)),
+            relationship=group.group_id,
+            measurements={
+                "array_element_count": Measurement(len(expected), ""),
+                "feature_element_count": Measurement(len(covered), ""),
+                "missing_element_count": Measurement(len(missing), ""),
+            },
+            assumptions=(
+                f"Composed feature {group.group_id} declares scope={scope!r} for role "
+                f"{selector.role!r}." if selector is not None else
+                f"Composed feature {group.group_id} has no explicit target selector.",
+                "This check compares canonical feature scope; it does not infer intended RF symmetry.",
+            ),
+            source_method="canonical_composed_target_scope",
+            source_applicability="Persisted composed-operation selectors and canonical array coordinates.",
+            source_limitations=(
+                "Scope uniformity does not establish electrical equivalence or RF performance.",
+                "A deliberately asymmetric array may retain this warning and disclose that decision.",
+            ),
+        ))
+    return tuple(findings), _coverage(
+        COMPOSED_UNIFORMITY_CHECK,
+        "completed",
+        "Compared each persisted composed-feature selector with all canonical array elements.",
+    )
+
+
 def run_engineering_checks(design: AntennaDesign, *, checks=None, config=EngineeringCheckConfig()) -> EngineeringReport:
     """Evaluate once and combine independently covered checks without mutation."""
     selected = _selected_checks(checks)
     if not isinstance(config, EngineeringCheckConfig):
         raise ValueError("config must be EngineeringCheckConfig.")
-    functions = {CONTACT_CHECK: check_conductor_contact_clearance, PORT_CHECK: check_port_attachment_distinctness,
-                 CONTAINMENT_CHECK: check_substrate_support_containment, EXCITATION_CHECK: check_excitation_consistency}
+    functions = {
+        CONTACT_CHECK: check_conductor_contact_clearance,
+        PORT_CHECK: check_port_attachment_distinctness,
+        CONTAINMENT_CHECK: check_substrate_support_containment,
+        EXCITATION_CHECK: check_excitation_consistency,
+        COMPOSED_UNIFORMITY_CHECK: lambda query, config: check_composed_feature_uniformity(
+            design, query, config
+        ),
+    }
     try:
         query = evaluate_geometry(design)
     except Exception as exc:

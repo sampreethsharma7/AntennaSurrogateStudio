@@ -877,12 +877,18 @@ class AntennaDesignAgent:
                 "One persisted composed feature must use one semantic radiating target."
             )
         role, row, column = next(iter(unique_targets))
+        # A feature authored while only one logical element exists describes the
+        # element template. Persist it as all-element scope so later array growth
+        # cannot silently create unlike elements. On an existing array, the
+        # concrete Boolean target remains an explicit single-element choice.
+        scope = "all" if design.array.element_count == 1 else "single"
+        elements = () if scope == "all" else ((row, column),)
         return ComposedOperationGroup(
             group_id=group_id,
             source_recipe_id=design.recipe_id,
             source_family=design.family,
             calls=tuple(captured),
-            target_selector=ComposedTargetSelector(role, "single", ((row, column),)),
+            target_selector=ComposedTargetSelector(role, scope, elements),
             coordinate_frame="target_local",
         )
 
