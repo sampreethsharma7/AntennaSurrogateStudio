@@ -313,18 +313,44 @@ def create_native_cst_project(destination: str | Path, state: AntennaDesign) -> 
         raise CapabilityError("Choose a new filename; the builder will not overwrite a CST project.")
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
+        import pythoncom
         import win32com.client
     except ImportError as exc:
         raise CapabilityError(
             "Native CST creation requires the Windows automation dependency. Run setup_windows.bat and try again."
         ) from exc
+    application = None
+    model = None
+    operation_error: Exception | None = None
+    release_error: Exception | None = None
+    pythoncom.CoInitialize()
     try:
-        application = win32com.client.Dispatch("CSTStudio.Application")
+        # Use an isolated automation server so cleanup never closes a CST
+        # session that the user opened independently.
+        application = win32com.client.DispatchEx("CSTStudio.Application")
         model = application.NewMWS()
         _populate_native_cst_project(model, state)
         model.SaveAs(str(path.resolve()), True)
     except Exception as exc:
-        raise CapabilityError(f"CST could not create the native project: {exc}") from exc
+        operation_error = exc
+    finally:
+        if model is not None:
+            try:
+                model.Quit()
+            except Exception as exc:
+                release_error = exc
+        model = None
+        application = None
+        import gc
+        gc.collect()
+        pythoncom.CoUninitialize()
+    if operation_error is not None:
+        raise CapabilityError(f"CST could not create the native project: {operation_error}") from operation_error
+    if release_error is not None:
+        raise CapabilityError(
+            "CST saved the project but its automation process could not be released; "
+            f"the file may remain locked: {release_error}"
+        ) from release_error
     if not path.is_file():
         raise CapabilityError("CST returned without saving the requested project.")
     return path.resolve()

@@ -272,7 +272,9 @@ antenna models. Save them as books. Reuse them anytime.”
   project** asks for a new `.cst` filename, preserves the macro and design
   record, creates one unsolved native project through installed CST on Windows,
   and never overwrites an existing CST file. CST work runs outside the UI
-  thread. Neither export starts a solver.
+  thread in an isolated automation instance. After SaveAs the model quits and
+  COM is uninitialized, so the generated file is not held by a hidden
+  Studio-owned CST process. Neither export starts a solver.
 - **Send selected to LHS** opens Data Prep and the existing LHS dialog with the
   selected meaningful CST parameter names and suggested editable bounds.
 - Builder state, raw conversation, and project engineering memory are

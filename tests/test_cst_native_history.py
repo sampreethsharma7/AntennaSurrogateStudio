@@ -1,7 +1,15 @@
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from studio.antenna_agent import create_default_agent
-from studio.antenna_builder import _populate_native_cst_project, apply_text_instruction, build_geometry_scene
+from studio.antenna_builder import (
+    _populate_native_cst_project,
+    apply_text_instruction,
+    build_geometry_scene,
+    create_native_cst_project,
+)
 from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.cst_antenna_adapter import CSTAdapter
 
@@ -27,6 +35,28 @@ class _RecordingModel:
 
     def AddToHistory(self, name, script):
         self.events.append(("history", name, script))
+
+
+class _NativeRecordingModel(_RecordingModel):
+    def __init__(self):
+        super().__init__()
+        self.saved_path = None
+        self.quit_calls = 0
+
+    def SaveAs(self, path, _include_results):
+        self.saved_path = path
+        Path(path).write_bytes(b"mock cst project")
+
+    def Quit(self):
+        self.quit_calls += 1
+
+
+class _RecordingApplication:
+    def __init__(self, model):
+        self.model = model
+
+    def NewMWS(self):
+        return self.model
 
 
 def _apply(state, *calls):
@@ -148,6 +178,30 @@ class CSTNativeHistoryTests(unittest.TestCase):
             if event[0] == "history"
         ))
         self.assertIn(("parameter", "PatchW", f"{state.patch_width_mm:.12g}"), model.events)
+
+    def test_native_project_uses_isolated_cst_and_releases_it_after_save(self):
+        state = self.agent.create_design("inset_patch")
+        model = _NativeRecordingModel()
+        application = _RecordingApplication(model)
+        test_root = Path(__file__).resolve().parents[1] / ".test_runs"
+        test_root.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=test_root) as folder:
+            destination = Path(folder) / "released.cst"
+            with (
+                patch("win32com.client.DispatchEx", return_value=application) as dispatch_ex,
+                patch("win32com.client.Dispatch") as shared_dispatch,
+                patch("pythoncom.CoInitialize") as co_initialize,
+                patch("pythoncom.CoUninitialize") as co_uninitialize,
+            ):
+                result = create_native_cst_project(destination, state)
+
+            self.assertEqual(result, destination.resolve())
+            self.assertTrue(destination.is_file())
+        dispatch_ex.assert_called_once_with("CSTStudio.Application")
+        shared_dispatch.assert_not_called()
+        self.assertEqual(model.quit_calls, 1)
+        co_initialize.assert_called_once_with()
+        co_uninitialize.assert_called_once_with()
 
     def test_each_logical_operation_has_a_native_history_entry(self):
         state = self.agent.create_design("inset_patch")
