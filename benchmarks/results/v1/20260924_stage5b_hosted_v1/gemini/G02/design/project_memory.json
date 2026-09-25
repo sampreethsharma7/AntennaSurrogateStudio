@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_inset_patch_clean",
+    "revision": 0
+  },
+  "requirements": [
+    {
+      "item_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+      "key": "max_board_width_mm",
+      "value": 72.0,
+      "unit": "mm",
+      "status": "superseded",
+      "source_turn_id": "G02-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "user_semantic",
+      "semantic_kind": "constraint",
+      "evidence_quote": "The complete board must stay under 72 mm wide.",
+      "supersedes_item_id": null,
+      "created_design_revision": 0,
+      "updated_design_revision": 0
+    },
+    {
+      "item_id": "semantic:max_board_width_mm:G02-turn-2-attempt-1:value",
+      "key": "max_board_width_mm",
+      "value": 90.0,
+      "unit": "mm",
+      "status": "active",
+      "source_turn_id": "G02-turn-2-attempt-1",
+      "design_revision": 0,
+      "source": "user_semantic",
+      "semantic_kind": "constraint",
+      "evidence_quote": "up to 90 mm is acceptable.",
+      "supersedes_item_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+      "created_design_revision": 0,
+      "updated_design_revision": 0
+    }
+  ],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:G02-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "The complete board must stay under 72 mm wide.",
+        "response": "The current board width is 51.23 mm, which is already under the specified 72 mm limit. This constraint has been recorded for future design steps."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G02-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "context:G02-turn-2-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "Revise that limit: up to 90 mm is acceptable.",
+        "response": "The maximum board width limit has been revised to 90 mm. The current board width is 51.23 mm, which is well within this limit, so no geometry modifications are needed."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G02-turn-2-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "context:G02-turn-3-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "List the active size constraint you retained.",
+        "response": "The active size constraint retained in project memory is:\n- Maximum board width (`max_board_width_mm`): 90.0 mm (revised from the initial 72 mm limit)."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G02-turn-3-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

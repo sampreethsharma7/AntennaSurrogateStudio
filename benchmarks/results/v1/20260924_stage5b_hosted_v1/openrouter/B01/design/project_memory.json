@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_inset_patch_clean",
+    "revision": 1
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [
+    {
+      "item_id": "change:B01-turn-1-attempt-2",
+      "key": "design_change",
+      "value": {
+        "created_parameters": [
+          {
+            "key": "slot_width_mm",
+            "value": 4,
+            "unit": "mm"
+          },
+          {
+            "key": "slot_height_mm",
+            "value": 1.5,
+            "unit": "mm"
+          }
+        ],
+        "composed_features": {
+          "added": [
+            {
+              "group_id": "composition_1",
+              "target_role": "radiating_patch_conductor",
+              "scope": "single",
+              "operations": [
+                "parameter.create",
+                "parameter.create",
+                "geometry.rectangle_sheet",
+                "boolean.subtract"
+              ]
+            }
+          ],
+          "updated": [],
+          "removed": []
+        }
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "B01-turn-1-attempt-2",
+      "design_revision": 1,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "recent_context": [
+    {
+      "item_id": "context:B01-turn-1-attempt-2",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "executed",
+        "request": "Cut a 4 mm by 1.5 mm rectangular opening 6 mm left of the patch center.",
+        "response": "The requested 4 mm × 1.5 mm rectangular slot centered 6 mm left of the patch center already exists in the current design. Parameters slot_width_mm (4 mm) and slot_height_mm (1.5 mm) were created, the boolean tool slot_left_tool was placed at x = -6 mm in the patch-local frame, and the subtract operation slot_left_subtract was applied to element_1_1_patch. No further action is needed."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "B01-turn-1-attempt-2",
+      "design_revision": 1,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

@@ -1,0 +1,573 @@
+{
+  "entries": [
+    {
+      "case": "A01",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "A03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "B02",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "B03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "C01",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "C03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "D04",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "E01",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "E02",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "E03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "F01",
+      "failure_taxonomy": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "F02",
+      "failure_taxonomy": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "F03",
+      "failure_taxonomy": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "F04",
+      "failure_taxonomy": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "G01",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria",
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "G02",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "G03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "H03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "gemini",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "A01",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "A03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "B02",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "B03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "C01",
+      "failure_taxonomy": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "C02",
+      "failure_taxonomy": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "C03",
+      "failure_taxonomy": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "final canonical facts did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "D03",
+      "failure_taxonomy": [
+        "schema_structured_output_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "D04",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "E01",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "E02",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "E03",
+      "failure_taxonomy": [
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "F01",
+      "failure_taxonomy": [
+        "schema_structured_output_failure",
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": []
+    },
+    {
+      "case": "F02",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    },
+    {
+      "case": "F03",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    },
+    {
+      "case": "F04",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    },
+    {
+      "case": "G01",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure",
+        "final canonical facts did not meet frozen criteria",
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "G02",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure",
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "G03",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure",
+        "final canonical facts did not meet frozen criteria",
+        "semantic memory did not meet frozen criteria"
+      ]
+    },
+    {
+      "case": "H01",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    },
+    {
+      "case": "H02",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    },
+    {
+      "case": "H03",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    },
+    {
+      "case": "H04",
+      "failure_taxonomy": [
+        "provider_api_failure"
+      ],
+      "likely_architecture_issue": null,
+      "possible_future_investigation": "Review preserved trajectory and observable state after Stage 5B; no fix applied.",
+      "provider": "nemotron",
+      "provider_model_specific": null,
+      "reproducible": null,
+      "symptom": [
+        "provider/API failure"
+      ]
+    }
+  ],
+  "taxonomy_totals": {
+    "bad_tool_abstraction": 5,
+    "planner_reasoning_failure": 30,
+    "provider_api_failure": 10,
+    "schema_structured_output_failure": 5
+  }
+}

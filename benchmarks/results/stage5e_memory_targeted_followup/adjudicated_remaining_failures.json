@@ -1,0 +1,57 @@
+{
+  "approved_alias_outcome": {
+    "corporate_feed": "validated_in_recorded_replay_and_openrouter_F01_live",
+    "max_board_dimension_mm": "validated_in_recorded_replay_with_full_board_maximum_evidence",
+    "polarization": "validated_when_emitted",
+    "series_fed_network": "validated_in_recorded_replay"
+  },
+  "cases": [
+    {
+      "case_id": "F02",
+      "classification": "model_emitted_new_noncanonical_key_outside_approved_alias_set",
+      "detail": "Grounded feed_network = series-fed network was preserved generically; only the originally demonstrated series_fed_network future-intent alias was approved.",
+      "provider": "gemini"
+    },
+    {
+      "case_id": "M01",
+      "classification": "model_emitted_new_noncanonical_keys_and_insufficient_board_evidence_quote",
+      "detail": "max_board_dimension used evidence under 85 mm without board in the quoted substring, so the board maximum guard did not fire; feed_network = corporate feed is outside the approved corporate_feed alias.",
+      "provider": "gemini"
+    },
+    {
+      "case_id": "P03",
+      "classification": "model_asked_clarification_without_memory_proposal",
+      "detail": "No semantic proposal was emitted for the stated LHCP preference.",
+      "provider": "openrouter"
+    },
+    {
+      "case_id": "F02",
+      "classification": "model_proposal_grounding_failure",
+      "detail": "explore_series_feed_network was not an exact lexical value from the evidence quote.",
+      "provider": "openrouter"
+    },
+    {
+      "case_id": "U01",
+      "classification": "model_asked_clarification_without_memory_proposal",
+      "detail": "No semantic proposal was emitted for the low visual profile preference.",
+      "provider": "openrouter"
+    },
+    {
+      "case_id": "U02",
+      "classification": "model_proposal_grounding_failure",
+      "detail": "manufacturing simplicity over visual appearance was a paraphrase rather than an exact substring of the evidence quote.",
+      "provider": "openrouter"
+    },
+    {
+      "case_id": "M01",
+      "classification": "model_proposal_and_recall_failure",
+      "detail": "max_board_size is outside the approved board alias; corporate_feed_future = planned failed lexical grounding; final recall omitted corporate-feed future intent.",
+      "provider": "openrouter"
+    }
+  ],
+  "decision": "No further aliases added from targeted rerun outputs.",
+  "live_boolean_semantic_values_observed": 0,
+  "normalization_overmerge_failures": [],
+  "provider_api_failures": [],
+  "test_set_sha256": "5b396d8f1bf3ff66c7b0204f9cb19b977e625b452230a2d960c35de1472a1862"
+}

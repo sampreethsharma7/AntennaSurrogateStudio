@@ -1,0 +1,47 @@
+{
+  "artifact_status": "superseded",
+  "benchmark_id": "stage5e-semantic-memory-validation-v1",
+  "builder_source_sha256": "161d5eeb6d7916351b1a089c52731ae348411be828d45414d83706bb4664e129",
+  "case_count": 11,
+  "cloud_calls_during_prepare": 0,
+  "configured_credentials_present": {
+    "gemini": true,
+    "openrouter": true
+  },
+  "contract_provenance": {
+    "agent_step_contract_version": 1,
+    "agent_step_schema_version": 1,
+    "artifact_status": "superseded",
+    "benchmark_sha256": "5b396d8f1bf3ff66c7b0204f9cb19b977e625b452230a2d960c35de1472a1862",
+    "contract_fingerprints": {
+      "agent_step_schema_sha256": "23763366c271b6f7f5a5808948c9af1436f8efcf3e80c31fc5ebbfe1e10190b8",
+      "agent_system_instruction_sha256": "f6d39a040fef3a9ca6f41709747b9d788ba22890953d174a80b799d0e2d01fe5",
+      "agent_user_content_sha256": "248f58ccf461c109d24345403da564d0a60b1cf7350c86d074d2ccc80fa26590",
+      "toolplan_schema_sha256": "553cc402a0599a9f119598def0485fb09ce3c3222402de3999eb29dd6d8aee19"
+    },
+    "recorded_at_utc": "2026-09-25T00:17:00.682632+00:00",
+    "retired_at_utc": "2026-09-25T04:17:27.694612+00:00",
+    "superseded_by": "AgentStep contract v2",
+    "superseded_reason": "Boolean semantic-memory placeholder values were removed from the AgentStep schema, strict parser, and shared planner instruction."
+  },
+  "harness_source_sha256": "130088fa6da0726113cd82e7ee9e111f45c0f75363192fee37b099e9d632b57c",
+  "live_completed_at_utc": "2026-09-25T00:17:00.682632+00:00",
+  "live_started_at_utc": "2026-09-25T00:10:31.867295+00:00",
+  "live_status": "complete",
+  "normalization_source_sha256": "053e83b131e26fc9fa45b09cb18f43972d14dfcfa833e87b40bb6c0da1bcdeb4",
+  "prepared_at_utc": "2026-09-24T23:51:56.444001+00:00",
+  "prompt_turn_count": 17,
+  "providers": {
+    "gemini": "gemini-3.8-flash",
+    "openrouter": "nvidia/nemotron-3-ultra-550b-a55b:free"
+  },
+  "providers_completed": [
+    "gemini",
+    "openrouter"
+  ],
+  "providers_started": [
+    "gemini",
+    "openrouter"
+  ],
+  "test_set_sha256": "5b396d8f1bf3ff66c7b0204f9cb19b977e625b452230a2d960c35de1472a1862"
+}

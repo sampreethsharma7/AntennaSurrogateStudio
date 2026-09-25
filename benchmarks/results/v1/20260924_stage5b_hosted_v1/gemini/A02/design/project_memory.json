@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "da5bab999ab94309a16c95ba9f284062",
+    "revision": 0
+  },
+  "requirements": [
+    {
+      "item_id": "requirement:target_frequency",
+      "key": "target_frequency",
+      "value": 0.915,
+      "unit": "GHz",
+      "status": "active",
+      "source_turn_id": "A02-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "semantic:target_band:A02-turn-1-attempt-1:value",
+      "key": "target_band",
+      "value": "915 MHz ISM band",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "A02-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "user_semantic",
+      "semantic_kind": "requirement",
+      "evidence_quote": "915 MHz ISM band",
+      "supersedes_item_id": null,
+      "created_design_revision": 0,
+      "updated_design_revision": 0
+    }
+  ],
+  "decisions": [
+    {
+      "item_id": "decision:antenna_family",
+      "key": "antenna_family",
+      "value": {
+        "recipe_id": "dipole_v1",
+        "family": "dipole"
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "A02-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:A02-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "executed",
+        "request": "Start a basic dipole intended for the 915 MHz ISM band.",
+        "response": "Initialized a center-fed dipole antenna for the 915 MHz ISM band (0.915 GHz). The design features copper cylindrical arms of length 76.18 mm each with a 1.09 mm wire radius, separated by a 3.28 mm feed gap (total length 155.63 mm) and excited via a 50-ohm discrete port. Geometric and excitation checks passed with no warnings."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "A02-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

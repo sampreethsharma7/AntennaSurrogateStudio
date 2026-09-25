@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "messages": [
+    {
+      "turn_id": "C02-turn-1-attempt-1",
+      "role": "user",
+      "content": "Shift the repeated aperture 4 mm toward positive x on every element, measured from each element's own center.",
+      "created_at": "2026-09-24T17:59:13.575408+00:00",
+      "outcome": "request",
+      "design_revision": 4
+    },
+    {
+      "turn_id": "C02-turn-1-attempt-1",
+      "role": "builder",
+      "content": "The repeated aperture has been successfully shifted 4 mm toward positive x on every element, measured relative to each element's center.",
+      "created_at": "2026-09-24T17:59:13.575408+00:00",
+      "outcome": "executed",
+      "design_revision": 5
+    }
+  ]
+}

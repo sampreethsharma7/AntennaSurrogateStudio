@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "messages": [
+    {
+      "turn_id": "C01-turn-1-attempt-1",
+      "role": "user",
+      "content": "Increase the existing round aperture to a radius of 4.25 mm without adding another cut.",
+      "created_at": "2026-09-24T17:58:59.713815+00:00",
+      "outcome": "request",
+      "design_revision": 1
+    },
+    {
+      "turn_id": "C01-turn-1-attempt-1",
+      "role": "builder",
+      "content": "The existing circular aperture has been increased to a radius of 4.25 mm by updating the parameter in the existing composed feature, without adding any additional cuts.",
+      "created_at": "2026-09-24T17:58:59.713815+00:00",
+      "outcome": "executed",
+      "design_revision": 2
+    }
+  ]
+}

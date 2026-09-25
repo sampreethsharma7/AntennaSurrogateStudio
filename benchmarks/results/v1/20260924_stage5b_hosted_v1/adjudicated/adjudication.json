@@ -1,0 +1,1195 @@
+{
+  "adjudication_counts": {
+    "benchmark_contract_mismatch": 14,
+    "confirmed_agent_failure": 3,
+    "confirmed_model_reasoning_failure": 2,
+    "confirmed_provider_failure": 10,
+    "confirmed_schema_failure": 1,
+    "evaluator_extraction_bug": 9,
+    "fixture_invalid": 2
+  },
+  "adjudications": [
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "A01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "A03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_model_reasoning_failure",
+      "case_id": "B02",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "The model requested unnecessary placement clarification instead of making the benchmark's intended upper-right attachment.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "B03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "C01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "C03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "D04",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "The explicit fallback was fully satisfied; the frozen partial-completion and future-goal memory requirements over-prescribed the user's conditional preference.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "E01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "fixture_invalid",
+      "case_id": "E02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "The circular-patch fixture deterministically contains legitimate probe/ground warnings.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "E03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "F01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "F02",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "F03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "F04",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_agent_failure",
+      "case_id": "G01",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Semantic meaning was retained, but the persisted key/value normalization did not satisfy the stable memory contract.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_agent_failure",
+      "case_id": "G02",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Semantic meaning was retained, but the persisted key/value normalization did not satisfy the stable memory contract.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_agent_failure",
+      "case_id": "G03",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Semantic meaning was retained, but the persisted key/value normalization did not satisfy the stable memory contract.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "H03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "No deterministic provider-failure injection existed; normal model behavior cannot satisfy a synthetic transport outcome.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "H04",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "A01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "A03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "B02",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "B03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_schema_failure",
+      "case_id": "C01",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Both returned plans were malformed JSON; no requested edit became canonical.",
+      "schema_failure_observed": true,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_model_reasoning_failure",
+      "case_id": "C02",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "The model repeatedly added 4 mm to the already-updated offset until the accepted-action budget was exhausted.",
+      "schema_failure_observed": true,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "C03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": true,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "D04",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "The explicit fallback was fully satisfied; the frozen partial-completion and future-goal memory requirements over-prescribed the user's conditional preference.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "E01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "fixture_invalid",
+      "case_id": "E02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "The circular-patch fixture deterministically contains legitimate probe/ground warnings.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "evaluator_extraction_bug",
+      "case_id": "E03",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 failed to recover physical composition values or expand valid grouped engineering dispositions.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "benchmark_contract_mismatch",
+      "case_id": "F01",
+      "corrected_objective_pass": true,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "schema_structured_output_failure",
+        "bad_tool_abstraction",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Evaluator v1 contradicted an existing canonical alias, registered capability, or clarification policy.",
+      "schema_failure_observed": true,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "F02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "F03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "F04",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "G01",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "G02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "G03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H01",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": true,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H04",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    }
+  ],
+  "corrected_evaluable_counts": {
+    "gemini": 28,
+    "openrouter": 19
+  },
+  "corrected_pass_counts": {
+    "gemini": 24,
+    "openrouter": 17
+  },
+  "evaluator_version": "antenna-agent-objective-v2",
+  "original_evaluable_counts": {
+    "gemini": 30,
+    "openrouter": 20
+  },
+  "original_evaluable_pass_counts": {
+    "gemini": 11,
+    "openrouter": 8
+  },
+  "original_pass_counts": {
+    "gemini": 11,
+    "openrouter": 9
+  },
+  "paired_evaluable_comparison": [
+    {
+      "case_id": "A01",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "A02",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "A03",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "A04",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "B01",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "B02",
+      "gemini_pass": false,
+      "openrouter_pass": true,
+      "same_objective_result": false
+    },
+    {
+      "case_id": "B03",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "B04",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "C01",
+      "gemini_pass": true,
+      "openrouter_pass": false,
+      "same_objective_result": false
+    },
+    {
+      "case_id": "C02",
+      "gemini_pass": true,
+      "openrouter_pass": false,
+      "same_objective_result": false
+    },
+    {
+      "case_id": "C03",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "C04",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "D01",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "D02",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "D03",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "D04",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "E01",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "E03",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    },
+    {
+      "case_id": "F01",
+      "gemini_pass": true,
+      "openrouter_pass": true,
+      "same_objective_result": true
+    }
+  ],
+  "previous_evaluator_version": "antenna-agent-objective-v1",
+  "rule_changes": [
+    {
+      "affected_cases": [
+        "A03",
+        "G01"
+      ],
+      "change": "Compare exact recipe-backed family aliases through rectangular_inset_patch.",
+      "reason": "Production recipe identity is rectangular_inset_patch; inset_patch is a human alias.",
+      "rule": "canonical_family_identity"
+    },
+    {
+      "affected_cases": [
+        "A01"
+      ],
+      "change": "Compare the frozen Rogers 4003C spelling through the RO4003C registry identity.",
+      "reason": "Production stores the material registry's canonical Rogers RO4003C name.",
+      "rule": "canonical_material_identity"
+    },
+    {
+      "affected_cases": [
+        "B03"
+      ],
+      "change": "Count Boolean-referenced physical cutter tools, including multiple tools in one operation.",
+      "reason": "One boolean.subtract call can validly consume multiple independent cutters.",
+      "rule": "physical_composition_count"
+    },
+    {
+      "affected_cases": [
+        "C01",
+        "C03"
+      ],
+      "change": "Resolve base parameters plus persisted parameter.create calls before evaluating geometry expressions.",
+      "reason": "Evaluator v1 passed AntennaDesign where a parameter mapping was required and omitted composed parameters.",
+      "rule": "composition_parameter_resolution"
+    },
+    {
+      "affected_cases": [
+        "E01",
+        "E03"
+      ],
+      "change": "Expand acknowledged/deferred group IDs to their recorded constituent observation IDs.",
+      "reason": "Production explicitly accepts grouped dispositions.",
+      "rule": "engineering_group_disposition"
+    },
+    {
+      "affected_cases": [
+        "F01",
+        "F02",
+        "F03",
+        "F04"
+      ],
+      "change": "Map frozen analysis.* labels to registered engineering.* tool identities.",
+      "reason": "The installed manifest exposes engineering.* names.",
+      "rule": "registered_analysis_identity"
+    },
+    {
+      "affected_cases": [
+        "H04"
+      ],
+      "change": "A case declaring clarification allowed also accepts a clarify terminal outcome.",
+      "reason": "The prior acceptance fields contradicted each other for an under-specified invalid target.",
+      "rule": "clarification_policy_consistency"
+    }
+  ],
+  "schema_incidents": [
+    {
+      "case_id": "C01",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "provider_error"
+    },
+    {
+      "case_id": "C02",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "agent_limit"
+    },
+    {
+      "case_id": "C03",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "finished"
+    },
+    {
+      "case_id": "D03",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "finished"
+    },
+    {
+      "case_id": "F01",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "finished"
+    }
+  ],
+  "schema_version": 1,
+  "semantic_memory_reviews": [
+    {
+      "case_id": "D04",
+      "diagnosis": "evaluator_expectation_mismatch",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "feed_network_future_goal",
+          "status": "active",
+          "value": "series_feed"
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [
+          "semantic:feed_network_preference:D04-turn-1-attempt-1:value"
+        ],
+        "proposed": [
+          {
+            "action": "upsert",
+            "evidence_quote": "I would like a series-fed network",
+            "key": "feed_network_preference",
+            "reference_id": null,
+            "semantic_kind": "preference",
+            "unit": null,
+            "value": "series-fed network"
+          }
+        ],
+        "rejected": []
+      },
+      "provider": "gemini",
+      "resulting_semantic_items": [
+        {
+          "created_design_revision": 2,
+          "design_revision": 2,
+          "evidence_quote": "I would like a series-fed network",
+          "item_id": "semantic:feed_network_preference:D04-turn-1-attempt-1:value",
+          "key": "feed_network_preference",
+          "semantic_kind": "preference",
+          "source": "user_semantic",
+          "source_turn_id": "D04-turn-1-attempt-1",
+          "status": "active",
+          "supersedes_item_id": null,
+          "unit": null,
+          "updated_design_revision": 2,
+          "value": "series-fed network"
+        }
+      ],
+      "user_statements": [
+        "I would like a series-fed network if you can build one; otherwise retain the existing independent ports.",
+        "What feed or excitation is actually modeled?"
+      ]
+    },
+    {
+      "case_id": "G01",
+      "diagnosis": "unstable_value_normalization",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "target_polarization",
+          "status": "active",
+          "value": "circular_polarization"
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [
+          "semantic:target_polarization:G01-turn-1-attempt-1:value"
+        ],
+        "proposed": [
+          {
+            "action": "upsert",
+            "evidence_quote": "Long term I want circular polarization",
+            "key": "target_polarization",
+            "reference_id": null,
+            "semantic_kind": "future_intent",
+            "unit": null,
+            "value": "circular"
+          }
+        ],
+        "rejected": []
+      },
+      "provider": "gemini",
+      "resulting_semantic_items": [
+        {
+          "created_design_revision": 0,
+          "design_revision": 0,
+          "evidence_quote": "Long term I want circular polarization",
+          "item_id": "semantic:target_polarization:G01-turn-1-attempt-1:value",
+          "key": "target_polarization",
+          "semantic_kind": "future_intent",
+          "source": "user_semantic",
+          "source_turn_id": "G01-turn-1-attempt-1",
+          "status": "active",
+          "supersedes_item_id": null,
+          "unit": null,
+          "updated_design_revision": 0,
+          "value": "circular"
+        }
+      ],
+      "user_statements": [
+        "Long term I want circular polarization, but begin with a linearly polarized 2.4 GHz inset patch.",
+        "Turn the current element into a row of three.",
+        "Which polarization goals have I asked you to remember?"
+      ]
+    },
+    {
+      "case_id": "G02",
+      "diagnosis": "unstable_key_normalization",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "board_width_limit",
+          "status": "superseded",
+          "value": 72
+        },
+        {
+          "key": "board_width_limit",
+          "status": "active",
+          "value": 90
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [
+          "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+          "semantic:max_board_width_mm:G02-turn-2-attempt-1:value"
+        ],
+        "proposed": [
+          {
+            "action": "upsert",
+            "evidence_quote": "The complete board must stay under 72 mm wide.",
+            "key": "max_board_width_mm",
+            "reference_id": null,
+            "semantic_kind": "constraint",
+            "unit": "mm",
+            "value": 72.0
+          },
+          {
+            "action": "supersede",
+            "evidence_quote": "up to 90 mm is acceptable.",
+            "key": "max_board_width_mm",
+            "reference_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+            "semantic_kind": "constraint",
+            "unit": "mm",
+            "value": 90.0
+          }
+        ],
+        "rejected": []
+      },
+      "provider": "gemini",
+      "resulting_semantic_items": [
+        {
+          "created_design_revision": 0,
+          "design_revision": 0,
+          "evidence_quote": "The complete board must stay under 72 mm wide.",
+          "item_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+          "key": "max_board_width_mm",
+          "semantic_kind": "constraint",
+          "source": "user_semantic",
+          "source_turn_id": "G02-turn-1-attempt-1",
+          "status": "superseded",
+          "supersedes_item_id": null,
+          "unit": "mm",
+          "updated_design_revision": 0,
+          "value": 72.0
+        },
+        {
+          "created_design_revision": 0,
+          "design_revision": 0,
+          "evidence_quote": "up to 90 mm is acceptable.",
+          "item_id": "semantic:max_board_width_mm:G02-turn-2-attempt-1:value",
+          "key": "max_board_width_mm",
+          "semantic_kind": "constraint",
+          "source": "user_semantic",
+          "source_turn_id": "G02-turn-2-attempt-1",
+          "status": "active",
+          "supersedes_item_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+          "unit": "mm",
+          "updated_design_revision": 0,
+          "value": 90.0
+        }
+      ],
+      "user_statements": [
+        "The complete board must stay under 72 mm wide.",
+        "Revise that limit: up to 90 mm is acceptable.",
+        "List the active size constraint you retained."
+      ]
+    },
+    {
+      "case_id": "G03",
+      "diagnosis": "unstable_key_and_value_normalization",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "feed_network_future_goal",
+          "status": "active",
+          "value": "corporate_feed"
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [
+          "semantic:corporate_distribution_network:G03-turn-1-attempt-1:value"
+        ],
+        "proposed": [
+          {
+            "action": "upsert",
+            "evidence_quote": "a corporate distribution network is a later project goal",
+            "key": "corporate_distribution_network",
+            "reference_id": null,
+            "semantic_kind": "future_intent",
+            "unit": null,
+            "value": "corporate distribution network"
+          }
+        ],
+        "rejected": []
+      },
+      "provider": "gemini",
+      "resulting_semantic_items": [
+        {
+          "created_design_revision": 1,
+          "design_revision": 1,
+          "evidence_quote": "a corporate distribution network is a later project goal",
+          "item_id": "semantic:corporate_distribution_network:G03-turn-1-attempt-1:value",
+          "key": "corporate_distribution_network",
+          "semantic_kind": "future_intent",
+          "source": "user_semantic",
+          "source_turn_id": "G03-turn-1-attempt-1",
+          "status": "active",
+          "supersedes_item_id": null,
+          "unit": null,
+          "updated_design_revision": 1,
+          "value": "corporate distribution network"
+        }
+      ],
+      "user_statements": [
+        "Use separate element ports now, though a corporate distribution network is a later project goal.",
+        "Expand to a two-by-three array.",
+        "Summarize both the realized excitation and the feed goal."
+      ]
+    },
+    {
+      "case_id": "D04",
+      "diagnosis": "evaluator_expectation_mismatch",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "feed_network_future_goal",
+          "status": "active",
+          "value": "series_feed"
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [],
+        "proposed": [
+          {
+            "action": "upsert",
+            "evidence_quote": "I would like a series-fed network if you can build one; otherwise retain the existing independent ports.",
+            "key": "prefer_series_feed_if_available",
+            "reference_id": null,
+            "semantic_kind": "preference",
+            "unit": null,
+            "value": true
+          }
+        ],
+        "rejected": [
+          {
+            "index": 0,
+            "proposal": {
+              "action": "upsert",
+              "evidence_quote": "I would like a series-fed network if you can build one; otherwise retain the existing independent ports.",
+              "key": "prefer_series_feed_if_available",
+              "reference_id": null,
+              "semantic_kind": "preference",
+              "unit": null,
+              "value": true
+            },
+            "reason": "value_not_lexically_grounded_in_evidence_quote"
+          }
+        ]
+      },
+      "provider": "openrouter",
+      "resulting_semantic_items": [],
+      "user_statements": [
+        "I would like a series-fed network if you can build one; otherwise retain the existing independent ports.",
+        "What feed or excitation is actually modeled?"
+      ]
+    },
+    {
+      "case_id": "G01",
+      "diagnosis": "provider_failure_before_evaluation",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "target_polarization",
+          "status": "active",
+          "value": "circular_polarization"
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [],
+        "proposed": [],
+        "rejected": []
+      },
+      "provider": "openrouter",
+      "resulting_semantic_items": [],
+      "user_statements": [
+        "Long term I want circular polarization, but begin with a linearly polarized 2.4 GHz inset patch.",
+        "Turn the current element into a row of three.",
+        "Which polarization goals have I asked you to remember?"
+      ]
+    },
+    {
+      "case_id": "G02",
+      "diagnosis": "provider_failure_before_evaluation",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "board_width_limit",
+          "status": "superseded",
+          "value": 72
+        },
+        {
+          "key": "board_width_limit",
+          "status": "active",
+          "value": 90
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [],
+        "proposed": [],
+        "rejected": []
+      },
+      "provider": "openrouter",
+      "resulting_semantic_items": [],
+      "user_statements": [
+        "The complete board must stay under 72 mm wide.",
+        "Revise that limit: up to 90 mm is acceptable.",
+        "List the active size constraint you retained."
+      ]
+    },
+    {
+      "case_id": "G03",
+      "diagnosis": "provider_failure_before_evaluation",
+      "frozen_expected_semantic_meaning": [
+        {
+          "key": "feed_network_future_goal",
+          "status": "active",
+          "value": "corporate_feed"
+        }
+      ],
+      "memory_evidence": {
+        "applied_ids": [],
+        "proposed": [],
+        "rejected": []
+      },
+      "provider": "openrouter",
+      "resulting_semantic_items": [],
+      "user_statements": [
+        "Use separate element ports now, though a corporate distribution network is a later project goal.",
+        "Expand to a two-by-three array.",
+        "Summarize both the realized excitation and the feed goal."
+      ]
+    }
+  ],
+  "source_artifact_sha256": {
+    "cross_provider_comparison.md": "516fb7da74e9851c7378bc96ec1950930ced9dc8c1a1735bdca3f4fc860d57b6",
+    "failure_inventory.json": "68b5d0a41cf4bc27fbd06d8113b572506c0e6525458a889eff3eeb3500d4ff81",
+    "gemini_observations.json": "f5bc0e72f33a1b4fe8f953d8d631d8f3ccd672ae08beef3a56f5c45c63366d56",
+    "gemini_results.json": "2e2e3bcfd3c1415a8445ee248ac67b3c855d8583dc893220d9afebcf2ed327d4",
+    "nemotron_results.json": "a532953758a823223bd047859e7af86743a483d9fee02fb6cf49ca5b273f1dbf",
+    "openrouter_observations.json": "2f91007eb5add59d75f65f4b25afdede92b55cddbc69bd6ce925115f62126a08",
+    "run_manifest.json": "72f2148a01dd3497a805e9323ef86cac7fb678dd745ecaa6f119172b2c045bbb"
+  },
+  "source_benchmark_sha256": "281efa92743b03c69f2a16ad3ee8d6d01dafd339541e43cbcd0ac675ee86b868",
+  "source_run": "benchmarks\\results\\v1\\20260924_stage5b_hosted_v1"
+}

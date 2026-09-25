@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "messages": [
+    {
+      "turn_id": "A02-turn-1-attempt-1",
+      "role": "user",
+      "content": "Start a basic dipole intended for the 915 MHz ISM band.",
+      "created_at": "2026-09-24T18:05:24.391781+00:00",
+      "outcome": "request",
+      "design_revision": null
+    },
+    {
+      "turn_id": "A02-turn-1-attempt-1",
+      "role": "builder",
+      "content": "A basic center-fed dipole for the 915 MHz ISM band is already created and validated. The current design uses the dipole_v1 recipe with frequency_ghz = 0.915 GHz, arm_length_mm ≈ 76.18 mm, conductor_radius_mm ≈ 1.09 mm, and feed_gap_mm ≈ 3.28 mm. All validation stages pass and the engineering checks report only informational findings (no warnings).",
+      "created_at": "2026-09-24T18:05:24.391781+00:00",
+      "outcome": "executed",
+      "design_revision": 0
+    }
+  ]
+}

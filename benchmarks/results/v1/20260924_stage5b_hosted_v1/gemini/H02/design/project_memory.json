@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_inset_patch_two_features",
+    "revision": 2
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [
+    {
+      "item_id": "question:H02-turn-1-attempt-1",
+      "key": "planner_clarification",
+      "value": "Could you clarify which feature you would like to remove: the circular slot on the left (composition_1) or the rectangular slot near the center (composition_2)?",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "H02-turn-1-attempt-1",
+      "design_revision": 2,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:H02-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "clarification",
+        "request": "Change the patch length to 31 mm and remove the feature nearest the feed.",
+        "response": "Could you clarify which feature you would like to remove: the circular slot on the left (composition_1) or the rectangular slot near the center (composition_2)?"
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "H02-turn-1-attempt-1",
+      "design_revision": 2,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

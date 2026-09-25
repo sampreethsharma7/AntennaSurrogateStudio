@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_inset_patch_center_circle",
+    "revision": 2
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [
+    {
+      "item_id": "change:B04-turn-1-attempt-1",
+      "key": "design_change",
+      "value": {
+        "parameters": [
+          {
+            "key": "array_columns",
+            "value": 3.0,
+            "unit": null
+          },
+          {
+            "key": "array_rows",
+            "value": 1.0,
+            "unit": null
+          }
+        ],
+        "array": {
+          "rows": 1,
+          "columns": 3,
+          "spacing_mm": 67.30034771428572
+        },
+        "composed_features": {
+          "added": [],
+          "updated": [
+            {
+              "group_id": "composition_1",
+              "target_role": "radiating_patch_conductor",
+              "scope": "all",
+              "operations": [
+                "parameter.create",
+                "geometry.cylinder",
+                "boolean.subtract"
+              ]
+            }
+          ],
+          "removed": []
+        }
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "B04-turn-1-attempt-1",
+      "design_revision": 2,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "recent_context": [
+    {
+      "item_id": "context:B04-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "executed",
+        "request": "Expand the design to three elements in one row and apply the existing aperture to each radiator.",
+        "response": "The design already has three elements in one row (array_columns=3, array_rows=1) and the existing center-slot aperture (composition_1) is applied to all radiating patches (scope: all). No further changes are required."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "B04-turn-1-attempt-1",
+      "design_revision": 2,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

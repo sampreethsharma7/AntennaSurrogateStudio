@@ -1,0 +1,38 @@
+{
+  "baseline_result_sha256": {
+    "gemini": "eab666391857d055cdfbaf5c37dc0f588e980e19a6d2850b3da3c647ddba399d",
+    "openrouter": "15f73745657c51ce5bafdf25c3e13c56b2c443aef701027d6b544d2d053a70a3"
+  },
+  "benchmark_id": "stage5e-targeted-followup-v1",
+  "builder_source_sha256": "214479dc8c17a91ef1c0f8edebc1f1f3645b6a75216701cea0f3074618263827",
+  "completed_at_utc": "2026-09-25T04:02:41.576052+00:00",
+  "followup_harness_sha256": "7f94798a01c7d7ef41ce05f45fdcdd108b419af0c8549f4557334a5f00637761",
+  "frozen_case_count": 11,
+  "frozen_prompt_turn_count": 17,
+  "normalization_source_sha256": "f39e470f84056059bdba74ed8388194dac1157270da91a616bc49371e7cfc896",
+  "planner_source_sha256": "bba8ebc13d9694c7cb72f053b7f2439a1406fbb108f12d62fee89065e57bd557",
+  "prepared_at_utc": "2026-09-25T00:29:16.790525+00:00",
+  "providers_completed": [
+    "gemini",
+    "openrouter"
+  ],
+  "status": "complete",
+  "targeted_failed_cases": {
+    "gemini": [
+      "P03",
+      "F02",
+      "U02",
+      "M01"
+    ],
+    "openrouter": [
+      "P01",
+      "P03",
+      "F01",
+      "F02",
+      "U01",
+      "U02",
+      "M01"
+    ]
+  },
+  "test_set_sha256": "5b396d8f1bf3ff66c7b0204f9cb19b977e625b452230a2d960c35de1472a1862"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_independent_2x2",
+    "revision": 2
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": []
+}

@@ -1,0 +1,331 @@
+{
+  "cases": {
+    "G01": {
+      "planner_context": [
+        {
+          "constraint_operator": null,
+          "evidence_quote": "Long term I want circular polarization",
+          "item_id": "semantic:target_polarization:G01-turn-1-attempt-1:value",
+          "key": "target_polarization",
+          "semantic_kind": "future_intent",
+          "source": "user_semantic",
+          "status": "active",
+          "unit": null,
+          "value": "circular_polarization"
+        }
+      ],
+      "semantic_items": [
+        {
+          "created_design_revision": null,
+          "design_revision": null,
+          "evidence_quote": "Long term I want circular polarization",
+          "item_id": "semantic:target_polarization:G01-turn-1-attempt-1:value",
+          "key": "target_polarization",
+          "normalization_rule": "registered:polarization_target",
+          "normalization_version": "semantic-memory-normalization-v1",
+          "proposed_key": "target_polarization",
+          "proposed_value": "circular",
+          "semantic_kind": "future_intent",
+          "source": "user_semantic",
+          "source_turn_id": "G01-turn-1-attempt-1",
+          "status": "active",
+          "supersedes_item_id": null,
+          "unit": null,
+          "updated_design_revision": null,
+          "value": "circular_polarization"
+        }
+      ],
+      "turns": [
+        {
+          "instruction": "Long term I want circular polarization, but begin with a linearly polarized 2.4 GHz inset patch.",
+          "normalization_audit": {
+            "applied_ids": [
+              "semantic:target_polarization:G01-turn-1-attempt-1:value"
+            ],
+            "normalized": [
+              {
+                "canonical_value": "circular_polarization",
+                "constraint_operator": null,
+                "index": 0,
+                "normalization_rule": "registered:polarization_target",
+                "normalization_version": "semantic-memory-normalization-v1",
+                "proposed_key": "target_polarization",
+                "proposed_value": "circular",
+                "semantic_key": "target_polarization",
+                "unit": null
+              }
+            ],
+            "proposed": [
+              {
+                "action": "upsert",
+                "evidence_quote": "Long term I want circular polarization",
+                "key": "target_polarization",
+                "reference_id": null,
+                "semantic_kind": "future_intent",
+                "unit": null,
+                "value": "circular"
+              }
+            ],
+            "rejected": [],
+            "resolved_ids": [],
+            "superseded_ids": []
+          },
+          "proposed": [
+            {
+              "action": "upsert",
+              "evidence_quote": "Long term I want circular polarization",
+              "key": "target_polarization",
+              "reference_id": null,
+              "semantic_kind": "future_intent",
+              "unit": null,
+              "value": "circular"
+            }
+          ],
+          "turn_id": "G01-turn-1-attempt-1"
+        }
+      ]
+    },
+    "G02": {
+      "planner_context": [
+        {
+          "constraint_operator": "max",
+          "evidence_quote": "up to 90 mm is acceptable.",
+          "item_id": "semantic:board_width_limit:G02-turn-2-attempt-1:value",
+          "key": "board_width_limit",
+          "semantic_kind": "constraint",
+          "source": "user_semantic",
+          "status": "active",
+          "unit": "mm",
+          "value": 90.0
+        }
+      ],
+      "semantic_items": [
+        {
+          "constraint_operator": "max",
+          "created_design_revision": null,
+          "design_revision": null,
+          "evidence_quote": "The complete board must stay under 72 mm wide.",
+          "item_id": "semantic:board_width_limit:G02-turn-1-attempt-1:value",
+          "key": "board_width_limit",
+          "normalization_rule": "registered:board_width_maximum_constraint",
+          "normalization_version": "semantic-memory-normalization-v1",
+          "proposed_key": "max_board_width_mm",
+          "proposed_value": 72.0,
+          "semantic_kind": "constraint",
+          "source": "user_semantic",
+          "source_turn_id": "G02-turn-1-attempt-1",
+          "status": "superseded",
+          "supersedes_item_id": null,
+          "unit": "mm",
+          "updated_design_revision": null,
+          "value": 72.0
+        },
+        {
+          "constraint_operator": "max",
+          "created_design_revision": null,
+          "design_revision": null,
+          "evidence_quote": "up to 90 mm is acceptable.",
+          "item_id": "semantic:board_width_limit:G02-turn-2-attempt-1:value",
+          "key": "board_width_limit",
+          "normalization_rule": "registered:board_width_maximum_constraint",
+          "normalization_version": "semantic-memory-normalization-v1",
+          "proposed_key": "max_board_width_mm",
+          "proposed_value": 90.0,
+          "semantic_kind": "constraint",
+          "source": "user_semantic",
+          "source_turn_id": "G02-turn-2-attempt-1",
+          "status": "active",
+          "supersedes_item_id": "semantic:board_width_limit:G02-turn-1-attempt-1:value",
+          "unit": "mm",
+          "updated_design_revision": null,
+          "value": 90.0
+        }
+      ],
+      "turns": [
+        {
+          "instruction": "The complete board must stay under 72 mm wide.",
+          "normalization_audit": {
+            "applied_ids": [
+              "semantic:board_width_limit:G02-turn-1-attempt-1:value"
+            ],
+            "normalized": [
+              {
+                "canonical_value": 72.0,
+                "constraint_operator": "max",
+                "index": 0,
+                "normalization_rule": "registered:board_width_maximum_constraint",
+                "normalization_version": "semantic-memory-normalization-v1",
+                "proposed_key": "max_board_width_mm",
+                "proposed_value": 72.0,
+                "semantic_key": "board_width_limit",
+                "unit": "mm"
+              }
+            ],
+            "proposed": [
+              {
+                "action": "upsert",
+                "evidence_quote": "The complete board must stay under 72 mm wide.",
+                "key": "max_board_width_mm",
+                "reference_id": null,
+                "semantic_kind": "constraint",
+                "unit": "mm",
+                "value": 72.0
+              }
+            ],
+            "rejected": [],
+            "resolved_ids": [],
+            "superseded_ids": []
+          },
+          "proposed": [
+            {
+              "action": "upsert",
+              "evidence_quote": "The complete board must stay under 72 mm wide.",
+              "key": "max_board_width_mm",
+              "reference_id": null,
+              "semantic_kind": "constraint",
+              "unit": "mm",
+              "value": 72.0
+            }
+          ],
+          "turn_id": "G02-turn-1-attempt-1"
+        },
+        {
+          "instruction": "Revise that limit: up to 90 mm is acceptable.",
+          "normalization_audit": {
+            "applied_ids": [
+              "semantic:board_width_limit:G02-turn-2-attempt-1:value"
+            ],
+            "normalized": [
+              {
+                "canonical_value": 90.0,
+                "constraint_operator": "max",
+                "index": 0,
+                "normalization_rule": "registered:board_width_maximum_constraint",
+                "normalization_version": "semantic-memory-normalization-v1",
+                "proposed_key": "max_board_width_mm",
+                "proposed_value": 90.0,
+                "semantic_key": "board_width_limit",
+                "unit": "mm"
+              }
+            ],
+            "proposed": [
+              {
+                "action": "supersede",
+                "evidence_quote": "up to 90 mm is acceptable.",
+                "key": "max_board_width_mm",
+                "reference_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+                "semantic_kind": "constraint",
+                "unit": "mm",
+                "value": 90.0
+              }
+            ],
+            "rejected": [],
+            "resolved_ids": [],
+            "superseded_ids": [
+              "semantic:board_width_limit:G02-turn-1-attempt-1:value"
+            ]
+          },
+          "proposed": [
+            {
+              "action": "supersede",
+              "evidence_quote": "up to 90 mm is acceptable.",
+              "key": "max_board_width_mm",
+              "reference_id": "semantic:max_board_width_mm:G02-turn-1-attempt-1:value",
+              "semantic_kind": "constraint",
+              "unit": "mm",
+              "value": 90.0
+            }
+          ],
+          "turn_id": "G02-turn-2-attempt-1"
+        }
+      ]
+    },
+    "G03": {
+      "planner_context": [
+        {
+          "constraint_operator": null,
+          "evidence_quote": "a corporate distribution network is a later project goal",
+          "item_id": "semantic:feed_network_future_goal:G03-turn-1-attempt-1:value",
+          "key": "feed_network_future_goal",
+          "semantic_kind": "future_intent",
+          "source": "user_semantic",
+          "status": "active",
+          "unit": null,
+          "value": "corporate_feed"
+        }
+      ],
+      "semantic_items": [
+        {
+          "created_design_revision": null,
+          "design_revision": null,
+          "evidence_quote": "a corporate distribution network is a later project goal",
+          "item_id": "semantic:feed_network_future_goal:G03-turn-1-attempt-1:value",
+          "key": "feed_network_future_goal",
+          "normalization_rule": "registered:future_feed_network_goal",
+          "normalization_version": "semantic-memory-normalization-v1",
+          "proposed_key": "corporate_distribution_network",
+          "proposed_value": "corporate distribution network",
+          "semantic_kind": "future_intent",
+          "source": "user_semantic",
+          "source_turn_id": "G03-turn-1-attempt-1",
+          "status": "active",
+          "supersedes_item_id": null,
+          "unit": null,
+          "updated_design_revision": null,
+          "value": "corporate_feed"
+        }
+      ],
+      "turns": [
+        {
+          "instruction": "Use separate element ports now, though a corporate distribution network is a later project goal.",
+          "normalization_audit": {
+            "applied_ids": [
+              "semantic:feed_network_future_goal:G03-turn-1-attempt-1:value"
+            ],
+            "normalized": [
+              {
+                "canonical_value": "corporate_feed",
+                "constraint_operator": null,
+                "index": 0,
+                "normalization_rule": "registered:future_feed_network_goal",
+                "normalization_version": "semantic-memory-normalization-v1",
+                "proposed_key": "corporate_distribution_network",
+                "proposed_value": "corporate distribution network",
+                "semantic_key": "feed_network_future_goal",
+                "unit": null
+              }
+            ],
+            "proposed": [
+              {
+                "action": "upsert",
+                "evidence_quote": "a corporate distribution network is a later project goal",
+                "key": "corporate_distribution_network",
+                "reference_id": null,
+                "semantic_kind": "future_intent",
+                "unit": null,
+                "value": "corporate distribution network"
+              }
+            ],
+            "rejected": [],
+            "resolved_ids": [],
+            "superseded_ids": []
+          },
+          "proposed": [
+            {
+              "action": "upsert",
+              "evidence_quote": "a corporate distribution network is a later project goal",
+              "key": "corporate_distribution_network",
+              "reference_id": null,
+              "semantic_kind": "future_intent",
+              "unit": null,
+              "value": "corporate distribution network"
+            }
+          ],
+          "turn_id": "G03-turn-1-attempt-1"
+        }
+      ]
+    }
+  },
+  "cloud_calls": 0,
+  "source": "recorded Stage-5B Gemini trajectories"
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_independent_2x2",
+    "revision": 2
+  },
+  "requirements": [],
+  "decisions": [
+    {
+      "item_id": "semantic:feed_network_preference:D04-turn-1-attempt-1:value",
+      "key": "feed_network_preference",
+      "value": "series-fed network",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "D04-turn-1-attempt-1",
+      "design_revision": 2,
+      "source": "user_semantic",
+      "semantic_kind": "preference",
+      "evidence_quote": "I would like a series-fed network",
+      "supersedes_item_id": null,
+      "created_design_revision": 2,
+      "updated_design_revision": 2
+    }
+  ],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:D04-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "I would like a series-fed network if you can build one; otherwise retain the existing independent ports.",
+        "response": "Physical synthesis for a series-fed network is not currently installed or supported in the runtime capabilities. Following your instruction, the existing configuration with four independent discrete ports is retained without changes."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "D04-turn-1-attempt-1",
+      "design_revision": 2,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "context:D04-turn-2-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "What feed or excitation is actually modeled?",
+        "response": "The model currently realizes an independent discrete port excitation for each element (strategy: independent_ports):\n\n• Physical Ports: 4 individual 50 Ω discrete ports (port_1 through port_4), assigned respectively to array elements (1,1), (1,2), (2,1), and (2,2).\n• Port Geometry: Vertical discrete ports connecting from the ground plane (z = 0 mm) to the local microstrip feed conductor (z = 1.6 mm) at the input of each patch.\n• Element Feed Geometry: Each patch element features an integrated inset-fed microstrip line (feed width = 3.0 mm, inset depth = 8.64 mm, gap = 1.0 mm).\n• Feed Network: There is no shared corporate or series transmission-line feed network physically modeled; each element is excited independently."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "D04-turn-2-attempt-1",
+      "design_revision": 2,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

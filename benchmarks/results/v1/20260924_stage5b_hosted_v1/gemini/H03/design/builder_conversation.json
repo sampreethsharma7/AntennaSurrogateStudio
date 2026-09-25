@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "messages": [
+    {
+      "turn_id": "H03-turn-1-attempt-1",
+      "role": "user",
+      "content": "Increase the substrate thickness to 2 mm and add an offset circular aperture.",
+      "created_at": "2026-09-24T18:03:56.793269+00:00",
+      "outcome": "request",
+      "design_revision": 0
+    },
+    {
+      "turn_id": "H03-turn-1-attempt-1",
+      "role": "builder",
+      "content": "Could you please specify the radius and offset coordinates (x and y offsets relative to the patch center) for the circular aperture?",
+      "created_at": "2026-09-24T18:03:56.793269+00:00",
+      "outcome": "clarification",
+      "design_revision": 0
+    }
+  ]
+}

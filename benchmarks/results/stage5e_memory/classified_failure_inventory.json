@@ -1,0 +1,168 @@
+{
+  "artifact_status": "retained_open_findings_from_superseded_contract_v1",
+  "contract_provenance": {
+    "agent_step_contract_version": 1,
+    "agent_step_schema_version": 1,
+    "artifact_status": "superseded",
+    "benchmark_sha256": "5b396d8f1bf3ff66c7b0204f9cb19b977e625b452230a2d960c35de1472a1862",
+    "contract_fingerprints": {
+      "agent_step_schema_sha256": "23763366c271b6f7f5a5808948c9af1436f8efcf3e80c31fc5ebbfe1e10190b8",
+      "agent_system_instruction_sha256": "f6d39a040fef3a9ca6f41709747b9d788ba22890953d174a80b799d0e2d01fe5",
+      "agent_user_content_sha256": "248f58ccf461c109d24345403da564d0a60b1cf7350c86d074d2ccc80fa26590",
+      "toolplan_schema_sha256": "553cc402a0599a9f119598def0485fb09ce3c3222402de3999eb29dd6d8aee19"
+    },
+    "recorded_at_utc": "2026-09-25T00:17:00.682632+00:00",
+    "retired_at_utc": "2026-09-25T04:17:27.694612+00:00",
+    "superseded_by": "AgentStep contract v2",
+    "superseded_reason": "Boolean semantic-memory placeholder values were removed from the AgentStep schema, strict parser, and shared planner instruction."
+  },
+  "current_state_future_intent_mistakes": [],
+  "duplicate_active_concept_mistakes": [],
+  "model_proposal_grounding_failures": [
+    {
+      "case_id": "U02",
+      "proposed_value": "manufacturing simplicity prioritized over visual appearance",
+      "provider": "gemini",
+      "rejection": "value_not_lexically_grounded_in_evidence_quote"
+    },
+    {
+      "case_ids": [
+        "P01",
+        "P03",
+        "F01",
+        "F02",
+        "U01",
+        "U02"
+      ],
+      "pattern": "boolean true proposed as the semantic value",
+      "provider": "openrouter",
+      "rejection": "value_not_lexically_grounded_in_evidence_quote"
+    },
+    {
+      "case_id": "M01",
+      "proposal": {
+        "key": "corporate_feed_future",
+        "value": true
+      },
+      "provider": "openrouter",
+      "rejection": "value_not_lexically_grounded_in_evidence_quote"
+    }
+  ],
+  "normalization_coverage_misses": [
+    {
+      "accepted_proposal": {
+        "key": "polarization",
+        "semantic_kind": "preference",
+        "value": "LHCP"
+      },
+      "case_id": "P03",
+      "classification": "accepted_grounded_proposal_not_covered_by_registered_normalization_aliases",
+      "expected_identity": {
+        "key": "target_polarization",
+        "value": "lhcp"
+      },
+      "observed_memory": {
+        "key": "polarization",
+        "value": "LHCP"
+      },
+      "provider": "gemini"
+    },
+    {
+      "accepted_proposal": {
+        "key": "series_fed_network",
+        "semantic_kind": "future_intent",
+        "value": "explore later"
+      },
+      "case_id": "F02",
+      "classification": "accepted_grounded_future_feed_proposal_not_covered_by_registered_normalization_aliases",
+      "expected_identity": {
+        "key": "feed_network_future_goal",
+        "value": "series_feed"
+      },
+      "observed_memory": {
+        "key": "series_fed_network",
+        "value": "explore later"
+      },
+      "provider": "gemini"
+    },
+    {
+      "accepted_proposals": [
+        {
+          "key": "max_board_dimension_mm",
+          "semantic_kind": "constraint",
+          "value": 85
+        },
+        {
+          "key": "corporate_feed",
+          "semantic_kind": "future_intent",
+          "value": "later"
+        }
+      ],
+      "case_id": "M01",
+      "classification": "accepted_grounded_proposals_not_covered_by_registered_normalization_aliases",
+      "expected_identities": [
+        {
+          "constraint_operator": "max",
+          "key": "board_width_limit",
+          "unit": "mm",
+          "value": 85
+        },
+        {
+          "key": "feed_network_future_goal",
+          "value": "corporate_feed"
+        }
+      ],
+      "observed_memory": [
+        {
+          "key": "max_board_dimension",
+          "unit": "mm",
+          "value": 85
+        },
+        {
+          "key": "corporate_feed",
+          "value": "later"
+        }
+      ],
+      "provider": "gemini"
+    },
+    {
+      "accepted_proposal": {
+        "key": "max_board_dimension_mm",
+        "semantic_kind": "constraint",
+        "value": 85
+      },
+      "case_id": "M01",
+      "classification": "accepted_grounded_board_constraint_not_covered_by_registered_normalization_aliases",
+      "expected_identity": {
+        "constraint_operator": "max",
+        "key": "board_width_limit",
+        "unit": "mm",
+        "value": 85
+      },
+      "observed_memory": {
+        "key": "max_board_dimension",
+        "unit": "mm",
+        "value": 85
+      },
+      "provider": "openrouter"
+    }
+  ],
+  "over_normalization_mistakes": [],
+  "provider_api_failures": [],
+  "still_open_findings": [
+    {
+      "finding": "max_board_dimension_mm versus board_width_limit",
+      "status": "open_for_current_contract_validation"
+    },
+    {
+      "finding": "series_fed_network versus feed_network_future_goal",
+      "status": "open_for_current_contract_validation"
+    },
+    {
+      "finding": "Nemotron boolean true used as semantic value",
+      "status": "open_for_current_contract_validation"
+    }
+  ],
+  "supersede_resolve_mistakes": [],
+  "test_set_sha256": "5b396d8f1bf3ff66c7b0204f9cb19b977e625b452230a2d960c35de1472a1862"
+}

@@ -1,0 +1,272 @@
+{
+  "counts": {
+    "confirmed_agent_failure": 3,
+    "confirmed_model_reasoning_failure": 2,
+    "confirmed_provider_failure": 10,
+    "confirmed_schema_failure": 1
+  },
+  "deterministic_subsystem_failures": [],
+  "evaluator_version": "antenna-agent-objective-v2",
+  "failures": [
+    {
+      "adjudication": "confirmed_model_reasoning_failure",
+      "case_id": "B02",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "The model requested unnecessary placement clarification instead of making the benchmark's intended upper-right attachment.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_agent_failure",
+      "case_id": "G01",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Semantic meaning was retained, but the persisted key/value normalization did not satisfy the stable memory contract.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_agent_failure",
+      "case_id": "G02",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Semantic meaning was retained, but the persisted key/value normalization did not satisfy the stable memory contract.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_agent_failure",
+      "case_id": "G03",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "gemini",
+      "rationale": "Semantic meaning was retained, but the persisted key/value normalization did not satisfy the stable memory contract.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_schema_failure",
+      "case_id": "C01",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Both returned plans were malformed JSON; no requested edit became canonical.",
+      "schema_failure_observed": true,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_model_reasoning_failure",
+      "case_id": "C02",
+      "corrected_objective_pass": false,
+      "objective_evaluable": true,
+      "original_failure_classifications": [
+        "schema_structured_output_failure",
+        "planner_reasoning_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "The model repeatedly added 4 mm to the already-updated offset until the accepted-action budget was exhausted.",
+      "schema_failure_observed": true,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "F02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "F03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "F04",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "G01",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "G02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "G03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H01",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H02",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H03",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": true,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    },
+    {
+      "adjudication": "confirmed_provider_failure",
+      "case_id": "H04",
+      "corrected_objective_pass": null,
+      "objective_evaluable": false,
+      "original_failure_classifications": [
+        "provider_api_failure"
+      ],
+      "original_machine_pass": false,
+      "provider": "openrouter",
+      "rationale": "Recorded provider transport failure remains unevaluable for reasoning.",
+      "schema_failure_observed": false,
+      "transaction_rollback_correct": true
+    }
+  ],
+  "schema_incidents": [
+    {
+      "case_id": "C01",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "provider_error"
+    },
+    {
+      "case_id": "C02",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "agent_limit"
+    },
+    {
+      "case_id": "C03",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "finished"
+    },
+    {
+      "case_id": "D03",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "finished"
+    },
+    {
+      "case_id": "F01",
+      "provider": "openrouter",
+      "repair_or_failure_count": 1,
+      "terminal_outcome": "finished"
+    }
+  ],
+  "schema_version": 1,
+  "transaction_failures": []
+}

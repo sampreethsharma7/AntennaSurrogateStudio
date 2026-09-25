@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_inset_patch_center_circle",
+    "revision": 1
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:F03-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "Give the installed rectangular-patch analytical baseline for this slotted radiator and state what the estimate cannot prove.",
+        "response": "Installed rectangular-patch analytical baseline (at 2.45 GHz, εr = 4.4, h = 1.6 mm):\n- Effective dielectric constant (ε_eff): 4.081\n- Fringing extension (ΔL): 0.739 mm\n- Estimated patch width: 37.234 mm (canonical: 37.2343 mm)\n- Estimated patch length: 28.809 mm (canonical: 28.8093 mm)\n\nWhat this estimate cannot prove:\n- The radiator contains composed slot geometry (a 3.0 mm radius center circular slot) and inset feed notches, none of which are modeled or accounted for by the closed-form baseline.\n- It does not account for slots, loading, feed perturbations, or finite ground plane effects.\n- It does not calculate or establish impedance matching, return loss, bandwidth, radiation efficiency, realized gain, or polarization.\n- It is not a full-wave electromagnetic simulation; satisfying the conventional closed-form rectangular dimensions does not guarantee resonance or RF validity for the slotted radiator."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "F03-turn-1-attempt-1",
+      "design_revision": 1,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

@@ -1,0 +1,512 @@
+{
+  "acknowledged_warning_ids": [],
+  "analysis_batches": 0,
+  "analysis_results": [],
+  "analysis_tools": [],
+  "attempts": [
+    {
+      "attempt_index": 1,
+      "audit_record": {
+        "aggregate_executed_tools": [],
+        "baseline_design_ref": null,
+        "configured_budgets": {
+          "accepted_action_batches": 3,
+          "analysis_batches": 3,
+          "decision_iterations": 5,
+          "rejected_action_batches": 2,
+          "total_proposed_tool_calls": 24
+        },
+        "intermediate_changes_discarded": false,
+        "planner_backend": "gemini_cloud",
+        "planner_model": "gemini-3.8-flash",
+        "published_design_ref": null,
+        "schema_version": 2,
+        "semantic_memory": {
+          "applied_ids": [],
+          "proposed": [],
+          "rejected": [],
+          "resolved_ids": [],
+          "superseded_ids": []
+        },
+        "terminal_message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+        "terminal_status": "refuse",
+        "timestamp_utc": "2026-09-24T17:56:46.667913+00:00",
+        "trajectory": [
+          {
+            "analysis_cache_hits": 0,
+            "analysis_results": [],
+            "budget_counters": {
+              "accepted_action_batches": 3,
+              "analysis_batches": 3,
+              "decision_iterations": 4,
+              "rejected_action_batches": 2,
+              "total_proposed_tool_calls": 24
+            },
+            "deterministic_changes": [],
+            "engineering_audit": {
+              "after_geometry_hashes": [],
+              "after_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+              "after_summary_hash": "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb",
+              "before_geometry_hashes": [],
+              "before_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+              "before_summary_hash": "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb",
+              "finding_delta": {
+                "added": [],
+                "changed": [],
+                "removed": []
+              },
+              "reports": {
+                "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a": {
+                  "check_suite_version": "geometry_checks_v3",
+                  "coverage": [
+                    {
+                      "applicability": "No canonical design exists.",
+                      "check_id": "conductor_contact_clearance",
+                      "check_version": "2",
+                      "limitations": [],
+                      "reason": "No geometry or ports to inspect.",
+                      "status": "not_applicable"
+                    },
+                    {
+                      "applicability": "No canonical design exists.",
+                      "check_id": "excitation_consistency",
+                      "check_version": "1",
+                      "limitations": [],
+                      "reason": "No geometry or ports to inspect.",
+                      "status": "not_applicable"
+                    },
+                    {
+                      "applicability": "No canonical design exists.",
+                      "check_id": "port_attachment_distinctness",
+                      "check_version": "1",
+                      "limitations": [],
+                      "reason": "No geometry or ports to inspect.",
+                      "status": "not_applicable"
+                    },
+                    {
+                      "applicability": "No canonical design exists.",
+                      "check_id": "substrate_support_containment",
+                      "check_version": "1",
+                      "limitations": [],
+                      "reason": "No geometry or ports to inspect.",
+                      "status": "not_applicable"
+                    }
+                  ],
+                  "findings": [],
+                  "schema_version": 1,
+                  "semantic_design_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+                  "working_design_ref": null
+                }
+              },
+              "summaries": {
+                "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb": {
+                  "planner_context": {
+                    "check_suite_version": "geometry_checks_v3",
+                    "coverage": [
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "conductor_contact_clearance",
+                        "check_version": "2",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      },
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "excitation_consistency",
+                        "check_version": "1",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      },
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "port_attachment_distinctness",
+                        "check_version": "1",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      },
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "substrate_support_containment",
+                        "check_version": "1",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      }
+                    ],
+                    "engineering_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+                    "grouped_warning_count": 0,
+                    "grouping_version": 1,
+                    "groups": [],
+                    "raw_finding_count": 0,
+                    "raw_warning_count": 0,
+                    "schema_version": 1,
+                    "semantic_design_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+                    "summary_hash": "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb",
+                    "working_design_ref": null
+                  },
+                  "summary": {
+                    "check_suite_version": "geometry_checks_v3",
+                    "coverage": [
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "conductor_contact_clearance",
+                        "check_version": "2",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      },
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "excitation_consistency",
+                        "check_version": "1",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      },
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "port_attachment_distinctness",
+                        "check_version": "1",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      },
+                      {
+                        "applicability": "No canonical design exists.",
+                        "check_id": "substrate_support_containment",
+                        "check_version": "1",
+                        "limitations": [],
+                        "reason": "No geometry or ports to inspect.",
+                        "status": "not_applicable"
+                      }
+                    ],
+                    "engineering_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+                    "grouped_warning_count": 0,
+                    "grouping_version": 1,
+                    "groups": [],
+                    "raw_finding_count": 0,
+                    "raw_warning_count": 0,
+                    "schema_version": 1,
+                    "semantic_design_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+                    "working_design_ref": null
+                  }
+                }
+              }
+            },
+            "executed_calls": [],
+            "execution_status": "refuse",
+            "iteration_index": 1,
+            "observation": null,
+            "planner_metadata": {
+              "backend": "gemini_cloud",
+              "executor_repair": false,
+              "model": "gemini-3.8-flash",
+              "returned_plan_attempts": [
+                {
+                  "calls": [],
+                  "message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+                  "schema_version": 1,
+                  "status": "refuse"
+                }
+              ],
+              "schema_enforcement": "post_generation_strict_parsing_and_validation",
+              "schema_repairs": 0
+            },
+            "returned_step": {
+              "calls": [],
+              "message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+              "schema_version": 1,
+              "status": "refuse"
+            },
+            "sanitized_failure": null,
+            "schema_version": 1,
+            "working_state_after": null,
+            "working_state_before": null
+          }
+        ],
+        "turn_id": "A04-turn-1-attempt-1",
+        "user_request": "Create an axial-mode helical antenna with eight turns at 1.6 GHz."
+      },
+      "instruction": "Create an axial-mode helical antenna with eight turns at 1.6 GHz.",
+      "message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+      "terminal_outcome": "refuse",
+      "turn_index": 1
+    }
+  ],
+  "canonical_facts": {
+    "design_exists": false
+  },
+  "case_id": "A04",
+  "decision_iterations": 1,
+  "deferred_warning_ids": [],
+  "design_action_batches": 0,
+  "engineering_disposition": {},
+  "engineering_report_hashes": [
+    "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+    "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb"
+  ],
+  "engineering_warning_ids": [],
+  "execution_rejections": 0,
+  "failure_signals": [],
+  "final_memory_hash": "b0576440ecb1a8b8db905d25bcf54034eabe62e0e0945f43e6b093011e389ac3",
+  "final_semantic_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+  "final_user_facing_response": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+  "hallucinated_capabilities": [],
+  "initial_memory_hash": "2e43697799903a3aa8c3f88a73284710b1acee5d6b7661f1bbc1f8733a753a0c",
+  "initial_semantic_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+  "memory_items": [
+    {
+      "created_design_revision": null,
+      "design_revision": null,
+      "evidence_quote": null,
+      "item_id": "limitation:A04-turn-1-attempt-1",
+      "key": "unsupported_capability",
+      "semantic_kind": null,
+      "source": "deterministic",
+      "source_turn_id": "A04-turn-1-attempt-1",
+      "status": "active",
+      "supersedes_item_id": null,
+      "unit": null,
+      "updated_design_revision": null,
+      "value": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1)."
+    },
+    {
+      "created_design_revision": null,
+      "design_revision": null,
+      "evidence_quote": null,
+      "item_id": "context:A04-turn-1-attempt-1",
+      "key": "builder_turn",
+      "semantic_kind": null,
+      "source": "deterministic",
+      "source_turn_id": "A04-turn-1-attempt-1",
+      "status": "active",
+      "supersedes_item_id": null,
+      "unit": null,
+      "updated_design_revision": null,
+      "value": {
+        "outcome": "refusal",
+        "request": "Create an axial-mode helical antenna with eight turns at 1.6 GHz.",
+        "response": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1)."
+      }
+    }
+  ],
+  "model": "gemini-3.8-flash",
+  "presentation_review_method": "warning ID/category-token evidence in captured user-facing responses",
+  "provider": "gemini",
+  "provider_api_failure": false,
+  "rejected_calls": [],
+  "rf_claim_review_method": "frozen case-specific forbidden-claim fragments",
+  "schema_agent_step_failures": 0,
+  "selected_capabilities": [],
+  "task_completed": "no",
+  "terminal_outcome": "refuse",
+  "terminal_result": {
+    "dependent_turns_skipped": 0,
+    "message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+    "outcome": "refuse"
+  },
+  "tool_calls": [],
+  "trajectory": [
+    {
+      "analysis_cache_hits": 0,
+      "analysis_results": [],
+      "budget_counters": {
+        "accepted_action_batches": 3,
+        "analysis_batches": 3,
+        "decision_iterations": 4,
+        "rejected_action_batches": 2,
+        "total_proposed_tool_calls": 24
+      },
+      "deterministic_changes": [],
+      "engineering_audit": {
+        "after_geometry_hashes": [],
+        "after_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+        "after_summary_hash": "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb",
+        "before_geometry_hashes": [],
+        "before_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+        "before_summary_hash": "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb",
+        "finding_delta": {
+          "added": [],
+          "changed": [],
+          "removed": []
+        },
+        "reports": {
+          "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a": {
+            "check_suite_version": "geometry_checks_v3",
+            "coverage": [
+              {
+                "applicability": "No canonical design exists.",
+                "check_id": "conductor_contact_clearance",
+                "check_version": "2",
+                "limitations": [],
+                "reason": "No geometry or ports to inspect.",
+                "status": "not_applicable"
+              },
+              {
+                "applicability": "No canonical design exists.",
+                "check_id": "excitation_consistency",
+                "check_version": "1",
+                "limitations": [],
+                "reason": "No geometry or ports to inspect.",
+                "status": "not_applicable"
+              },
+              {
+                "applicability": "No canonical design exists.",
+                "check_id": "port_attachment_distinctness",
+                "check_version": "1",
+                "limitations": [],
+                "reason": "No geometry or ports to inspect.",
+                "status": "not_applicable"
+              },
+              {
+                "applicability": "No canonical design exists.",
+                "check_id": "substrate_support_containment",
+                "check_version": "1",
+                "limitations": [],
+                "reason": "No geometry or ports to inspect.",
+                "status": "not_applicable"
+              }
+            ],
+            "findings": [],
+            "schema_version": 1,
+            "semantic_design_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+            "working_design_ref": null
+          }
+        },
+        "summaries": {
+          "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb": {
+            "planner_context": {
+              "check_suite_version": "geometry_checks_v3",
+              "coverage": [
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "conductor_contact_clearance",
+                  "check_version": "2",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                },
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "excitation_consistency",
+                  "check_version": "1",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                },
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "port_attachment_distinctness",
+                  "check_version": "1",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                },
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "substrate_support_containment",
+                  "check_version": "1",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                }
+              ],
+              "engineering_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+              "grouped_warning_count": 0,
+              "grouping_version": 1,
+              "groups": [],
+              "raw_finding_count": 0,
+              "raw_warning_count": 0,
+              "schema_version": 1,
+              "semantic_design_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "summary_hash": "aef6d368db97276f72ac36e863edeede1ba007a9479dbbb28b8e3c844fbe59eb",
+              "working_design_ref": null
+            },
+            "summary": {
+              "check_suite_version": "geometry_checks_v3",
+              "coverage": [
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "conductor_contact_clearance",
+                  "check_version": "2",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                },
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "excitation_consistency",
+                  "check_version": "1",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                },
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "port_attachment_distinctness",
+                  "check_version": "1",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                },
+                {
+                  "applicability": "No canonical design exists.",
+                  "check_id": "substrate_support_containment",
+                  "check_version": "1",
+                  "limitations": [],
+                  "reason": "No geometry or ports to inspect.",
+                  "status": "not_applicable"
+                }
+              ],
+              "engineering_report_hash": "4d3a4e0b4067412dbe06705ed1ae643bcf352f7e92abbc2a384d31f44e7cdf2a",
+              "grouped_warning_count": 0,
+              "grouping_version": 1,
+              "groups": [],
+              "raw_finding_count": 0,
+              "raw_warning_count": 0,
+              "schema_version": 1,
+              "semantic_design_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "working_design_ref": null
+            }
+          }
+        }
+      },
+      "executed_calls": [],
+      "execution_status": "refuse",
+      "iteration_index": 1,
+      "observation": null,
+      "planner_metadata": {
+        "backend": "gemini_cloud",
+        "executor_repair": false,
+        "model": "gemini-3.8-flash",
+        "returned_plan_attempts": [
+          {
+            "calls": [],
+            "message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+            "schema_version": 1,
+            "status": "refuse"
+          }
+        ],
+        "schema_enforcement": "post_generation_strict_parsing_and_validation",
+        "schema_repairs": 0
+      },
+      "returned_step": {
+        "calls": [],
+        "message": "Axial-mode helical antennas are not supported by the installed antenna recipes. Currently supported antenna families are rectangular inset-fed patch (inset_patch_v2), probe-fed circular patch (circular_patch_v1), and center-fed dipole (dipole_v1).",
+        "schema_version": 1,
+        "status": "refuse"
+      },
+      "sanitized_failure": null,
+      "schema_version": 1,
+      "working_state_after": null,
+      "working_state_before": null
+    }
+  ],
+  "trajectory_reference": "gemini\\A04\\trajectory.jsonl",
+  "unsupported_model_claims": [],
+  "warnings_mentioned_in_prose": []
+}

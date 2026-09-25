@@ -1,0 +1,352 @@
+{
+  "schema_version": 2,
+  "status": "experimental",
+  "design": {
+    "schema_version": 2,
+    "design_id": "641cff51d9e141e4918625dec1d6edb8",
+    "revision": 0,
+    "recipe_id": "dipole_v1",
+    "family": "dipole",
+    "display_name": "Center-fed dipole",
+    "parameters": [
+      {
+        "key": "frequency_ghz",
+        "name": "FreqGHz",
+        "label": "Frequency",
+        "value": 0.915,
+        "unit": "GHz",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.1,
+        "maximum": 100.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "arm_length_mm",
+        "name": "ArmLength",
+        "label": "Arm length",
+        "value": 76.1768,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.1,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "conductor_radius_mm",
+        "name": "WireRadius",
+        "label": "Conductor radius",
+        "value": 1.0921,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.01,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "feed_gap_mm",
+        "name": "FeedGap",
+        "label": "Feed gap",
+        "value": 3.2764,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.01,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "array_rows",
+        "name": "ArrayRows",
+        "label": "Array rows",
+        "value": 1.0,
+        "unit": "",
+        "expression": null,
+        "editable": true,
+        "sweepable": false,
+        "integer": true,
+        "minimum": 1.0,
+        "maximum": 16.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "array_columns",
+        "name": "ArrayCols",
+        "label": "Array columns",
+        "value": 1.0,
+        "unit": "",
+        "expression": null,
+        "editable": true,
+        "sweepable": false,
+        "integer": true,
+        "minimum": 1.0,
+        "maximum": 16.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "element_spacing_lambda",
+        "name": "SpacingLambda",
+        "label": "Element spacing",
+        "value": 0.5,
+        "unit": "λ₀",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.2,
+        "maximum": 2.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "element_spacing_mm",
+        "name": "ElementSpacing",
+        "label": "Element Spacing Mm",
+        "value": 163.82101530054643,
+        "unit": "",
+        "expression": "299.792458/frequency_ghz*element_spacing_lambda",
+        "editable": false,
+        "sweepable": false,
+        "integer": false,
+        "minimum": null,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "total_length_mm",
+        "name": "DipoleLength",
+        "label": "Total Length Mm",
+        "value": 155.63,
+        "unit": "",
+        "expression": "2*arm_length_mm+feed_gap_mm",
+        "editable": false,
+        "sweepable": false,
+        "integer": false,
+        "minimum": null,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      }
+    ],
+    "materials": [
+      {
+        "material_id": "copper",
+        "name": "Copper",
+        "kind": "conductor",
+        "epsilon_r": 1.0,
+        "loss_tangent": 0.0,
+        "conductivity_s_per_m": 58000000.0
+      }
+    ],
+    "geometry": [
+      {
+        "object_id": "element_1_lower_arm",
+        "primitive": "cylinder",
+        "name": "Dipole_1_lower",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "center_1",
+            "0"
+          ],
+          [
+            "center_2",
+            "0"
+          ],
+          [
+            "radius",
+            "conductor_radius_mm"
+          ],
+          [
+            "start",
+            "-feed_gap_mm/2-arm_length_mm"
+          ],
+          [
+            "end",
+            "-feed_gap_mm/2"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "dipole_arm",
+          "element_1"
+        ]
+      },
+      {
+        "object_id": "element_1_upper_arm",
+        "primitive": "cylinder",
+        "name": "Dipole_1_upper",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "center_1",
+            "0"
+          ],
+          [
+            "center_2",
+            "0"
+          ],
+          [
+            "radius",
+            "conductor_radius_mm"
+          ],
+          [
+            "start",
+            "feed_gap_mm/2"
+          ],
+          [
+            "end",
+            "feed_gap_mm/2+arm_length_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "dipole_arm",
+          "element_1"
+        ]
+      }
+    ],
+    "booleans": [],
+    "ports": [
+      {
+        "port_id": "port_1",
+        "name": "Port 1",
+        "kind": "discrete",
+        "positive_point": [
+          "0",
+          "0",
+          "feed_gap_mm/2"
+        ],
+        "negative_point": [
+          "0",
+          "0",
+          "-feed_gap_mm/2"
+        ],
+        "impedance_ohms": 50.0,
+        "element_index": 1
+      }
+    ],
+    "array": {
+      "rows": 1,
+      "columns": 1,
+      "spacing_mm": 163.82101530054643,
+      "row_vector": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "column_vector": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    },
+    "simulation": {
+      "frequency_min_ghz": "0.65*frequency_ghz",
+      "frequency_max_ghz": "1.35*frequency_ghz",
+      "boundary": "expanded_open",
+      "solver_family": "time_domain"
+    },
+    "excitation": {
+      "strategy": "single_element_feed",
+      "realization_status": "realized",
+      "feed_network": "none",
+      "element_assignments": [
+        {
+          "element_row": 1,
+          "element_column": 1,
+          "excitation_id": "excitation_1_1",
+          "port_id": "port_1",
+          "status": "realized"
+        }
+      ],
+      "unresolved_requirements": []
+    },
+    "composed_operations": [],
+    "metadata": [
+      [
+        "recipe_id",
+        "dipole_v1"
+      ],
+      [
+        "substrate_material",
+        "No substrate"
+      ]
+    ],
+    "validation": [
+      {
+        "stage": "parameter_update",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "primitive_geometry",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "antenna_recipe",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "excitation_definition",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "simulation_setup",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "composed_operations",
+        "passed": true,
+        "messages": []
+      }
+    ]
+  }
+}

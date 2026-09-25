@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "messages": [
+    {
+      "turn_id": "D01-turn-1-attempt-1",
+      "role": "user",
+      "content": "Replicate the element into a horizontal row of four with 0.6 free-space-wavelength spacing.",
+      "created_at": "2026-09-24T18:00:05.117789+00:00",
+      "outcome": "request",
+      "design_revision": 0
+    },
+    {
+      "turn_id": "D01-turn-1-attempt-1",
+      "role": "builder",
+      "content": "The antenna element has been replicated into a 1x4 linear array (single row of four elements) with 0.6 free-space wavelength spacing along the horizontal axis.",
+      "created_at": "2026-09-24T18:00:05.117789+00:00",
+      "outcome": "executed",
+      "design_revision": 1
+    }
+  ]
+}

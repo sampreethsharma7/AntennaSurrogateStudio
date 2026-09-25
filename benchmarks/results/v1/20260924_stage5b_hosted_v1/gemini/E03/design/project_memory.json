@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_warning_patch_heavy",
+    "revision": 4
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:E03-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "Assess the current array and tell me which detected issues need attention and which limitations remain.",
+        "response": "Array Assessment:\n\n1. Detected Issue Needing Attention:\n- Substrate Support Overhang (Warning): In elements [1, 3] and [2, 3], the composed cylinder union features (`overhang_union_r1c3_tool` and `overhang_union_r2c3_tool`) extend beyond the substrate boundary by approximately 12.38 mm (~309.4 mm² outside support area). Increasing `board_margin_mm` or repositioning/resizing the composed feature is necessary to keep all conductive elements on the substrate.\n\n2. Remaining Limitations:\n- Geometric Checks Only: The checks verify physical layout consistency but do not validate RF performance, resonance, input impedance, coupling, or radiation efficiency.\n- Polygonal Boundary Approximation: Curved cylinder boundaries are discretized, causing port attachment and internal union clearance for some terminals to report an 'unknown' status rather than definitive contact.\n- Excitation Intent vs. Synthesis: The array currently uses 6 idealized independent discrete vertical ports; no physical corporate or series distribution network is modeled."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "E03-turn-1-attempt-1",
+      "design_revision": 4,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

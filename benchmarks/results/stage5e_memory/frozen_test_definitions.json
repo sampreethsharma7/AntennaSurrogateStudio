@@ -1,0 +1,176 @@
+{
+  "benchmark_id": "stage5e-semantic-memory-validation-v1",
+  "case_count": 11,
+  "description": "Frozen targeted validation of Stage-5D semantic-memory normalization.",
+  "prompt_turn_count": 17,
+  "providers": {
+    "gemini": "gemini-3.8-flash",
+    "openrouter": "nvidia/nemotron-3-ultra-550b-a55b:free"
+  },
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "P01",
+      "category": "polarization",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["I'd like this design to use circular polarization eventually."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [
+          {"key": "target_polarization", "value": "circular_polarization", "semantic_kind": ["goal", "future_intent", "preference"]}
+        ],
+        "forbidden_active_keys": []
+      }
+    },
+    {
+      "case_id": "P02",
+      "category": "polarization",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["RHCP is the eventual target."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [
+          {"key": "target_polarization", "value": "rhcp", "semantic_kind": ["goal", "future_intent", "preference"]}
+        ],
+        "forbidden_active_keys": []
+      }
+    },
+    {
+      "case_id": "P03",
+      "category": "polarization",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["LHCP would be preferable."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [
+          {"key": "target_polarization", "value": "lhcp", "semantic_kind": ["preference", "goal", "future_intent"]}
+        ],
+        "forbidden_active_keys": []
+      }
+    },
+    {
+      "case_id": "B01",
+      "category": "board_constraint_lifecycle",
+      "initial_fixture": "inset_patch_clean",
+      "turns": [
+        "Please keep the board no wider than 75 mm.",
+        "Actually 95 mm is acceptable.",
+        "Forget the board-width restriction."
+      ],
+      "expected": {
+        "proposal_policy": "required_each_turn",
+        "required_active": [],
+        "forbidden_active_keys": ["board_width_limit"],
+        "history": {
+          "key": "board_width_limit",
+          "minimum_superseded": 1,
+          "minimum_resolved": 2
+        },
+        "turn_expectations": [
+          {"key": "board_width_limit", "value": 75.0, "unit": "mm", "constraint_operator": "max", "status": "active"},
+          {"key": "board_width_limit", "value": 95.0, "unit": "mm", "constraint_operator": "max", "status": "active"},
+          {"key": "board_width_limit", "status": "absent"}
+        ]
+      }
+    },
+    {
+      "case_id": "F01",
+      "category": "future_feed_intent",
+      "initial_fixture": "independent_2x2",
+      "turns": ["Independent ports are fine now, but eventually I'd like a corporate feed."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [
+          {"key": "feed_network_future_goal", "value": "corporate_feed", "semantic_kind": ["goal", "future_intent"]}
+        ],
+        "forbidden_active_keys": [],
+        "canonical_excitation": "independent_ports"
+      }
+    },
+    {
+      "case_id": "F02",
+      "category": "future_feed_intent",
+      "initial_fixture": "independent_2x2",
+      "turns": ["A series-fed network is something I may explore later."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [
+          {"key": "feed_network_future_goal", "value": "series_feed", "semantic_kind": ["goal", "future_intent"]}
+        ],
+        "forbidden_active_keys": [],
+        "canonical_excitation": "independent_ports"
+      }
+    },
+    {
+      "case_id": "U01",
+      "category": "unknown_concept",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["Low visual profile is important to me."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [],
+        "forbidden_active_keys": ["target_polarization", "board_width_limit", "feed_network_future_goal"],
+        "unknown_preservation": {"required": true, "semantic_kind": ["priority", "preference", "requirement", "goal"]}
+      }
+    },
+    {
+      "case_id": "U02",
+      "category": "unknown_concept",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["I care more about manufacturing simplicity than visual appearance."],
+      "expected": {
+        "proposal_policy": "required",
+        "required_active": [],
+        "forbidden_active_keys": ["target_polarization", "board_width_limit", "feed_network_future_goal"],
+        "unknown_preservation": {"required": true, "semantic_kind": ["priority", "preference"]}
+      }
+    },
+    {
+      "case_id": "A01",
+      "category": "anti_merge",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["The substrate width can be 80 mm."],
+      "expected": {
+        "proposal_policy": "optional",
+        "required_active": [],
+        "forbidden_active_keys": ["board_width_limit"]
+      }
+    },
+    {
+      "case_id": "A02",
+      "category": "anti_merge",
+      "initial_fixture": "inset_patch_clean",
+      "turns": ["Use circular slots."],
+      "expected": {
+        "proposal_policy": "optional",
+        "required_active": [],
+        "forbidden_active_keys": ["target_polarization"]
+      }
+    },
+    {
+      "case_id": "M01",
+      "category": "multi_turn_state_intent_separation",
+      "initial_fixture": "inset_patch_clean",
+      "turns": [
+        "I eventually want RHCP.",
+        "Keep the board under 85 mm.",
+        "Use independent ports for the current array.",
+        "Corporate feed can come later.",
+        "What goals and constraints have I given you?"
+      ],
+      "expected": {
+        "proposal_policy": "semantic_turns_required",
+        "semantic_turn_indexes": [1, 2, 4],
+        "required_active": [
+          {"key": "target_polarization", "value": "rhcp", "semantic_kind": ["goal", "future_intent", "preference"]},
+          {"key": "board_width_limit", "value": 85.0, "unit": "mm", "constraint_operator": "max", "semantic_kind": ["constraint"]},
+          {"key": "feed_network_future_goal", "value": "corporate_feed", "semantic_kind": ["goal", "future_intent"]}
+        ],
+        "forbidden_active_keys": [],
+        "canonical_excitation": "independent_ports",
+        "forbidden_active_values": ["independent_ports"],
+        "recall_token_groups": [["rhcp"], ["85", "mm"], ["corporate", "feed"]]
+      }
+    }
+  ]
+}

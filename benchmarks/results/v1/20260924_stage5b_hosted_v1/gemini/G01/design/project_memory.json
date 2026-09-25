@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "908e6313165c43d3969642bb51fa7df6",
+    "revision": 1
+  },
+  "requirements": [
+    {
+      "item_id": "requirement:target_frequency",
+      "key": "target_frequency",
+      "value": 2.4,
+      "unit": "GHz",
+      "status": "active",
+      "source_turn_id": "G01-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "decisions": [
+    {
+      "item_id": "decision:antenna_family",
+      "key": "antenna_family",
+      "value": {
+        "recipe_id": "inset_patch_v2",
+        "family": "rectangular_inset_patch"
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "semantic:target_polarization:G01-turn-1-attempt-1:value",
+      "key": "target_polarization",
+      "value": "circular",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "user_semantic",
+      "semantic_kind": "future_intent",
+      "evidence_quote": "Long term I want circular polarization",
+      "supersedes_item_id": null,
+      "created_design_revision": 0,
+      "updated_design_revision": 0
+    }
+  ],
+  "assumptions": [
+    {
+      "item_id": "assumption:default_material",
+      "key": "default_substrate_material",
+      "value": "FR4",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "limitations": [],
+  "open_questions": [],
+  "important_changes": [
+    {
+      "item_id": "change:G01-turn-2-attempt-1",
+      "key": "design_change",
+      "value": {
+        "parameters": [
+          {
+            "key": "array_columns",
+            "value": 3.0,
+            "unit": null
+          }
+        ],
+        "array": {
+          "rows": 1,
+          "columns": 3,
+          "spacing_mm": 68.70243829166668
+        }
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-2-attempt-1",
+      "design_revision": 1,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "recent_context": [
+    {
+      "item_id": "context:G01-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "executed",
+        "request": "Long term I want circular polarization, but begin with a linearly polarized 2.4 GHz inset patch.",
+        "response": "A linearly polarized 2.4 GHz inset-fed microstrip patch antenna has been established as the baseline design. The long-term goal of achieving circular polarization has been recorded for future design iterations."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "context:G01-turn-2-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "executed",
+        "request": "Turn the current element into a row of three.",
+        "response": "The antenna has been configured as a 1x3 linear array (a row of three inset-fed patch elements) along the x-axis with default 0.55 lambda spacing at 2.4 GHz. All geometry and port checks passed with no warnings."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-2-attempt-1",
+      "design_revision": 1,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    },
+    {
+      "item_id": "context:G01-turn-3-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "completed",
+        "request": "Which polarization goals have I asked you to remember?",
+        "response": "You have asked to remember a long-term goal for circular polarization (recorded as future intent: target_polarization = \"circular\", from your instruction: \"Long term I want circular polarization\"). The current physical design remains the linearly polarized 2.4 GHz inset-fed patch array."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "G01-turn-3-attempt-1",
+      "design_revision": 1,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "canonical_ref": {
+    "design_id": "benchmark_inset_patch_clean",
+    "revision": 0
+  },
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [],
+  "open_questions": [
+    {
+      "item_id": "question:H03-turn-1-attempt-1",
+      "key": "planner_clarification",
+      "value": "Could you please specify the radius and offset coordinates (x and y offsets relative to the patch center) for the circular aperture?",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "H03-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:H03-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "clarification",
+        "request": "Increase the substrate thickness to 2 mm and add an offset circular aperture.",
+        "response": "Could you please specify the radius and offset coordinates (x and y offsets relative to the patch center) for the circular aperture?"
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "H03-turn-1-attempt-1",
+      "design_revision": 0,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

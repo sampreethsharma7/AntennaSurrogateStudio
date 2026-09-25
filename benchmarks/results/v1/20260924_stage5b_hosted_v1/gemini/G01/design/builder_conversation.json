@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "messages": [
+    {
+      "turn_id": "G01-turn-1-attempt-1",
+      "role": "user",
+      "content": "Long term I want circular polarization, but begin with a linearly polarized 2.4 GHz inset patch.",
+      "created_at": "2026-09-24T18:02:20.059929+00:00",
+      "outcome": "request",
+      "design_revision": null
+    },
+    {
+      "turn_id": "G01-turn-1-attempt-1",
+      "role": "builder",
+      "content": "A linearly polarized 2.4 GHz inset-fed microstrip patch antenna has been established as the baseline design. The long-term goal of achieving circular polarization has been recorded for future design iterations.",
+      "created_at": "2026-09-24T18:02:20.059929+00:00",
+      "outcome": "executed",
+      "design_revision": 0
+    },
+    {
+      "turn_id": "G01-turn-2-attempt-1",
+      "role": "user",
+      "content": "Turn the current element into a row of three.",
+      "created_at": "2026-09-24T18:02:34.056045+00:00",
+      "outcome": "request",
+      "design_revision": 0
+    },
+    {
+      "turn_id": "G01-turn-2-attempt-1",
+      "role": "builder",
+      "content": "The antenna has been configured as a 1x3 linear array (a row of three inset-fed patch elements) along the x-axis with default 0.55 lambda spacing at 2.4 GHz. All geometry and port checks passed with no warnings.",
+      "created_at": "2026-09-24T18:02:34.056045+00:00",
+      "outcome": "executed",
+      "design_revision": 1
+    },
+    {
+      "turn_id": "G01-turn-3-attempt-1",
+      "role": "user",
+      "content": "Which polarization goals have I asked you to remember?",
+      "created_at": "2026-09-24T18:02:36.444842+00:00",
+      "outcome": "request",
+      "design_revision": 1
+    },
+    {
+      "turn_id": "G01-turn-3-attempt-1",
+      "role": "builder",
+      "content": "You have asked to remember a long-term goal for circular polarization (recorded as future intent: target_polarization = \"circular\", from your instruction: \"Long term I want circular polarization\"). The current physical design remains the linearly polarized 2.4 GHz inset-fed patch array.",
+      "created_at": "2026-09-24T18:02:36.444842+00:00",
+      "outcome": "completed",
+      "design_revision": 1
+    }
+  ]
+}

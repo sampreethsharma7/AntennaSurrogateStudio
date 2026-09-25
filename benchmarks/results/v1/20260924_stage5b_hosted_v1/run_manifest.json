@@ -1,0 +1,38 @@
+{
+  "benchmark_sha256": "281efa92743b03c69f2a16ad3ee8d6d01dafd339541e43cbcd0ac675ee86b868",
+  "benchmark_version": "antenna-agent-unseen-v1",
+  "code_fingerprint_after": "eecba3db6bbc43490193406a2d7cfd59c47430a4d66f18817ae03638cffa5df2",
+  "dirty_state_fingerprint": "eecba3db6bbc43490193406a2d7cfd59c47430a4d66f18817ae03638cffa5df2",
+  "ended_at_utc": "2026-09-24T18:17:54.896607+00:00",
+  "git_revision": "1215f710da9df7e78c263aaf708d03f7154cc349",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "production_and_benchmark_code_unchanged_during_run": true,
+  "providers": [
+    {
+      "model": "gemini-3.8-flash",
+      "provider": "gemini"
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "provider": "openrouter"
+    }
+  ],
+  "python": "3.13.14",
+  "retry_policy": {
+    "context_policy": "retry from the identical pre-turn persisted session and unchanged prompt",
+    "delay_seconds": 5,
+    "eligible_failure": "provider_error only",
+    "maximum_attempts": 2
+  },
+  "run_id": "20260924_stage5b_hosted_v1",
+  "runner_budgets": {
+    "accepted_action_batches": 3,
+    "analysis_batches": 3,
+    "decision_iterations": 5,
+    "rejected_action_batches": 2,
+    "total_proposed_tool_calls": 24
+  },
+  "started_at_utc": "2026-09-24T17:56:02.182862+00:00",
+  "status": "complete",
+  "worktree_branch": "experiment/text-parametric-builder"
+}

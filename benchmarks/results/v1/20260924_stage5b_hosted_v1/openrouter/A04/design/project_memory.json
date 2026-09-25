@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "canonical_ref": null,
+  "requirements": [],
+  "decisions": [],
+  "assumptions": [],
+  "limitations": [
+    {
+      "item_id": "limitation:A04-turn-1-attempt-1",
+      "key": "unsupported_capability",
+      "value": "Axial-mode helical antennas are not supported by the installed recipes. Available antenna families are rectangular inset patch, circular patch, and center-fed dipole. No recipe or modifier can create a helical antenna geometry.",
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "A04-turn-1-attempt-1",
+      "design_revision": null,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ],
+  "open_questions": [],
+  "important_changes": [],
+  "recent_context": [
+    {
+      "item_id": "context:A04-turn-1-attempt-1",
+      "key": "builder_turn",
+      "value": {
+        "outcome": "refusal",
+        "request": "Create an axial-mode helical antenna with eight turns at 1.6 GHz.",
+        "response": "Axial-mode helical antennas are not supported by the installed recipes. Available antenna families are rectangular inset patch, circular patch, and center-fed dipole. No recipe or modifier can create a helical antenna geometry."
+      },
+      "unit": null,
+      "status": "active",
+      "source_turn_id": "A04-turn-1-attempt-1",
+      "design_revision": null,
+      "source": "deterministic",
+      "semantic_kind": null,
+      "evidence_quote": null,
+      "supersedes_item_id": null,
+      "created_design_revision": null,
+      "updated_design_revision": null
+    }
+  ]
+}

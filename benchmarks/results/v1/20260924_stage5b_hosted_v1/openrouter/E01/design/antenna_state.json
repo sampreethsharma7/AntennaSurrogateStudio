@@ -1,0 +1,806 @@
+{
+  "schema_version": 2,
+  "status": "experimental",
+  "design": {
+    "schema_version": 2,
+    "design_id": "benchmark_warning_patch_overlap",
+    "revision": 1,
+    "recipe_id": "inset_patch_v2",
+    "family": "rectangular_inset_patch",
+    "display_name": "Inset-fed rectangular patch",
+    "parameters": [
+      {
+        "key": "frequency_ghz",
+        "name": "FreqGHz",
+        "label": "Frequency",
+        "value": 2.45,
+        "unit": "GHz",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.1,
+        "maximum": 100.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "substrate_thickness_mm",
+        "name": "SubH",
+        "label": "Substrate thickness",
+        "value": 1.6,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.05,
+        "maximum": 20.0,
+        "sweep_lower_factor": 0.8,
+        "sweep_upper_factor": 1.2
+      },
+      {
+        "key": "copper_thickness_mm",
+        "name": "CopperT",
+        "label": "Copper thickness",
+        "value": 0.035,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": false,
+        "integer": false,
+        "minimum": 0.001,
+        "maximum": 2.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "patch_length_mm",
+        "name": "PatchL",
+        "label": "Patch length",
+        "value": 28.8093,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.1,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "patch_width_mm",
+        "name": "PatchW",
+        "label": "Patch width",
+        "value": 37.2343,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.1,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "feed_width_mm",
+        "name": "FeedW",
+        "label": "Feed width",
+        "value": 3.0,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.01,
+        "maximum": null,
+        "sweep_lower_factor": 0.8,
+        "sweep_upper_factor": 1.2
+      },
+      {
+        "key": "inset_depth_mm",
+        "name": "Inset",
+        "label": "Inset depth",
+        "value": 8.6428,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.01,
+        "maximum": null,
+        "sweep_lower_factor": 0.75,
+        "sweep_upper_factor": 1.25
+      },
+      {
+        "key": "inset_gap_mm",
+        "name": "Gap",
+        "label": "Inset gap",
+        "value": 1.0,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.01,
+        "maximum": null,
+        "sweep_lower_factor": 0.75,
+        "sweep_upper_factor": 1.25
+      },
+      {
+        "key": "board_margin_mm",
+        "name": "Margin",
+        "label": "Board margin",
+        "value": 7.0,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": false,
+        "integer": false,
+        "minimum": 0.1,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "array_rows",
+        "name": "ArrayRows",
+        "label": "Array rows",
+        "value": 1.0,
+        "unit": "",
+        "expression": null,
+        "editable": true,
+        "sweepable": false,
+        "integer": true,
+        "minimum": 1.0,
+        "maximum": 16.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "array_columns",
+        "name": "ArrayCols",
+        "label": "Array columns",
+        "value": 1.0,
+        "unit": "",
+        "expression": null,
+        "editable": true,
+        "sweepable": false,
+        "integer": true,
+        "minimum": 1.0,
+        "maximum": 16.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "element_spacing_lambda",
+        "name": "SpacingLambda",
+        "label": "Element spacing",
+        "value": 0.55,
+        "unit": "λ₀",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": 0.2,
+        "maximum": 2.0,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "element_spacing_mm",
+        "name": "ElementSpacing",
+        "label": "Element Spacing Mm",
+        "value": 67.30034771428572,
+        "unit": "",
+        "expression": "299.792458/frequency_ghz*element_spacing_lambda",
+        "editable": false,
+        "sweepable": false,
+        "integer": false,
+        "minimum": null,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "board_width_mm",
+        "name": "BoardW",
+        "label": "Board Width Mm",
+        "value": 51.2343,
+        "unit": "",
+        "expression": "patch_width_mm+(array_columns-1)*element_spacing_mm+2*board_margin_mm",
+        "editable": false,
+        "sweepable": false,
+        "integer": false,
+        "minimum": null,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "board_length_mm",
+        "name": "BoardL",
+        "label": "Board Length Mm",
+        "value": 42.8093,
+        "unit": "",
+        "expression": "patch_length_mm+(array_rows-1)*element_spacing_mm+2*board_margin_mm",
+        "editable": false,
+        "sweepable": false,
+        "integer": false,
+        "minimum": null,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      },
+      {
+        "key": "overhang_union_radius_mm",
+        "name": "OverhangUnionRadius",
+        "label": "overhang_union radius",
+        "value": 18.0,
+        "unit": "mm",
+        "expression": null,
+        "editable": true,
+        "sweepable": true,
+        "integer": false,
+        "minimum": null,
+        "maximum": null,
+        "sweep_lower_factor": 0.9,
+        "sweep_upper_factor": 1.1
+      }
+    ],
+    "materials": [
+      {
+        "material_id": "copper",
+        "name": "Copper",
+        "kind": "conductor",
+        "epsilon_r": 1.0,
+        "loss_tangent": 0.0,
+        "conductivity_s_per_m": 58000000.0
+      },
+      {
+        "material_id": "substrate",
+        "name": "FR4",
+        "kind": "dielectric",
+        "epsilon_r": 4.4,
+        "loss_tangent": 0.02,
+        "conductivity_s_per_m": null
+      }
+    ],
+    "geometry": [
+      {
+        "object_id": "ground",
+        "primitive": "box",
+        "name": "Ground",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "x_min",
+            "-board_width_mm/2"
+          ],
+          [
+            "x_max",
+            "board_width_mm/2"
+          ],
+          [
+            "y_min",
+            "-board_length_mm/2"
+          ],
+          [
+            "y_max",
+            "board_length_mm/2"
+          ],
+          [
+            "z_min",
+            "-copper_thickness_mm"
+          ],
+          [
+            "z_max",
+            0
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "ground"
+        ]
+      },
+      {
+        "object_id": "substrate",
+        "primitive": "box",
+        "name": "Substrate",
+        "material_id": "substrate",
+        "dimensions": [
+          [
+            "x_min",
+            "-board_width_mm/2"
+          ],
+          [
+            "x_max",
+            "board_width_mm/2"
+          ],
+          [
+            "y_min",
+            "-board_length_mm/2"
+          ],
+          [
+            "y_max",
+            "board_length_mm/2"
+          ],
+          [
+            "z_min",
+            0
+          ],
+          [
+            "z_max",
+            "substrate_thickness_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "substrate"
+        ]
+      },
+      {
+        "object_id": "element_1_1_patch",
+        "primitive": "box",
+        "name": "element_1_1_patch",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "x_min",
+            "0-patch_width_mm/2"
+          ],
+          [
+            "x_max",
+            "0+patch_width_mm/2"
+          ],
+          [
+            "y_min",
+            "0-patch_length_mm/2+inset_depth_mm"
+          ],
+          [
+            "y_max",
+            "0+patch_length_mm/2"
+          ],
+          [
+            "z_min",
+            "substrate_thickness_mm"
+          ],
+          [
+            "z_max",
+            "substrate_thickness_mm+copper_thickness_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "patch_element",
+          "element_1"
+        ]
+      },
+      {
+        "object_id": "element_1_1_patch_left",
+        "primitive": "box",
+        "name": "element_1_1_patch_left",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "x_min",
+            "0-patch_width_mm/2"
+          ],
+          [
+            "x_max",
+            "0-feed_width_mm/2-inset_gap_mm"
+          ],
+          [
+            "y_min",
+            "0-patch_length_mm/2"
+          ],
+          [
+            "y_max",
+            "0-patch_length_mm/2+inset_depth_mm"
+          ],
+          [
+            "z_min",
+            "substrate_thickness_mm"
+          ],
+          [
+            "z_max",
+            "substrate_thickness_mm+copper_thickness_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "patch_element",
+          "element_1"
+        ]
+      },
+      {
+        "object_id": "element_1_1_patch_right",
+        "primitive": "box",
+        "name": "element_1_1_patch_right",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "x_min",
+            "0+feed_width_mm/2+inset_gap_mm"
+          ],
+          [
+            "x_max",
+            "0+patch_width_mm/2"
+          ],
+          [
+            "y_min",
+            "0-patch_length_mm/2"
+          ],
+          [
+            "y_max",
+            "0-patch_length_mm/2+inset_depth_mm"
+          ],
+          [
+            "z_min",
+            "substrate_thickness_mm"
+          ],
+          [
+            "z_max",
+            "substrate_thickness_mm+copper_thickness_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "patch_element",
+          "element_1"
+        ]
+      },
+      {
+        "object_id": "element_1_1_feed",
+        "primitive": "box",
+        "name": "element_1_1_feed",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "x_min",
+            "0-feed_width_mm/2"
+          ],
+          [
+            "x_max",
+            "0+feed_width_mm/2"
+          ],
+          [
+            "y_min",
+            "-board_length_mm/2"
+          ],
+          [
+            "y_max",
+            "0-patch_length_mm/2+inset_depth_mm"
+          ],
+          [
+            "z_min",
+            "substrate_thickness_mm"
+          ],
+          [
+            "z_max",
+            "substrate_thickness_mm+copper_thickness_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "patch_element",
+          "element_1"
+        ]
+      },
+      {
+        "object_id": "overhang_union_tool",
+        "primitive": "cylinder",
+        "name": "overhang_union_tool",
+        "material_id": "copper",
+        "dimensions": [
+          [
+            "center_1",
+            20.0
+          ],
+          [
+            "center_2",
+            0.0
+          ],
+          [
+            "end",
+            "substrate_thickness_mm+copper_thickness_mm"
+          ],
+          [
+            "radius",
+            "overhang_union_radius_mm"
+          ],
+          [
+            "start",
+            "substrate_thickness_mm"
+          ]
+        ],
+        "axis": "z",
+        "transform": {
+          "translate_mm": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "rotate_deg": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "component": "Antenna",
+        "tags": [
+          "planner_created",
+          "boolean_tool",
+          "slot"
+        ]
+      }
+    ],
+    "booleans": [
+      {
+        "operation_id": "element_1_1_conductor_union",
+        "operation": "union",
+        "target_id": "element_1_1_patch",
+        "tool_ids": [
+          "element_1_1_patch_left",
+          "element_1_1_patch_right",
+          "element_1_1_feed"
+        ]
+      },
+      {
+        "operation_id": "overhang_union_union",
+        "operation": "union",
+        "target_id": "element_1_1_patch",
+        "tool_ids": [
+          "overhang_union_tool"
+        ]
+      }
+    ],
+    "ports": [
+      {
+        "port_id": "port_1",
+        "name": "Port 1",
+        "kind": "discrete",
+        "positive_point": [
+          "0",
+          "-board_length_mm/2",
+          "substrate_thickness_mm"
+        ],
+        "negative_point": [
+          "0",
+          "-board_length_mm/2",
+          0
+        ],
+        "impedance_ohms": 50.0,
+        "element_index": 1
+      }
+    ],
+    "array": {
+      "rows": 1,
+      "columns": 1,
+      "spacing_mm": 67.30034771428572,
+      "row_vector": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "column_vector": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    },
+    "simulation": {
+      "frequency_min_ghz": "0.65*frequency_ghz",
+      "frequency_max_ghz": "1.35*frequency_ghz",
+      "boundary": "expanded_open",
+      "solver_family": "time_domain"
+    },
+    "excitation": {
+      "strategy": "single_element_feed",
+      "realization_status": "realized",
+      "feed_network": "none",
+      "element_assignments": [
+        {
+          "element_row": 1,
+          "element_column": 1,
+          "excitation_id": "excitation_1_1",
+          "port_id": "port_1",
+          "status": "realized"
+        }
+      ],
+      "unresolved_requirements": []
+    },
+    "composed_operations": [
+      {
+        "group_id": "composition_1",
+        "source_recipe_id": "inset_patch_v2",
+        "source_family": "rectangular_inset_patch",
+        "target_selector": {
+          "role": "radiating_patch_conductor",
+          "scope": "single",
+          "elements": [
+            [
+              1,
+              1
+            ]
+          ]
+        },
+        "coordinate_frame": "target_local",
+        "calls": [
+          {
+            "operation_id": "call_d29d74c5c5d7b2e1",
+            "name": "parameter.create",
+            "arguments": {
+              "key": "overhang_union_radius_mm",
+              "label": "overhang_union radius",
+              "sweepable": true,
+              "unit": "mm",
+              "value": 18.0
+            },
+            "semantic_target": null
+          },
+          {
+            "operation_id": "call_c51a976d04106ba8",
+            "name": "geometry.cylinder",
+            "arguments": {
+              "axis": "z",
+              "dimensions": {
+                "center_1": 20.0,
+                "center_2": 0.0,
+                "end": "substrate_thickness_mm+copper_thickness_mm",
+                "radius": "overhang_union_radius_mm",
+                "start": "substrate_thickness_mm"
+              },
+              "material_id": "copper",
+              "object_id": "overhang_union_tool",
+              "tags": [
+                "planner_created",
+                "boolean_tool",
+                "slot"
+              ]
+            },
+            "semantic_target": null
+          },
+          {
+            "operation_id": "call_df8ac99c0a50a5db",
+            "name": "boolean.union",
+            "arguments": {
+              "operation_id": "overhang_union_union",
+              "target_id": "element_1_1_patch",
+              "tool_ids": [
+                "overhang_union_tool"
+              ]
+            },
+            "semantic_target": {
+              "role": "radiating_patch_conductor",
+              "element_row": 1,
+              "element_column": 1
+            }
+          }
+        ]
+      }
+    ],
+    "metadata": [
+      [
+        "recipe_id",
+        "inset_patch_v2"
+      ],
+      [
+        "substrate_material",
+        "FR4"
+      ]
+    ],
+    "validation": [
+      {
+        "stage": "parameter_update",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "primitive_geometry",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "antenna_recipe",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "excitation_definition",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "simulation_setup",
+        "passed": true,
+        "messages": []
+      },
+      {
+        "stage": "composed_operations",
+        "passed": true,
+        "messages": []
+      }
+    ]
+  }
+}
