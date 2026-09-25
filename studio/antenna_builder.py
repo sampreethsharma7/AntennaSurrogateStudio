@@ -10,15 +10,13 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from studio.antenna_agent import (
     AgentInstructionError,
     AgentPlan,
     AntennaDesignAgent,
     CapabilityUnavailableError,
-    PlannerClarificationRequired,
-    PlannerRefusal,
     create_default_agent,
 )
 from studio.antenna_design import (
@@ -56,6 +54,10 @@ ANTENNA_TEMPLATE_ID = "inset_patch_v2"
 MAX_ARRAY_ELEMENTS = 64
 PLANNER_AUDIT_RELATIVE_PATH = Path("design") / "planner_ab.jsonl"
 _PLANNER_AUDIT_LOCK = threading.Lock()
+
+
+class BuilderTurnCancelled(AntennaBuilderError):
+    """The UI cancelled a planning turn before its result was published."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -661,7 +663,7 @@ class BuilderInteractionOutcome:
 
 @dataclass(frozen=True, slots=True)
 class BuilderTurnResult:
-    """Published session and state update for one successful builder turn."""
+    """Published session and state update for one terminal builder outcome."""
 
     session: BuilderProjectSession
     update: StateUpdate
@@ -1571,14 +1573,6 @@ def _published_agent_design(
     return validate_design(normalized)
 
 
-def _terminal_exception(terminal: AgentTerminalResult) -> Exception:
-    if terminal.outcome == "clarify":
-        return PlannerClarificationRequired(terminal.message)
-    if terminal.outcome == "refuse":
-        return PlannerRefusal(terminal.message)
-    return CapabilityError(terminal.message)
-
-
 def execute_builder_turn(
     project_path: str | Path,
     session: BuilderProjectSession,
@@ -1588,6 +1582,7 @@ def execute_builder_turn(
     audit_log_path: str | Path | None = None,
     turn_id: str | None = None,
     budgets: AgentLoopBudgets | None = None,
+    cancel_requested: Callable[[], bool] | None = None,
 ) -> BuilderTurnResult:
     """Run one bounded agent turn, then publish exactly one terminal outcome."""
 
@@ -1600,6 +1595,8 @@ def execute_builder_turn(
     )
     baseline = session.design
     loop_planner = _agent_planner(planner)
+    if cancel_requested is not None and cancel_requested():
+        raise BuilderTurnCancelled("The antenna-planning turn was cancelled.")
     terminal = run_antenna_agent_loop(
         agent=_agent(),
         baseline_design=baseline,
@@ -1608,6 +1605,8 @@ def execute_builder_turn(
         planner=loop_planner,
         budgets=limits,
     )
+    if cancel_requested is not None and cancel_requested():
+        raise BuilderTurnCancelled("The antenna-planning turn was cancelled.")
 
     if terminal.outcome == "finished":
         if terminal.has_publishable_change:
@@ -1684,7 +1683,7 @@ def execute_builder_turn(
         if terminal.final_step is not None and terminal.outcome in {"clarify", "refuse"}
         else ()
     )
-    _published, semantic_audit = _publish_builder_outcome(
+    published, semantic_audit = _publish_builder_outcome(
         project_path,
         session,
         outcome,
@@ -1704,7 +1703,14 @@ def execute_builder_turn(
         published_design=baseline,
         semantic_memory_audit=semantic_audit,
     )
-    raise _terminal_exception(terminal)
+    if terminal.outcome in {"clarify", "refuse"}:
+        update = StateUpdate(
+            baseline,
+            (),
+            message=terminal.message,
+        )
+        return BuilderTurnResult(published, update, current_turn_id, terminal)
+    raise CapabilityError(terminal.message)
 
 
 def publish_builder_state_update(

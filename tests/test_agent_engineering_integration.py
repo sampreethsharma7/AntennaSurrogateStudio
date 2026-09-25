@@ -6,7 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from studio.antenna_agent import create_default_agent, PlannerClarificationRequired, PlannerRefusal
+from studio.antenna_agent import create_default_agent
 from studio.antenna_agent_runner import AntennaAgentRunner, semantic_design_hash, _TurnEngineeringReports, _stable_hash
 from studio.antenna_builder import BuilderProjectSession, execute_builder_turn, load_builder_session, save_builder_session
 from studio.antenna_engineering_checks import run_engineering_checks
@@ -208,7 +208,7 @@ class AgentEngineeringIntegrationTests(unittest.TestCase):
     def test_publication_once_and_abandoned_reports_not_in_project_memory(self):
         root = Path(__file__).resolve().parents[1] / ".test_runs"
         root.mkdir(exist_ok=True)
-        for status, error in (("finish", None), ("clarify", PlannerClarificationRequired), ("refuse", PlannerRefusal)):
+        for status in ("finish", "clarify", "refuse"):
             with self.subTest(status=status), tempfile.TemporaryDirectory(dir=root) as directory:
                 session = BuilderProjectSession(design=self.baseline)
                 save_builder_session(directory, session)
@@ -217,14 +217,11 @@ class AgentEngineeringIntegrationTests(unittest.TestCase):
                 planner = ScriptedPlanner(array_step(), terminal_step)
                 import studio.antenna_builder as builder
                 with patch.object(builder, "_publish_builder_outcome", wraps=builder._publish_builder_outcome) as publish:
-                    if error:
-                        with self.assertRaises(error):
-                            execute_builder_turn(directory, session, "Create an array.", planner=planner)
-                    else:
-                        execute_builder_turn(directory, session, "Create an array.", planner=planner)
+                    result = execute_builder_turn(directory, session, "Create an array.", planner=planner)
+                    self.assertEqual(result.terminal_result.outcome, "finished" if status == "finish" else status)
                     self.assertEqual(publish.call_count, 1)
                 restored = load_builder_session(directory)
-                if error:
+                if status != "finish":
                     self.assertEqual(restored.design.to_dict(), previous.design.to_dict())
                     self.assertEqual(restored.memory.canonical_ref, previous.memory.canonical_ref)
                     self.assertEqual(restored.memory.important_changes, previous.memory.important_changes)

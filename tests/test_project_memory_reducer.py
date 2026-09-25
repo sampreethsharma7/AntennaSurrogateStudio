@@ -3,7 +3,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from studio.antenna_agent import PlannerClarificationRequired, PlannerRefusal
 from studio.antenna_builder import (
     BuilderProjectSession,
     ProjectMemory,
@@ -176,14 +175,14 @@ class ProjectMemoryReducerTests(unittest.TestCase):
             status="clarify",
             message="Which array layout should I use?",
         ))
-        with self.assertRaises(PlannerClarificationRequired):
-            execute_builder_turn(
-                self.project_path,
-                session,
-                "Continue the design.",
-                planner=next_planner,
-                turn_id="turn-3",
-            )
+        clarification = execute_builder_turn(
+            self.project_path,
+            session,
+            "Continue the design.",
+            planner=next_planner,
+            turn_id="turn-3",
+        )
+        self.assertEqual(clarification.terminal_result.outcome, "clarify")
         self.assertEqual(
             next_planner.request["project_memory"]["canonical_ref"]["revision"],
             1,
@@ -201,17 +200,17 @@ class ProjectMemoryReducerTests(unittest.TestCase):
         )
         before_ref = session.memory.canonical_ref
 
-        with self.assertRaises(PlannerRefusal):
-            execute_builder_turn(
-                self.project_path,
-                session,
-                "Turn this into a horn antenna.",
-                planner=_RecordingPlanner(_plan(
-                    status="refuse",
-                    message="A horn antenna recipe is not installed.",
-                )),
-                turn_id="turn-2",
-            )
+        refusal = execute_builder_turn(
+            self.project_path,
+            session,
+            "Turn this into a horn antenna.",
+            planner=_RecordingPlanner(_plan(
+                status="refuse",
+                message="A horn antenna recipe is not installed.",
+            )),
+            turn_id="turn-2",
+        )
+        self.assertEqual(refusal.terminal_result.outcome, "refuse")
 
         self.assertEqual(session.memory.canonical_ref, before_ref)
         self.assertEqual(session.memory.limitations[-1].key, "unsupported_capability")
@@ -257,28 +256,28 @@ class ProjectMemoryReducerTests(unittest.TestCase):
             planner=_RecordingPlanner(_initial_patch_plan()),
             turn_id="turn-1",
         )
-        with self.assertRaises(PlannerRefusal):
-            execute_builder_turn(
-                self.project_path,
-                session,
-                "Build a horn.",
-                planner=_RecordingPlanner(_plan(
-                    status="refuse",
-                    message="A horn antenna recipe is not installed.",
-                )),
-                turn_id="turn-2",
-            )
-        with self.assertRaises(PlannerClarificationRequired):
-            execute_builder_turn(
-                self.project_path,
-                session,
-                "Choose a feed strategy.",
-                planner=_RecordingPlanner(_plan(
-                    status="clarify",
-                    message="Should each element use an independent port?",
-                )),
-                turn_id="turn-3",
-            )
+        refusal = execute_builder_turn(
+            self.project_path,
+            session,
+            "Build a horn.",
+            planner=_RecordingPlanner(_plan(
+                status="refuse",
+                message="A horn antenna recipe is not installed.",
+            )),
+            turn_id="turn-2",
+        )
+        clarification = execute_builder_turn(
+            self.project_path,
+            session,
+            "Choose a feed strategy.",
+            planner=_RecordingPlanner(_plan(
+                status="clarify",
+                message="Should each element use an independent port?",
+            )),
+            turn_id="turn-3",
+        )
+        self.assertEqual(refusal.terminal_result.outcome, "refuse")
+        self.assertEqual(clarification.terminal_result.outcome, "clarify")
 
         restored = load_builder_session(self.project_path)
 
@@ -320,17 +319,17 @@ class ProjectMemoryReducerTests(unittest.TestCase):
     def test_recent_context_is_bounded_to_six_outcomes(self):
         session = BuilderProjectSession()
         for index in range(7):
-            with self.assertRaises(PlannerRefusal):
-                execute_builder_turn(
-                    self.project_path,
-                    session,
-                    f"Unsupported request {index}",
-                    planner=_RecordingPlanner(_plan(
-                        status="refuse",
-                        message=f"Capability {index} is unavailable.",
-                    )),
-                    turn_id=f"turn-{index}",
-                )
+            result = execute_builder_turn(
+                self.project_path,
+                session,
+                f"Unsupported request {index}",
+                planner=_RecordingPlanner(_plan(
+                    status="refuse",
+                    message=f"Capability {index} is unavailable.",
+                )),
+                turn_id=f"turn-{index}",
+            )
+            self.assertEqual(result.terminal_result.outcome, "refuse")
 
         self.assertEqual(len(session.memory.recent_context), 6)
         self.assertEqual(session.memory.recent_context[0].source_turn_id, "turn-1")

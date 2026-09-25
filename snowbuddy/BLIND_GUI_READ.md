@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.72
+Contract version: 3.73
 Studio version: 0.33.2
 UI source SHA-256: 20735c81d96e69c134bded65fe2bf8181198ba8144ac5b33ff5447deb27edd1f
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
-Antenna Builder UI source SHA-256: 5b437d8d387724293f884701bdfcbd2cb041327536043f22609c8e10e7d7a0b8
+Antenna Builder UI source SHA-256: 9429e51b1e82efed789aad88deea2903570222ebd101e340988023ac6add3a6e
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -129,11 +129,24 @@ antenna models. Save them as books. Reuse them anytime.”
   Installed validated recipes cover an inset-fed rectangular
   patch, probe-fed circular patch, and center-fed dipole. Each can be replicated
   into a linear or planar array when its spacing validation passes.
-- The left work area begins with a bordered, multiline **Design Request**
-  composer. It grows from 92 through 154 pixels as text wraps or gains lines,
-  then scrolls instead of consuming the parameter workspace. A live character
-  and visual-line count stays in its header. Enter adds a line; Ctrl+Enter or
-  the prominent Apply button submits the complete request. Separate
+- The left work area is the conversation column. A scrollable transcript is
+  above the bordered, multiline **Design Request** composer, and automatically
+  returns to the newest entry after every render. User turns use a muted
+  **you** gutter; successful/completed, clarification, and refusal entries use
+  distinct success check, amber question-mark, and red refusal glyphs. A new,
+  empty project shows four clickable starters for an inset-fed patch, circular
+  patch, center-fed dipole, and patch array. Clicking one fills the composer.
+  The empty state also states the supported three-family/array/slot/cutout
+  scope and explicitly lists horns, Vivaldi antennas, spirals, feed networks,
+  and solver runs as unsupported.
+- The composer grows from 92 through 154 pixels as text wraps or gains lines,
+  then scrolls. A live character and visual-line count stays in its header.
+  Enter adds a line; Ctrl+Enter or the prominent Apply button submits the
+  complete request. While planning, the composer is disabled and Apply becomes
+  **Cancel**. Cancellation prevents publication of that turn. A successful
+  physical edit clears the composer; clarification and refusal keep the text
+  available for revision and place the agent response in the transcript rather
+  than opening a modal warning. Separate
   **Provider** and **Model** option menus configure the planner. Provider offers
   **Local Ollama**, **Gemini**, **Groq**, and **OpenRouter**. Changing provider
   or selecting **Refresh** requests that provider's current model catalog;
@@ -176,16 +189,21 @@ antenna models. Save them as books. Reuse them anytime.”
   array edits rebuild the same modifier. Requests for added copper corner lobes
   remain rejected instead of being improvised or routed to the circular-patch
   recipe. When active, the preview note reads **Corner-circle centers sit on
-  patch corners. No array feed network is generated.** The sampling summary
-  uses the compact `LHS:` prefix so modifier parameters remain readable.
-- The editor pane has a larger minimum width and shares extra horizontal space
-  with the 3D preview. Parameters and Conversation are separate tabs. The
-  composer contracts after a successful submission, restoring vertical space
-  to the parameter table. The parameter table rebuilds
-  for the active recipe: inset-patch dimensions and substrate controls,
+  patch corners. No array feed network is generated.**
+- The conversation pane has a 420-pixel minimum and 480-pixel starting width;
+  extra horizontal space grows the design pane, whose minimum is 660 pixels.
+  The parameter table sits in the right design pane directly under the 3D
+  preview. The preview has a 240-pixel minimum and receives three parts of the
+  flexible height; the parameter area has a 200-pixel minimum and receives two
+  parts. This exposes at least six parameter rows at the supported 1366 by 768
+  layout and about ten at 1080p while retaining scrolling. Substrate material
+  is the first table row, with no Vary control. Numeric entries use a compact
+  26-pixel height and 30-pixel row pitch. The parameter table rebuilds for the
+  active recipe: inset-patch dimensions and substrate controls,
   circular-patch radius/probe/substrate controls, or dipole arm/wire/gap
   controls, plus frequency and array controls. Supported numeric rows have Vary
-  boxes with useful family-specific defaults.
+  boxes with useful family-specific defaults. The compact selected-for-sweep
+  count sits in the footer beside **Send selected to LHS**.
 - The right side is a prominent depth-buffered VTK 3D preview evaluated from
   the same canonical primitive, transform, Boolean, and triangulated mesh graph
   used by export. Tk displays VTK's rendered framebuffer and forwards camera
@@ -205,14 +223,16 @@ antenna models. Save them as books. Reuse them anytime.”
   summary reports material, frequency, element count, and port count.
 - While the canonical design is null, the preview displays **No antenna design
   yet. Describe the antenna you want to create.** and renders no geometry. The
-  parameter tab shows no fake values, while the conversation, request composer,
+  parameter area shows no fake values, while the conversation, request composer,
   Apply action, provider/model controls, and cloud/local notice remain usable.
   Parameter and material editing, Reset view, CST script export, native CST
   creation, and LHS transfer are disabled. A first validated recipe/tool plan
   publishes revision zero in place, displays its VTK geometry, rebuilds the
   parameter table, and enables the design-dependent controls without reopening
   the page. Capability questions, clarifications, validation rejections, and
-  refusals appear in Conversation and leave the workspace blank.
+  refusals appear in the transcript and leave the workspace blank. Clarify and
+  refuse are normal terminal agent outcomes; only transport, malformed-state,
+  validation, and other genuine faults use the error path.
 - Single and array layouts retain the selected recipe geometry. Inset-fed,
   probe-fed, and dipole elements receive an independent discrete port per
   element. The visible warning states the applicable feed limitation.

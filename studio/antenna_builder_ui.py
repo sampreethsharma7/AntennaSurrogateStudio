@@ -16,10 +16,9 @@ from studio.antenna_builder import (
     MATERIALS,
     AntennaBuilderError,
     AntennaState,
+    BuilderTurnCancelled,
     BuilderProjectSession,
-    GeometryScene,
     StateUpdate,
-    UnsupportedTopologyError,
     build_geometry_scene,
     create_native_cst_project,
     execute_builder_turn,
@@ -29,7 +28,7 @@ from studio.antenna_builder import (
     recipe_parameter_definitions,
     save_cst_package,
 )
-from studio.antenna_agent import PlannerClarificationRequired, PlannerRefusal, create_default_agent
+from studio.antenna_agent import create_default_agent
 from studio.antenna_vtk_preview import VtkAntennaPreview
 from studio.antenna_llm_planner import (
     GeminiSchemaConstrainedPlanner,
@@ -62,6 +61,12 @@ LOCAL_QWEN_LABEL = PROVIDER_LABELS[LOCAL_OLLAMA]
 GEMINI_LABEL = PROVIDER_LABELS[GEMINI]
 GROQ_LABEL = PROVIDER_LABELS[GROQ]
 OPENROUTER_NEMOTRON_LABEL = PROVIDER_LABELS[OPENROUTER]
+STARTER_EXAMPLES = (
+    "Create an inset-fed rectangular patch at 2.45 GHz on FR4.",
+    "Create a probe-fed circular patch at 5.8 GHz on Rogers RT5880.",
+    "Create a center-fed dipole at 915 MHz.",
+    "Create a patch at 2.45 GHz as a 1×4 array with 0.55 lambda spacing.",
+)
 
 
 def _active_color(value: str | tuple[str, str]) -> str:
@@ -261,6 +266,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.parameter_vars: dict[str, ctk.StringVar] = {}
         self.sweep_vars: dict[str, ctk.BooleanVar] = {}
         self._field_update_job: str | None = None
+        self._active_plan_cancel: threading.Event | None = None
         self._syncing_fields = False
         self._syncing_instruction = False
         self.instruction_var = ctk.StringVar()
@@ -330,15 +336,28 @@ class AntennaBuilderPage(ctk.CTkFrame):
         preview = ctk.CTkFrame(split, fg_color=COLORS["surface"], corner_radius=14, border_width=1, border_color=COLORS["border"])
         self.editor_panel = editor
         self.preview_panel = preview
-        split.add(editor, minsize=480, width=535, stretch="always")
-        split.add(preview, minsize=580, stretch="always")
+        split.add(editor, minsize=420, width=480, stretch="never")
+        split.add(preview, minsize=660, stretch="always")
         self._build_editor(editor)
         self._build_preview(preview)
 
     def _build_editor(self, parent: ctk.CTkFrame) -> None:
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(2, weight=1)
+        parent.grid_rowconfigure(1, weight=1, minsize=160)
         ctk.CTkLabel(parent, text="Describe the design", text_color=COLORS["ink"], font=FONTS["card_title"], anchor="w").grid(row=0, column=0, padx=16, pady=(14, 5), sticky="ew")
+
+        self.conversation_frame = ctk.CTkScrollableFrame(
+            parent,
+            fg_color=COLORS["surface_alt"],
+            corner_radius=10,
+            border_width=1,
+            border_color=COLORS["border"],
+        )
+        self.conversation_frame.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="nsew")
+        self.conversation_frame.grid_columnconfigure(0, weight=1)
+        self.transcript_rows: list[dict[str, object]] = []
+        self.starter_example_buttons: list[ctk.CTkButton] = []
+
         instruction = ctk.CTkFrame(
             parent,
             fg_color=COLORS["surface_alt"],
@@ -346,7 +365,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
         )
-        instruction.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="ew")
+        instruction.grid(row=2, column=0, padx=16, pady=(0, 12), sticky="ew")
         instruction.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
             instruction,
@@ -447,8 +466,8 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.apply_button = ctk.CTkButton(
             instruction,
             text="Apply",
-            width=106,
-            height=34,
+            width=112,
+            height=36,
             corner_radius=10,
             fg_color=COLORS["primary"],
             hover_color=COLORS["primary_hover"],
@@ -457,51 +476,133 @@ class AntennaBuilderPage(ctk.CTkFrame):
         )
         self.apply_button.grid(row=4, column=3, padx=(8, 10), pady=(7, 9), sticky="e")
 
-        tabs = ctk.CTkTabview(parent, fg_color=COLORS["surface_alt"], corner_radius=12)
-        self.editor_tabs = tabs
-        tabs.grid(row=2, column=0, padx=16, pady=(0, 12), sticky="nsew")
-        parameters = tabs.add("Parameters")
-        history = tabs.add("Conversation")
-        self._build_parameter_table(parameters)
-        history.grid_columnconfigure(0, weight=1)
-        history.grid_rowconfigure(0, weight=1)
-        self.conversation_box = ctk.CTkTextbox(
-            history,
-            fg_color=COLORS["surface_alt"],
-            text_color=COLORS["ink"],
-            font=FONTS["body_small"],
-            wrap="word",
-        )
-        self.conversation_box.grid(row=0, column=0, padx=8, pady=8, sticky="nsew")
-        self.conversation_box.configure(state="disabled")
-
     def _build_parameter_table(self, parent: ctk.CTkFrame) -> None:
         parent.grid_columnconfigure(0, weight=1)
-        self.material_row = ctk.CTkFrame(parent, fg_color="transparent")
-        self.material_row.grid(row=0, column=0, padx=8, pady=(8, 4), sticky="ew")
-        self.material_row.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(self.material_row, text="Substrate material", text_color=COLORS["muted"], font=FONTS["body_small"], anchor="w").grid(row=0, column=0, sticky="w")
-        self.material_menu = ctk.CTkOptionMenu(
-            self.material_row,
-            variable=self.material_var,
-            values=list(MATERIALS),
-            width=190,
-            command=self._material_changed,
-        )
-        self.material_menu.grid(row=0, column=1, sticky="e")
-
-        self.parameter_table = ctk.CTkScrollableFrame(parent, fg_color="transparent", corner_radius=0)
-        self.parameter_table.grid(row=1, column=0, padx=4, pady=(0, 6), sticky="nsew")
         parent.grid_rowconfigure(1, weight=1)
-        self.sampling_summary = ctk.CTkLabel(
-            parent,
-            text="",
+        header = ctk.CTkFrame(parent, fg_color="transparent")
+        header.grid(row=0, column=0, padx=(12, 24), pady=(2, 0), sticky="ew")
+        header.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(header, text="PARAMETER", text_color=COLORS["subtle"], font=FONTS["mono"], anchor="w").grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(header, text="VALUE", text_color=COLORS["subtle"], font=FONTS["mono"], width=128).grid(row=0, column=1)
+        ctk.CTkLabel(header, text="VARY", text_color=COLORS["subtle"], font=FONTS["mono"], width=44).grid(row=0, column=2)
+        self.parameter_table = ctk.CTkScrollableFrame(parent, fg_color="transparent", corner_radius=0)
+        self.parameter_table.grid(row=1, column=0, padx=8, pady=(0, 6), sticky="nsew")
+        self._rebuild_parameter_table()
+
+    def _use_starter_example(self, instruction: str) -> None:
+        self.instruction_var.set(instruction)
+        self.instruction_entry.focus_set()
+        self.instruction_entry.mark_set("insert", "end-1c")
+
+    def _render_empty_conversation(self) -> None:
+        ctk.CTkLabel(
+            self.conversation_frame,
+            text="Start from one of these, or describe your own:",
+            text_color=COLORS["ink"],
+            font=FONTS["body_small"],
+            anchor="w",
+        ).grid(row=0, column=0, padx=8, pady=(8, 6), sticky="ew")
+        self.starter_example_buttons = []
+        labels = (
+            "Inset-fed rectangular patch at 2.45 GHz on FR4",
+            "Probe-fed circular patch at 5.8 GHz on RT5880",
+            "Centre-fed dipole at 915 MHz",
+            "Patch at 2.45 GHz as a 1×4 array, 0.55λ spacing",
+        )
+        for row, (label, instruction) in enumerate(zip(labels, STARTER_EXAMPLES), start=1):
+            button = ctk.CTkButton(
+                self.conversation_frame,
+                text=label,
+                height=34,
+                fg_color=COLORS["surface"],
+                hover_color=COLORS["control_hover"],
+                border_width=1,
+                border_color=COLORS["border"],
+                text_color=COLORS["ink"],
+                font=FONTS["body_small"],
+                anchor="w",
+                command=lambda value=instruction: self._use_starter_example(value),
+            )
+            button.grid(row=row, column=0, padx=8, pady=(0, 4), sticky="ew")
+            self.starter_example_buttons.append(button)
+        ctk.CTkLabel(
+            self.conversation_frame,
+            text=(
+                "Supported: 3 antenna families · arrays to 16×16 · circular and rectangular slots · corner cutouts\n"
+                "Not supported: horns, Vivaldi, spirals, feed networks, solver runs"
+            ),
             text_color=COLORS["muted"],
             font=FONTS["caption"],
+            justify="left",
             anchor="w",
-        )
-        self.sampling_summary.grid(row=2, column=0, padx=10, pady=(0, 8), sticky="ew")
-        self._rebuild_parameter_table()
+            wraplength=390,
+        ).grid(row=len(labels) + 1, column=0, padx=8, pady=(6, 10), sticky="ew")
+
+    @staticmethod
+    def _transcript_style(message: dict[str, object]) -> tuple[str, object]:
+        if message.get("role") == "user":
+            return "you", COLORS["muted"]
+        outcome = str(message.get("outcome") or "completed")
+        if outcome in {"executed", "finished"}:
+            return "✓", COLORS["success"]
+        if outcome in {"clarification", "clarify"}:
+            return "?", COLORS["warning"]
+        if outcome in {"refusal", "refuse", "validation_rejection", "duplicate_rejection"}:
+            return "✕", COLORS["danger"]
+        return "·", COLORS["muted"]
+
+    def _render_conversation(self) -> None:
+        for child in self.conversation_frame.winfo_children():
+            child.destroy()
+        self.transcript_rows = []
+        self.starter_example_buttons = []
+        if not self.conversation:
+            if self.state is None:
+                self._render_empty_conversation()
+            else:
+                ctk.CTkLabel(
+                    self.conversation_frame,
+                    text="The design is ready. Describe the next change.",
+                    text_color=COLORS["muted"],
+                    font=FONTS["body_small"],
+                    anchor="w",
+                ).grid(row=0, column=0, padx=8, pady=10, sticky="ew")
+            self.after_idle(self._scroll_conversation_to_bottom)
+            return
+
+        for row, message in enumerate(self.conversation):
+            marker, color = self._transcript_style(message)
+            block = ctk.CTkFrame(self.conversation_frame, fg_color="transparent")
+            block.grid(row=row, column=0, padx=6, pady=(4, 6), sticky="ew")
+            block.grid_columnconfigure(1, weight=1)
+            ctk.CTkLabel(
+                block,
+                text=marker,
+                width=44,
+                text_color=color,
+                font=FONTS["mono"],
+                anchor="nw",
+            ).grid(row=0, column=0, padx=(0, 6), sticky="nw")
+            ctk.CTkLabel(
+                block,
+                text=str(message.get("content", "")),
+                text_color=COLORS["ink"],
+                font=FONTS["body_small"],
+                justify="left",
+                anchor="nw",
+                wraplength=390,
+            ).grid(row=0, column=1, sticky="ew")
+            self.transcript_rows.append(
+                {"marker": marker, "outcome": message.get("outcome"), "frame": block}
+            )
+        self.after_idle(self._scroll_conversation_to_bottom)
+
+    def _scroll_conversation_to_bottom(self) -> None:
+        canvas = getattr(self.conversation_frame, "_parent_canvas", None)
+        if canvas is None:
+            return
+        canvas.update_idletasks()
+        canvas.yview_moveto(1.0)
 
     def _rebuild_parameter_table(self) -> None:
         selected = {name for name, variable in self.sweep_vars.items() if variable.get()}
@@ -511,6 +612,32 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.sweep_vars.clear()
         table = self.parameter_table
         table.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(
+            table,
+            text="Substrate material",
+            text_color=COLORS["ink"],
+            font=FONTS["body_small"],
+            anchor="w",
+        ).grid(row=0, column=0, padx=(5, 6), pady=2, sticky="ew")
+        material_values = list(MATERIALS) if self.state is not None else ["No design"]
+        self.material_menu = ctk.CTkOptionMenu(
+            table,
+            variable=self.material_var,
+            values=material_values,
+            width=124,
+            height=26,
+            font=FONTS["body_small"],
+            command=self._material_changed,
+            state="normal" if self.state is not None else "disabled",
+        )
+        self.material_menu.grid(row=0, column=1, columnspan=2, pady=2, sticky="w")
+        ctk.CTkLabel(
+            table,
+            text="—",
+            width=24,
+            text_color=COLORS["muted"],
+            font=FONTS["caption"],
+        ).grid(row=0, column=3, padx=(6, 2))
         if self.state is None:
             ctk.CTkLabel(
                 table,
@@ -522,7 +649,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 font=FONTS["body_small"],
                 justify="left",
                 anchor="nw",
-            ).grid(row=0, column=0, columnspan=4, padx=8, pady=12, sticky="ew")
+            ).grid(row=1, column=0, columnspan=4, padx=8, pady=12, sticky="ew")
             return
         definitions = recipe_parameter_definitions(self.state)
         available = {item.name for item in definitions if item.sweepable}
@@ -535,16 +662,14 @@ class AntennaBuilderPage(ctk.CTkFrame):
             selected = preferred.get(self.state.family, set())
         if "corner_circle_cutouts_v1" in self.state.metadata_map().get("active_modifiers", "").split(","):
             selected = {*selected, "CornerRadiusRatio"}
-        ctk.CTkLabel(table, text="PARAMETER", text_color=COLORS["subtle"], font=FONTS["mono"], anchor="w").grid(row=0, column=0, padx=(5, 4), sticky="w")
-        ctk.CTkLabel(table, text="VALUE", text_color=COLORS["subtle"], font=FONTS["mono"]).grid(row=0, column=1)
-        ctk.CTkLabel(table, text="VARY", text_color=COLORS["subtle"], font=FONTS["mono"]).grid(row=0, column=3)
-        for row, definition in enumerate(definitions, start=1):
+        row = 1
+        for definition in definitions:
             if definition.kind == "choice":
                 continue
-            ctk.CTkLabel(table, text=definition.label, text_color=COLORS["ink"], font=FONTS["body_small"], anchor="w").grid(row=row, column=0, padx=(5, 6), pady=3, sticky="ew")
+            ctk.CTkLabel(table, text=definition.label, text_color=COLORS["ink"], font=FONTS["body_small"], anchor="w").grid(row=row, column=0, padx=(5, 6), pady=2, sticky="ew")
             variable = ctk.StringVar()
             self.parameter_vars[definition.key] = variable
-            ctk.CTkEntry(table, textvariable=variable, width=88, height=30, font=FONTS["body_small"]).grid(row=row, column=1, pady=3)
+            ctk.CTkEntry(table, textvariable=variable, width=88, height=26, font=FONTS["body_small"]).grid(row=row, column=1, pady=2)
             ctk.CTkLabel(table, text=definition.unit, width=35, text_color=COLORS["muted"], font=FONTS["caption"], anchor="w").grid(row=row, column=2, padx=(5, 1), sticky="w")
             sweep = ctk.BooleanVar(value=definition.sweepable and definition.name in selected)
             self.sweep_vars[definition.name] = sweep
@@ -557,10 +682,12 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 command=self._update_sampling_summary,
             ).grid(row=row, column=3, padx=(6, 2))
             variable.trace_add("write", lambda *_args: self._schedule_field_update())
+            row += 1
 
     def _build_preview(self, parent: ctk.CTkFrame) -> None:
         parent.grid_columnconfigure(0, weight=1)
-        parent.grid_rowconfigure(1, weight=1)
+        parent.grid_rowconfigure(1, weight=3, minsize=240)
+        parent.grid_rowconfigure(5, weight=2, minsize=200)
         toolbar = ctk.CTkFrame(parent, fg_color="transparent")
         toolbar.grid(row=0, column=0, padx=14, pady=(12, 7), sticky="ew")
         toolbar.grid_columnconfigure(0, weight=1)
@@ -611,7 +738,13 @@ class AntennaBuilderPage(ctk.CTkFrame):
             font=FONTS["caption"],
             anchor="w",
         )
-        self.feed_scope_label.grid(row=3, column=0, padx=14, pady=(0, 12), sticky="ew")
+        self.feed_scope_label.grid(row=3, column=0, padx=14, pady=(0, 5), sticky="ew")
+        ctk.CTkFrame(parent, height=1, fg_color=COLORS["border"], corner_radius=0).grid(
+            row=4, column=0, padx=12, pady=(0, 3), sticky="ew"
+        )
+        self.parameter_panel = ctk.CTkFrame(parent, fg_color="transparent")
+        self.parameter_panel.grid(row=5, column=0, padx=4, pady=(0, 4), sticky="nsew")
+        self._build_parameter_table(self.parameter_panel)
 
     def _build_footer(self) -> None:
         footer = ctk.CTkFrame(self, fg_color="transparent")
@@ -665,6 +798,14 @@ class AntennaBuilderPage(ctk.CTkFrame):
             command=self.create_native_cst,
         )
         self.native_cst_button.grid(row=0, column=3, padx=(0, 8), sticky="e")
+        self.sampling_summary = ctk.CTkLabel(
+            footer,
+            text="0 selected",
+            text_color=COLORS["muted"],
+            font=FONTS["caption"],
+            anchor="e",
+        )
+        self.sampling_summary.grid(row=0, column=4, padx=(16, 8), sticky="e")
         self.lhs_button = ctk.CTkButton(
             footer,
             text="Send selected to LHS  →",
@@ -675,9 +816,12 @@ class AntennaBuilderPage(ctk.CTkFrame):
             font=FONTS["button"],
             command=self.send_to_lhs,
         )
-        self.lhs_button.grid(row=0, column=4, sticky="e")
+        self.lhs_button.grid(row=0, column=5, sticky="e")
 
     def set_project(self, project: Project | None) -> None:
+        if self._active_plan_cancel is not None:
+            self._active_plan_cancel.set()
+            self._active_plan_cancel = None
         self.project = project
         self.session = None
         self.state = None
@@ -948,6 +1092,22 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.apply_instruction()
         return "break"
 
+    def _set_planning_state(self, active: bool) -> None:
+        if active:
+            self.instruction_entry.configure(state="disabled")
+            self.apply_button.configure(state="normal", text="Cancel")
+        else:
+            self.instruction_entry.configure(state="normal")
+            available = self.project is not None and self.session is not None and not self._session_load_error
+            self.apply_button.configure(state="normal" if available else "disabled", text="Apply")
+
+    def _cancel_active_turn(self) -> None:
+        if self._active_plan_cancel is None:
+            return
+        self._active_plan_cancel.set()
+        self.apply_button.configure(state="disabled", text="Cancelling…")
+        self.status_var.set("Cancelling the current planning turn; no result will be published.")
+
     def _schedule_field_update(self) -> None:
         if self._syncing_fields:
             return
@@ -1022,6 +1182,9 @@ class AntennaBuilderPage(ctk.CTkFrame):
         )
 
     def apply_instruction(self) -> None:
+        if self._active_plan_cancel is not None:
+            self._cancel_active_turn()
+            return
         self._instruction_edited()
         instruction = self.instruction_var.get().strip()
         if not instruction:
@@ -1040,7 +1203,9 @@ class AntennaBuilderPage(ctk.CTkFrame):
         base_session = self.session
         project_path = self.project.path
         backend_label = f"{self.provider_var.get()} / {self._selected_model_id()}"
-        self.apply_button.configure(state="disabled", text="Planning...")
+        cancel_event = threading.Event()
+        self._active_plan_cancel = cancel_event
+        self._set_planning_state(True)
         self.status_var.set(
             f"Asking {backend_label} for a schema-constrained registered-tool plan..."
         )
@@ -1053,60 +1218,96 @@ class AntennaBuilderPage(ctk.CTkFrame):
                     base_session,
                     instruction,
                     planner=planner,
+                    cancel_requested=cancel_event.is_set,
                 )
+            except BuilderTurnCancelled:
+                self.after(
+                    0,
+                    lambda planned_session=base_session, token=cancel_event: self._planning_cancelled(
+                        planned_session,
+                        token,
+                    ),
+                )
+                return
             except Exception as exc:
                 self.after(
                     0,
-                    lambda error=exc, planned_session=base_session: self._llm_plan_failed(
+                    lambda error=exc, planned_session=base_session, token=cancel_event: self._llm_plan_failed(
                         error,
                         planned_session,
+                        token,
                     ),
                 )
                 return
             self.after(
                 0,
-                lambda: self._llm_plan_complete(base_state, base_session, turn),
+                lambda: self._llm_plan_complete(base_state, base_session, turn, cancel_event),
             )
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _record_instruction(self, turn) -> None:
-        self.instruction_var.set("")
-        self._accept_published_session(turn.session, turn.update.summary)
+    def _planning_cancelled(
+        self,
+        planned_session: BuilderProjectSession,
+        token: threading.Event,
+    ) -> None:
+        if self._active_plan_cancel is not token:
+            return
+        self._active_plan_cancel = None
+        self._set_planning_state(False)
+        if self.session is planned_session:
+            self.status_var.set("Planning cancelled. The design and conversation were not changed.")
+            self.instruction_entry.focus_set()
 
-    def _llm_plan_failed(self, exc: Exception, planned_session: BuilderProjectSession) -> None:
-        self.apply_button.configure(state="normal", text="Apply")
+    def _llm_plan_failed(
+        self,
+        exc: Exception,
+        planned_session: BuilderProjectSession,
+        token: threading.Event,
+    ) -> None:
+        if self._active_plan_cancel is not token:
+            return
+        self._active_plan_cancel = None
+        self._set_planning_state(False)
         if self.session is not planned_session:
             self.status_var.set("The project changed while planning; the completed turn was not displayed here.")
             return
         self.state = planned_session.design
         self.conversation = planned_session.conversation
-        self.instruction_var.set("")
         self._render_state()
-        self.editor_tabs.set("Conversation")
         self._update_builder_manifest()
         self.status_var.set(str(exc))
-        if isinstance(exc, PlannerClarificationRequired):
-            title = "Clarification needed"
-        elif isinstance(exc, (PlannerRefusal, UnsupportedTopologyError)):
-            title = "Capability unavailable"
-        else:
-            title = "LLM plan not applied"
-        messagebox.showwarning(title, str(exc), parent=self)
+        messagebox.showerror("LLM planning fault", str(exc), parent=self)
 
     def _llm_plan_complete(
         self,
         base_state: AntennaState | None,
         planned_session: BuilderProjectSession,
         turn,
+        token: threading.Event,
     ) -> None:
-        self.apply_button.configure(state="normal", text="Apply")
+        if self._active_plan_cancel is not token:
+            return
+        self._active_plan_cancel = None
+        self._set_planning_state(False)
         if self.session is not planned_session or self.state != base_state:
             self.status_var.set("The design changed while LLM planning was running; the stale plan was discarded.")
             return
-        self._record_instruction(turn)
-        if base_state is None:
-            self.editor_tabs.set("Parameters")
+        terminal = turn.terminal_result
+        outcome = terminal.outcome if terminal is not None else "finished"
+        if outcome == "finished":
+            if terminal is None or terminal.has_publishable_change:
+                self.instruction_var.set("")
+            status = turn.update.summary
+        elif outcome == "clarify":
+            status = f"Clarification requested: {turn.update.message or terminal.message}"
+        elif outcome == "refuse":
+            status = f"Capability unavailable: {turn.update.message or terminal.message}"
+        else:
+            raise AntennaBuilderError(f"Unexpected terminal builder outcome: {outcome}")
+        self._accept_published_session(turn.session, status)
+        if outcome in {"clarify", "refuse"}:
+            self.instruction_entry.focus_set()
 
     def _accept_published_session(
         self,
@@ -1191,31 +1392,19 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 text="CST export and sampling become available after a design is validated."
             )
             self._set_design_controls_enabled(False)
-            self.conversation_box.configure(state="normal")
-            self.conversation_box.delete("1.0", "end")
-            if self.conversation:
-                for message in self.conversation:
-                    speaker = "You" if message["role"] == "user" else "Builder"
-                    self.conversation_box.insert(
-                        "end", f"{speaker}: {message['content']}\n\n"
-                    )
-            else:
-                self.conversation_box.insert(
-                    "end",
-                    "Builder: No antenna exists yet. Describe a supported antenna or ask what antenna types are currently available.\n",
-                )
-            self.conversation_box.configure(state="disabled")
+            self._render_conversation()
             self._update_sampling_summary()
             if self._session_load_error:
                 self.apply_button.configure(state="disabled")
-            elif self.project is not None and self.session is not None:
+            elif self.project is not None and self.session is not None and self._active_plan_cancel is None:
                 self.apply_button.configure(state="normal", text="Apply")
             else:
                 self.apply_button.configure(state="disabled")
             return
         self.empty_preview.grid_remove()
         self.preview.grid()
-        self.apply_button.configure(state="normal", text="Apply")
+        if self._active_plan_cancel is None:
+            self.apply_button.configure(state="normal", text="Apply")
         scene = build_geometry_scene(self.state)
         self.preview.set_scene(scene)
         self._set_design_controls_enabled(True)
@@ -1236,18 +1425,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             else:
                 scope = "Inset-fed elements use independent ports. No corporate feed network is generated."
         self.feed_scope_label.configure(text=scope)
-        self.conversation_box.configure(state="normal")
-        self.conversation_box.delete("1.0", "end")
-        if self.conversation:
-            for message in self.conversation:
-                speaker = "You" if message["role"] == "user" else "Builder"
-                self.conversation_box.insert("end", f"{speaker}: {message['content']}\n\n")
-        else:
-            self.conversation_box.insert(
-                "end",
-                "Builder: Try “Create an inset-fed rectangular patch at 2.45 GHz on FR4,” “Create a circular patch,” or “Create a simple dipole at 915 MHz.”\n",
-            )
-        self.conversation_box.configure(state="disabled")
+        self._render_conversation()
         self._update_sampling_summary()
 
     def _set_design_controls_enabled(self, enabled: bool) -> None:
@@ -1262,16 +1440,12 @@ class AntennaBuilderPage(ctk.CTkFrame):
     def _update_sampling_summary(self) -> None:
         if self.state is None:
             self.sampling_summary.configure(
-                text="Create a design before selecting parameters for LHS sampling."
+                text="0 selected"
             )
             return
         selected = [name for name, variable in self.sweep_vars.items() if variable.get()]
         self.sampling_summary.configure(
-            text=(
-                "LHS: " + ", ".join(selected)
-                if selected
-                else "Select one or more Vary boxes for LHS sampling."
-            )
+            text=f"{len(selected)} selected for sweep"
         )
 
     def export_cst(self) -> None:

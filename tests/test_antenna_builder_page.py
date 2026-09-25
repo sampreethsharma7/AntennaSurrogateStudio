@@ -38,6 +38,18 @@ class _ImmediateThread:
         self.target()
 
 
+class _DeferredThread:
+    pending = []
+
+    def __init__(self, *, target, daemon):
+        self.target = target
+        self.daemon = daemon
+        self.__class__.pending.append(self)
+
+    def start(self):
+        return None
+
+
 class _PlannerReturning:
     def __init__(self, plan):
         self.result = plan
@@ -154,6 +166,10 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertEqual(self.page.export_button.cget("state"), "disabled")
         self.assertEqual(self.page.native_cst_button.cget("state"), "disabled")
         self.assertEqual(self.page.lhs_button.cget("state"), "disabled")
+        self.assertEqual(len(self.page.starter_example_buttons), 4)
+        self.assertIn("Not supported: horns", self.page.conversation_frame.winfo_children()[-1].cget("text"))
+        self.page.starter_example_buttons[0].invoke()
+        self.assertIn("inset-fed rectangular patch", self.page.instruction_var.get())
         self.assertFalse((self.project.path / "design" / "antenna_state.json").exists())
         with (
             patch("studio.antenna_builder_ui.filedialog.asksaveasfilename") as save_dialog,
@@ -202,7 +218,11 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertIsNone(self.page.state)
         self.assertEqual(len(self.page.conversation), 2)
         self.assertIn("Which should I create", self.page.conversation[-1]["content"])
-        self.assertEqual(self.page.editor_tabs.get(), "Conversation")
+        self.assertEqual(self.page.transcript_rows[-1]["marker"], "?")
+        self.assertEqual(
+            self.page.instruction_var.get(),
+            "What antenna types can you currently build?",
+        )
         self.assertFalse((self.project.path / "design" / "antenna_state.json").exists())
         restored = load_builder_session(self.project.path)
         self.assertIsNone(restored.design)
@@ -222,6 +242,43 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertIsNone(restored.design)
         self.assertEqual(len(restored.memory.limitations), 1)
         self.assertEqual(restored.conversation[-1]["outcome"], "refusal")
+        self.assertEqual(self.page.transcript_rows[-1]["marker"], "✕")
+        self.assertEqual(self.page.instruction_var.get(), "Design a helical antenna.")
+
+    def test_transcript_autoscrolls_and_finished_turn_has_success_style(self):
+        self._create_inset_design()
+        self.assertEqual(self.page.transcript_rows[-1]["marker"], "✓")
+        self.page.conversation = [
+            {
+                "role": "user" if index % 2 == 0 else "builder",
+                "content": f"Transcript line {index} " * 4,
+                "outcome": "request" if index % 2 == 0 else "completed",
+            }
+            for index in range(30)
+        ]
+        self.page._render_conversation()
+        self.app.update_idletasks()
+        canvas = self.page.conversation_frame._parent_canvas
+        self.assertAlmostEqual(canvas.yview()[1], 1.0, places=3)
+
+    def test_planning_disables_composer_and_apply_becomes_cancel(self):
+        self.app.design_start_page.choose_template()
+        _DeferredThread.pending.clear()
+        instruction = "Create an inset-fed rectangular patch at 2.45 GHz on FR4."
+        with patch("studio.antenna_builder_ui.threading.Thread", _DeferredThread):
+            self.page.instruction_var.set(instruction)
+            self.page.apply_instruction()
+            self.assertEqual(self.page.instruction_entry.cget("state"), "disabled")
+            self.assertEqual(self.page.apply_button.cget("text"), "Cancel")
+            self.page.apply_instruction()
+            self.assertEqual(self.page.apply_button.cget("text"), "Cancelling…")
+            _DeferredThread.pending.pop().target()
+            self.app.update()
+
+        self.assertEqual(self.page.instruction_entry.cget("state"), "normal")
+        self.assertEqual(self.page.apply_button.cget("text"), "Apply")
+        self.assertEqual(self.page.instruction_var.get(), instruction)
+        self.assertEqual(self.page.conversation, [])
 
     def test_blank_and_active_sessions_reopen_without_synthesizing_design(self):
         self.app.design_start_page.choose_template()
@@ -685,9 +742,10 @@ class AntennaBuilderPageTests(unittest.TestCase):
                 for solid in preview.scene.solids
             ),
         )
-        self.assertGreaterEqual(self.page.editor_panel.winfo_width(), 480)
-        self.assertGreaterEqual(self.page.preview_panel.winfo_width(), 580)
-        self.assertGreater(self.page.parameter_table.winfo_height(), 100)
+        self.assertGreaterEqual(self.page.editor_panel.winfo_width(), 420)
+        self.assertGreaterEqual(self.page.preview_panel.winfo_width(), 660)
+        self.assertIs(self.page.parameter_panel.master, self.page.preview_panel)
+        self.assertGreaterEqual(self.page.parameter_table.winfo_height(), 190)
         app_right = self.app.winfo_rootx() + self.app.winfo_width()
         app_bottom = self.app.winfo_rooty() + self.app.winfo_height()
         for button in (

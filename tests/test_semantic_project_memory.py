@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from studio.antenna_agent import PlannerClarificationRequired, PlannerRefusal, create_default_agent
+from studio.antenna_agent import create_default_agent
 from studio.antenna_builder import (
     BuilderProjectSession,
     ProjectMemory,
@@ -355,26 +355,26 @@ class SemanticProjectMemoryTests(unittest.TestCase):
     def test_clarify_and_refuse_persist_grounded_intent_without_design_change(self):
         baseline = self.session.design
         clarify_text = "I eventually want RHCP, but which supported antenna should I start with?"
-        with self.assertRaises(PlannerClarificationRequired):
-            self.run_terminal(
-                clarify_text,
-                proposal("upsert", "goal", "target_polarization", "RHCP", "I eventually want RHCP"),
-                status="clarify",
-                turn_id="turn-clarify",
-            )
+        clarify = self.run_terminal(
+            clarify_text,
+            proposal("upsert", "goal", "target_polarization", "RHCP", "I eventually want RHCP"),
+            status="clarify",
+            turn_id="turn-clarify",
+        )
+        self.assertEqual(clarify.terminal_result.outcome, "clarify")
         self.assertIs(self.session.design, baseline)
 
         refuse_text = "I may want a corporate feed later, even if it is unavailable now."
-        with self.assertRaises(PlannerRefusal):
-            self.run_terminal(
-                refuse_text,
-                proposal(
-                    "upsert", "future_intent", "feed_network_future_goal",
-                    "corporate_feed", "I may want a corporate feed later",
-                ),
-                status="refuse",
-                turn_id="turn-refuse",
-            )
+        refused = self.run_terminal(
+            refuse_text,
+            proposal(
+                "upsert", "future_intent", "feed_network_future_goal",
+                "corporate_feed", "I may want a corporate feed later",
+            ),
+            status="refuse",
+            turn_id="turn-refuse",
+        )
+        self.assertEqual(refused.terminal_result.outcome, "refuse")
         self.assertIs(self.session.design, baseline)
         self.assertEqual(
             {item.key for item in self.semantic_items(self.session.memory) if item.status == "active"},

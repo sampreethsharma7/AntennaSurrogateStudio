@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from studio.antenna_agent import PlannerClarificationRequired, PlannerRefusal, create_default_agent
+from studio.antenna_agent import create_default_agent
 from studio.antenna_builder import (
     BuilderProjectSession,
     ProjectMemoryReducer,
@@ -199,14 +199,14 @@ class AgentRunnerBuilderIntegrationTests(unittest.TestCase):
         self.assertIsNone(empty_result.session.design)
         self.assertFalse((empty_path / "design" / "antenna_state.json").exists())
 
-    def _assert_rollback(self, planner, expected_exception, *, budgets=None):
+    def _assert_rollback(self, planner, expected_exception=None, *, expected_outcome=None, budgets=None):
         baseline = create_default_agent().create_design("inset_patch")
         session = BuilderProjectSession(design=baseline)
         save_builder_session(self.project_path, session)
         state_path = self.project_path / "design" / "antenna_state.json"
         before_bytes = state_path.read_bytes()
-        with self.assertRaises(expected_exception):
-            execute_builder_turn(
+        if expected_exception is None:
+            result = execute_builder_turn(
                 self.project_path,
                 session,
                 "Attempt a multi-step edit.",
@@ -214,6 +214,17 @@ class AgentRunnerBuilderIntegrationTests(unittest.TestCase):
                 budgets=budgets,
                 turn_id="turn-rollback",
             )
+            self.assertEqual(result.terminal_result.outcome, expected_outcome)
+        else:
+            with self.assertRaises(expected_exception):
+                execute_builder_turn(
+                    self.project_path,
+                    session,
+                    "Attempt a multi-step edit.",
+                    planner=planner,
+                    budgets=budgets,
+                    turn_id="turn-rollback",
+                )
         self.assertEqual(session.design, baseline)
         self.assertEqual(state_path.read_bytes(), before_bytes)
         self.assertEqual(session.memory.important_changes, ())
@@ -228,7 +239,7 @@ class AgentRunnerBuilderIntegrationTests(unittest.TestCase):
                 step(("parameter.set", {"key": "patch_width_mm", "value": 40.0})),
                 step(status="clarify", message="Which excitation should I use?"),
             ),
-            PlannerClarificationRequired,
+            expected_outcome="clarify",
         )
         self.assertEqual(self.audit_records()[0]["terminal_status"], "clarify")
 
@@ -238,7 +249,7 @@ class AgentRunnerBuilderIntegrationTests(unittest.TestCase):
                 step(("parameter.set", {"key": "patch_width_mm", "value": 40.0})),
                 step(status="refuse", message="That capability is unavailable."),
             ),
-            PlannerRefusal,
+            expected_outcome="refuse",
         )
         self.assertEqual(self.audit_records()[0]["terminal_status"], "refuse")
 
