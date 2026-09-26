@@ -1324,6 +1324,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             return
         updates: dict[str, object] = {}
         try:
+            current_values = self.agent.values_for_design(self.state)
             for definition in recipe_parameter_definitions(self.state):
                 if definition.kind == "choice":
                     continue
@@ -1331,9 +1332,22 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 if definition.kind == "integer":
                     if not raw or not raw.isdigit():
                         raise AntennaBuilderError(f"{definition.label} must be a whole number.")
-                    updates[definition.key] = int(raw)
+                    value: object = int(raw)
                 else:
-                    updates[definition.key] = float(raw)
+                    value = float(raw)
+                current = current_values.get(definition.key)
+                if (
+                    isinstance(value, float)
+                    and isinstance(current, (int, float))
+                    and not isinstance(current, bool)
+                ):
+                    changed = not math.isclose(value, float(current), rel_tol=0.0, abs_tol=1e-12)
+                else:
+                    changed = value != current
+                if changed:
+                    updates[definition.key] = value
+            if not updates:
+                return
             result = self.agent.update_parameters(
                 self.state,
                 updates,

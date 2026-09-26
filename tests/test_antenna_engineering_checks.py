@@ -56,8 +56,8 @@ class GeometryEngineeringChecksTests(unittest.TestCase):
         self.assertEqual(len(contacts), 3)
         for f in contacts:
             self.assertEqual(f.severity, "warning")
-            self.assertAlmostEqual(f.measured_values["retained_constituent_xy_overlap_area_mm2"].value, 60.4995)
-            self.assertAlmostEqual(f.measured_values["resolved_conductor_xy_overlap_area_mm2"].value, 107.4279)
+            self.assertAlmostEqual(f.measured_values["retained_constituent_xy_overlap_area_mm2"].value, 61.6893235)
+            self.assertAlmostEqual(f.measured_values["resolved_conductor_xy_overlap_area_mm2"].value, 109.5406487)
             self.assertEqual(len(f.affected_elements), 2)
             self.assertIn("feed", f.message)
             self.assertIn("radiating_patch_conductor", f.message)

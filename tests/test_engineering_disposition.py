@@ -184,8 +184,8 @@ class EngineeringDispositionTests(unittest.TestCase):
         contacts = [f for f in report.findings if f.category == "conductor_contact"]
         self.assertEqual(len(contacts), 3)
         for f in contacts:
-            self.assertAlmostEqual(f.measured_values["resolved_conductor_xy_overlap_area_mm2"].value, 107.4279)
-            self.assertAlmostEqual(f.measured_values["retained_constituent_xy_overlap_area_mm2"].value, 60.4995)
+            self.assertAlmostEqual(f.measured_values["resolved_conductor_xy_overlap_area_mm2"].value, 109.5406487)
+            self.assertAlmostEqual(f.measured_values["retained_constituent_xy_overlap_area_mm2"].value, 61.6893235)
             self.assertIn("complete final resolved conductors", f.message)
             self.assertIn("not the complete resolved-conductor overlap", f.message)
             self.assertEqual(f.check_version, "2")

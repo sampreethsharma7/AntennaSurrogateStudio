@@ -121,7 +121,7 @@ class _Relationship:
             "z_clearance_mm": Measurement(self.z_gap, "mm", tolerance),
             "z_overlap_mm": Measurement(self.z_overlap, "mm", tolerance),
             "minimum_clearance_mm": Measurement(math.hypot(self.xy_distance, self.z_gap), "mm", tolerance),
-            "xy_intersection_area_mm2": Measurement(self.area, "mm²"),
+            "xy_intersection_area_mm2": Measurement(self.area, "mm²", tolerance),
             "contact_within_tolerance": Measurement(int(self.contact), ""),
             "xy_shared_boundary_length_mm": Measurement(self.boundary_length, "mm"),
         }
@@ -198,7 +198,9 @@ def check_conductor_contact_clearance(query, config=EngineeringCheckConfig()):
                        "resolved_conductor_xy_overlap_area_mm2 measures the XY intersection of the complete final resolved conductors, including their retained union constituents.")
             if candidates:
                 area, _, _, x, y = max(candidates, key=lambda entry: entry[:3])
-                measurements["retained_constituent_xy_overlap_area_mm2"] = Measurement(area, "mm²")
+                measurements["retained_constituent_xy_overlap_area_mm2"] = Measurement(
+                    area, "mm²", tolerance
+                )
                 objects = tuple({obj.object_id: obj for obj in (a, b, x, y)}.values())
                 message += (f" retained_constituent_xy_overlap_area_mm2 measures only the retained {x.semantic_role} "
                             f"({x.object_id}) / {y.semantic_role} ({y.object_id}) relationship, clipped to final material; "

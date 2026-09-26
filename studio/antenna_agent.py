@@ -1126,7 +1126,10 @@ class AntennaDesignAgent:
             raise AgentInstructionError("The requested fields are unavailable for this antenna: " + ", ".join(unknown) + ".")
         values = self.values_for_design(design)
         values.update({key: value for key, value in updates.items() if key in definition_map})
-        if set(updates) & {"frequency_ghz", "material", "substrate_thickness_mm"}:
+        if (
+            recipe.family == "rectangular_inset_patch"
+            and set(updates) & {"frequency_ghz", "material", "substrate_thickness_mm"}
+        ):
             self._reestimate_values(recipe, values, set(updates))
         groups = design.composed_operations
         for key, value in updates.items():

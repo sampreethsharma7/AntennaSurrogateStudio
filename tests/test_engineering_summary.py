@@ -61,8 +61,8 @@ class EngineeringSummaryTests(unittest.TestCase):
 
     def test_overlap_measurements_keep_separate_meanings(self):
         group = next(g for g in self.warning_groups() if g["category"] == "conductor_contact")
-        self.assertAlmostEqual(group["measurements"]["retained_constituent_xy_overlap_area_mm2"]["common_value"], 60.4995)
-        self.assertAlmostEqual(group["measurements"]["resolved_conductor_xy_overlap_area_mm2"]["common_value"], 107.4279)
+        self.assertAlmostEqual(group["measurements"]["retained_constituent_xy_overlap_area_mm2"]["common_value"], 61.6893235)
+        self.assertAlmostEqual(group["measurements"]["resolved_conductor_xy_overlap_area_mm2"]["common_value"], 109.5406487)
         f = next(f for f in self.report.findings if f.category == "conductor_contact")
         a = replace(f, relationship_key="physical_pair:a", measured_values={"retained_constituent_xy_overlap_area_mm2": EngineeringMeasurement(1, "mm²")})
         b = replace(f, relationship_key="physical_pair:b", measured_values={"resolved_conductor_xy_overlap_area_mm2": EngineeringMeasurement(1, "mm²")})

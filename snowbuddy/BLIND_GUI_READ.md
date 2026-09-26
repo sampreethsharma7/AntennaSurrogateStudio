@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.78
+Contract version: 3.79
 Studio version: 0.33.2
 UI source SHA-256: 87130666db6e9ab14919387f5c038e11e2e5328bbe83aea4b6d98812c13a61bf
 Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
-Antenna Builder UI source SHA-256: 74fe17be81a46fc9dce613275b779a64b178f338188cd00d031b3c4e79b34ec7
+Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
@@ -236,7 +236,10 @@ build a trusted surrogate model.
   This rule is stated directly above the parameter rows. Parameters created by persisted
   composed geometry, such as a circular-slot radius or rectangular-slot width
   and height, are added to this same table, survive project reopen, and are
-  removed when their owning composed operation is deleted. The compact
+  removed when their owning composed operation is deleted. A table edit submits
+  only values that actually changed; dependent inset-patch dimensions and the
+  50-ohm feed width can therefore be re-derived without reporting untouched
+  rows as edits. The compact
   selected-for-sweep count sits in the footer beside **Send selected to LHS**.
   The footer has no general-purpose status label; complete conversational
   feedback remains in the transcript, so long messages cannot displace its

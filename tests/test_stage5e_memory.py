@@ -259,7 +259,7 @@ class Stage5EMemoryValidationTests(unittest.TestCase):
             self.assertTrue(result["evaluable"])
             self.assertTrue(result["evaluation"]["passed"], result["evaluation"])
             provenance = result["contract_provenance"]
-            self.assertEqual(provenance["agent_step_contract_version"], 2)
+            self.assertEqual(provenance["agent_step_contract_version"], 3)
             self.assertEqual(provenance["benchmark_sha256"], EXPECTED_TEST_SET_SHA256)
             self.assertEqual(len(provenance["contract_fingerprints"]), 4)
             self.assertTrue(provenance["captured_at_utc"])

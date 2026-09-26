@@ -83,7 +83,7 @@ class LiveAntennaBenchmarkTests(unittest.TestCase):
         self.assertFalse(observation["provider_api_failure"])
         self.assertEqual(observation["terminal_outcome"], "finished")
         provenance = observation["contract_provenance"]
-        self.assertEqual(provenance["agent_step_contract_version"], 2)
+        self.assertEqual(provenance["agent_step_contract_version"], 3)
         self.assertEqual(provenance["benchmark_sha256"], EXPECTED_BENCHMARK_SHA256)
         self.assertEqual(len(provenance["contract_fingerprints"]), 4)
         self.assertTrue(provenance["captured_at_utc"])

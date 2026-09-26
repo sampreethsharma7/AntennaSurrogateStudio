@@ -213,7 +213,7 @@ class IndependentExcitationRealizationTests(unittest.TestCase):
         legacy_hash = evaluate_geometry(legacy).geometry_hash
         legacy_warnings = self._warning_categories(legacy)
         self.assertEqual(legacy.excitation.strategy, "legacy_recipe")
-        self.assertEqual(legacy_hash, "85b60b5c55ac013eff90c865dfd12f8fb10eb1ec6ac18c3c385187d1ceebd7dc")
+        self.assertEqual(legacy_hash, "894aa73b151bf9d45d2a7a76ed04a1bd5ee415be36fcdaf5019617a112e2b612")
         self.assertEqual(legacy_warnings.count("conductor_contact"), 3)
         self.assertEqual(legacy_warnings.count("coincident_port_segments"), 3)
         self.assertEqual(legacy_warnings.count("port_element_association"), 6)
@@ -221,7 +221,7 @@ class IndependentExcitationRealizationTests(unittest.TestCase):
 
         independent = self._realize(legacy)
         independent_hash = evaluate_geometry(independent).geometry_hash
-        self.assertEqual(independent_hash, "04756ac2407568ea53eb79677245665fdd0701157ae5588df5eb4798683bab39")
+        self.assertEqual(independent_hash, "640cb10c9ebcff079faf9cd407cc0c3c9c451086a8277a0ccaf7d500329a990b")
         self.assertNotEqual(independent_hash, legacy_hash)
         self.assertEqual(self._warning_categories(independent), [])
         self.assertEqual(len(set(self._segments(legacy))), 3)

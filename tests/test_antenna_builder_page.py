@@ -625,6 +625,19 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertEqual(preview_patch.bounds[1] - preview_patch.bounds[0], 38.0)
         self.assertIn("geometry updated", self.page.status_var.get())
 
+    def test_substrate_table_edit_rederives_feed_and_reports_only_changed_field(self):
+        self._create_inset_design()
+        self.page.parameter_vars["substrate_thickness_mm"].set("0.8")
+        self.page._apply_parameter_fields()
+        self.app.update()
+
+        self.assertAlmostEqual(self.page.state.substrate_thickness_mm, 0.8)
+        self.assertAlmostEqual(self.page.state.feed_width_mm, 1.5295, places=4)
+        response = self.page.conversation[-1]["content"]
+        self.assertIn("Substrate thickness to 0.8", response)
+        self.assertNotIn("Patch length", response)
+        self.assertNotIn("Feed width", response)
+
     def test_composed_parameters_appear_persist_reopen_and_disappear_on_delete(self):
         self._create_inset_design()
         self._apply_llm_plan(
