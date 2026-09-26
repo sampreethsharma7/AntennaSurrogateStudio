@@ -1,9 +1,9 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.79
+Contract version: 3.80
 Studio version: 0.33.2
 UI source SHA-256: 87130666db6e9ab14919387f5c038e11e2e5328bbe83aea4b6d98812c13a61bf
-Sample Generator UI source SHA-256: 9ee9ff0e1e2c8674341acd0973c4b4aa3fd93a0b00e1c9d9ea2f736bacd7f258
+Sample Generator UI source SHA-256: d533a59e3a7f8cd5d8b69262833ac0ddc00ad99e5405c7bfdf0c05c7ce256be1
 Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
@@ -362,7 +362,7 @@ training.
   and per-row remove actions; five visible rows per page for as many as 20
   variables; Samples; optional Seed; and Generate Samples. The right panel shows
   a neutral sampling-coverage plot and the first five generated rows. The footer
-  keeps validation/status copy and Export inputs.csv visible. At least one
+  keeps validation/status copy and **Export CSV + CST TXT** visible. At least one
   variable is required. Names must be non-empty and unique without using the
   reserved `sample_id` name. Bounds must be finite numbers with Min below Max;
   sample count must be a whole number from 1 through 100,000; and a supplied seed
@@ -377,9 +377,12 @@ training.
   Editing a setting
   invalidates the existing preview and disables export until samples are
   regenerated.
-- Export writes a user-chosen CSV containing only variables in the editor order;
-  it does not add a Sample ID column. The default project location is
-  `data/generated/lhs/inputs.csv`. It loads only the generated Input CSV path,
+- One export writes two files with the same basename containing only variables
+  in the editor order: a comma-delimited Studio CSV and a tab-delimited CST
+  parameter-sweep TXT. Neither adds a Sample ID column. The default project
+  files are `data/generated/lhs/inputs.csv` and `inputs.txt`. The confirmation
+  identifies the TXT as the file to import into CST's parameter sweep. Data Prep
+  loads only the generated Input CSV path,
   clears any Output CSV path to prevent a stale pairing, collapses later subtasks,
   and explains that solver outputs with the same row count and unchanged row
   order are still required. It does not run CST/HFSS, fabricate outputs,

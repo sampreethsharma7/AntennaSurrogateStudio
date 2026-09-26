@@ -16,6 +16,7 @@ from studio.sample_generator import (
     LHSSampleSet,
     LHSVariable,
     generate_lhs_samples,
+    write_lhs_inputs_cst_txt,
     write_lhs_inputs_csv,
 )
 from studio.theme import COLORS, FONTS
@@ -41,7 +42,7 @@ class LHSVariableEditor:
 
 
 class LHSSampleGeneratorDialog(ctk.CTkToplevel):
-    """Non-scrolling LHS editor, coverage preview, and CSV export workflow."""
+    """Non-scrolling LHS editor, coverage preview, and paired export workflow."""
 
     def __init__(
         self,
@@ -373,7 +374,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         self.status_label.grid(row=0, column=0, sticky="w")
         self.export_button = ctk.CTkButton(
             footer,
-            text="Export inputs.csv",
+            text="Export CSV + CST TXT",
             width=174,
             height=38,
             corner_radius=11,
@@ -754,20 +755,28 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         if not destination:
             return
         try:
-            exported = write_lhs_inputs_csv(destination, self.generated_samples)
+            exported_csv = write_lhs_inputs_csv(destination, self.generated_samples)
+            exported_cst = write_lhs_inputs_cst_txt(
+                Path(destination).with_suffix(".txt"),
+                self.generated_samples,
+            )
         except (OSError, ValueError) as exc:
             self._show_error(str(exc))
             return
-        self.status_var.set(f"Exported and loaded into Data Prep: {exported.name}")
+        self.status_var.set(
+            f"Exported {exported_csv.name} for Data Prep and {exported_cst.name} for CST."
+        )
         self.status_label.configure(text_color=COLORS["success"])
-        self.on_export(exported)
+        self.on_export(exported_csv)
         messagebox.showinfo(
             "LHS inputs ready",
             (
-                f"Saved {self.generated_samples.sample_count:,} simulation inputs to:\n"
-                f"{exported}\n\n"
-                "Run these rows in your simulator without reordering them, then "
-                "return with an output CSV containing the same row count and order."
+                f"Saved {self.generated_samples.sample_count:,} simulation inputs.\n\n"
+                f"Studio Data Prep CSV:\n{exported_csv}\n\n"
+                f"CST parameter-sweep import TXT:\n{exported_cst}\n\n"
+                "Import the TXT file into CST's parameter sweep. Run the rows without "
+                "reordering them, then return with an output CSV containing the same "
+                "row count and order."
             ),
             parent=self,
         )

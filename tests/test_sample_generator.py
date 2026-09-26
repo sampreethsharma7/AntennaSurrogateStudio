@@ -3,7 +3,10 @@ import math
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from studio.antenna_agent import create_default_agent
+from studio.cst_antenna_adapter import CSTAdapter
 from studio.parser_engine import (
     IMPORTED_OUTPUT_LABEL,
     discover_input_output_files,
@@ -15,6 +18,8 @@ from studio.sample_generator import (
     LHSSampleGenerationRequest,
     LHSVariable,
     generate_lhs_samples,
+    LHSSampleSet,
+    write_lhs_inputs_cst_txt,
     write_lhs_inputs_csv,
 )
 
@@ -194,6 +199,64 @@ class LHSSampleGeneratorTests(unittest.TestCase):
                 self.root / "inputs.txt",
                 generate_lhs_samples(self.request),
             )
+
+    def test_cst_txt_is_tab_delimited_and_preserves_names_and_formatting(self):
+        sample_set = LHSSampleSet(
+            variable_names=["NotchDepth", "SlotOffsetY"],
+            rows=[[1.2345678901234567, 2.0], [3.0, -4.56789012345678]],
+            random_seed=17,
+        )
+
+        destination = write_lhs_inputs_cst_txt(self.root / "inputs.txt", sample_set)
+
+        self.assertEqual(
+            destination.read_text(encoding="utf-8"),
+            "NotchDepth\tSlotOffsetY\n1.23456789012346\t2\n3\t-4.56789012345678\n",
+        )
+
+    def test_cst_txt_requires_txt_extension(self):
+        with self.assertRaisesRegex(ValueError, r"\.txt"):
+            write_lhs_inputs_cst_txt(
+                self.root / "inputs.csv",
+                generate_lhs_samples(self.request),
+            )
+
+    def test_cst_txt_failed_atomic_replace_removes_temporary_file(self):
+        destination = self.root / "inputs.txt"
+        with patch("studio.sample_generator.os.replace", side_effect=OSError("replace failed")):
+            with self.assertRaisesRegex(OSError, "replace failed"):
+                write_lhs_inputs_cst_txt(destination, generate_lhs_samples(self.request))
+
+        self.assertFalse(destination.exists())
+        self.assertEqual(list(self.root.glob(".inputs.txt.*.tmp")), [])
+
+    def test_cst_txt_validates_nonempty_rows_and_column_width(self):
+        invalid_sets = (
+            LHSSampleSet(["Width"], [], None),
+            LHSSampleSet(["Width", "Length"], [[1.0]], None),
+        )
+        for sample_set in invalid_sets:
+            with self.subTest(sample_set=sample_set):
+                with self.assertRaises(ValueError):
+                    write_lhs_inputs_cst_txt(self.root / "inputs.txt", sample_set)
+
+    def test_cst_txt_headers_match_cst_store_parameter_names(self):
+        design = create_default_agent().create_design("inset_patch_v2")
+        adapter = CSTAdapter()
+        cst_parameter_names = [name for name, _ in adapter.parameter_values(design)]
+        sample_set = LHSSampleSet(
+            variable_names=cst_parameter_names,
+            rows=[[parameter.value for parameter in design.parameters]],
+            random_seed=None,
+        )
+
+        destination = write_lhs_inputs_cst_txt(self.root / "model_inputs.txt", sample_set)
+        header = destination.read_text(encoding="utf-8").splitlines()[0].split("\t")
+
+        self.assertEqual(header, cst_parameter_names)
+        history = adapter.history(design)
+        for name in header:
+            self.assertIn(f'StoreParameter "{name}"', history)
 
 
 if __name__ == "__main__":

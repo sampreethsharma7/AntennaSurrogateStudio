@@ -227,16 +227,18 @@ class DataPrepPageTests(unittest.TestCase):
         dialog.generate_samples()
 
         destination = self.project.path / "data" / "generated" / "inputs.csv"
+        cst_destination = destination.with_suffix(".txt")
         with (
             patch(
                 "studio.sample_generator_ui.filedialog.asksaveasfilename",
                 return_value=str(destination),
             ),
-            patch("studio.sample_generator_ui.messagebox.showinfo"),
+            patch("studio.sample_generator_ui.messagebox.showinfo") as info,
         ):
             dialog.export_samples()
 
         self.assertTrue(destination.exists())
+        self.assertTrue(cst_destination.exists())
         self.assertEqual(self.page.mode_var.get(), "pair")
         self.assertEqual(self.page.input_path_var.get(), str(destination.resolve()))
         self.assertEqual(self.page.output_path_var.get(), "")
@@ -246,6 +248,12 @@ class DataPrepPageTests(unittest.TestCase):
         exported_text = destination.read_text(encoding="utf-8")
         self.assertTrue(exported_text.startswith("patch_length,patch_width,feed_offset"))
         self.assertNotIn("sample_id", exported_text.splitlines()[0].lower())
+        cst_text = cst_destination.read_text(encoding="utf-8")
+        self.assertTrue(cst_text.startswith("patch_length\tpatch_width\tfeed_offset"))
+        self.assertEqual(len(cst_text.splitlines()), 9)
+        self.assertIn(str(destination.resolve()), info.call_args.args[1])
+        self.assertIn(str(cst_destination.resolve()), info.call_args.args[1])
+        self.assertIn("parameter sweep", info.call_args.args[1])
 
     def test_lhs_invalid_form_is_reported_without_exportable_output(self):
         self.page.open_lhs_sample_generator()
