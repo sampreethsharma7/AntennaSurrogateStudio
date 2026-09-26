@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -15,6 +16,8 @@ from typing import Any
 
 PROJECT_SCHEMA_VERSION = 1
 WELCOME_SESSION_LIMIT = 50
+ATOMIC_REPLACE_ATTEMPTS = 5
+ATOMIC_REPLACE_INITIAL_BACKOFF_SECONDS = 0.025
 PROJECT_SUBDIRECTORIES = (
     "design",
     "data/raw",
@@ -53,6 +56,19 @@ def project_slug(name: str) -> str:
     return cleaned or "untitled-antenna-project"
 
 
+def _replace_with_retry(source: Path, destination: Path) -> None:
+    """Replace atomically, tolerating brief Windows file-handle contention."""
+
+    for attempt in range(ATOMIC_REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, destination)
+            return
+        except OSError:
+            if attempt == ATOMIC_REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(ATOMIC_REPLACE_INITIAL_BACKOFF_SECONDS * (2**attempt))
+
+
 def atomic_write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     handle = tempfile.NamedTemporaryFile(
@@ -69,7 +85,7 @@ def atomic_write_json(path: Path, payload: Any) -> None:
         with handle:
             json.dump(payload, handle, indent=2, ensure_ascii=False)
             handle.write("\n")
-        os.replace(temp_path, path)
+        _replace_with_retry(temp_path, path)
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise

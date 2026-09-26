@@ -1,9 +1,16 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from studio.project_store import ProjectError, ProjectStore
+from studio.project_store import (
+    ATOMIC_REPLACE_ATTEMPTS,
+    ProjectError,
+    ProjectStore,
+    atomic_write_json,
+)
 from studio.ui import project_resume_destination
 
 
@@ -16,6 +23,74 @@ class ProjectStoreTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
+
+    def _replace_that_fails(self, failure_count: int):
+        actual_replace = os.replace
+        attempts = 0
+
+        def replace(source, destination):
+            nonlocal attempts
+            attempts += 1
+            if attempts <= failure_count:
+                raise PermissionError(5, "simulated transient file lock")
+            return actual_replace(source, destination)
+
+        return replace
+
+    def _atomic_temp_files(self, destination: Path) -> list[Path]:
+        return list(destination.parent.glob(f".{destination.name}.*.tmp"))
+
+    def test_atomic_write_retries_one_transient_permission_error(self):
+        destination = Path(self.temp_dir.name) / "retry-once.json"
+        replace = self._replace_that_fails(1)
+
+        with (
+            patch("studio.project_store.os.replace", side_effect=replace) as mocked_replace,
+            patch("studio.project_store.time.sleep") as sleep,
+        ):
+            atomic_write_json(destination, {"status": "saved"})
+
+        self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), {"status": "saved"})
+        self.assertEqual(mocked_replace.call_count, 2)
+        sleep.assert_called_once()
+        self.assertEqual(self._atomic_temp_files(destination), [])
+
+    def test_atomic_write_retries_two_transient_permission_errors(self):
+        destination = Path(self.temp_dir.name) / "retry-twice.json"
+        replace = self._replace_that_fails(2)
+
+        with (
+            patch("studio.project_store.os.replace", side_effect=replace) as mocked_replace,
+            patch("studio.project_store.time.sleep") as sleep,
+        ):
+            atomic_write_json(destination, {"status": "saved"})
+
+        self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), {"status": "saved"})
+        self.assertEqual(mocked_replace.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(self._atomic_temp_files(destination), [])
+
+    def test_atomic_write_persistent_permission_error_is_loud_and_cleans_temp(self):
+        destination = Path(self.temp_dir.name) / "persistent-lock.json"
+        destination.write_text('{"status": "previous"}\n', encoding="utf-8")
+
+        with (
+            patch(
+                "studio.project_store.os.replace",
+                side_effect=PermissionError(5, "simulated persistent file lock"),
+            ) as mocked_replace,
+            patch("studio.project_store.time.sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(PermissionError, "persistent file lock"):
+                atomic_write_json(destination, {"status": "not saved"})
+
+        self.assertEqual(
+            json.loads(destination.read_text(encoding="utf-8")),
+            {"status": "previous"},
+        )
+        self.assertEqual(mocked_replace.call_count, ATOMIC_REPLACE_ATTEMPTS)
+        self.assertEqual(sleep.call_count, ATOMIC_REPLACE_ATTEMPTS - 1)
+        self.assertEqual(self._atomic_temp_files(destination), [])
 
     def test_create_project_builds_portable_layout_and_recent_entry(self):
         project = self.store.create_project("8 Element Array", "A project")
