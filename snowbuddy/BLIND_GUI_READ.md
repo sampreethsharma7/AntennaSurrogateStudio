@@ -1,14 +1,14 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.80
+Contract version: 3.81
 Studio version: 0.33.2
-UI source SHA-256: 87130666db6e9ab14919387f5c038e11e2e5328bbe83aea4b6d98812c13a61bf
+UI source SHA-256: 3f6ce2cc3ec15c908fcedc5ae08fae5e4f9030db01f3f79f0081fed7f01460aa
 Sample Generator UI source SHA-256: d533a59e3a7f8cd5d8b69262833ac0ddc00ad99e5405c7bfdf0c05c7ce256be1
 Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
 Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
-Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
-Inverse Design UI source SHA-256: c5d1529324d4faf690b88fa2d3e9e718d073830c56ca852bbdd040fe39c1023f
+Inference UI source SHA-256: 805a23d7b3d745c77d392eda5bfe21b067a3d8366afd092ebc749a33862310fd
+Inverse Design UI source SHA-256: e2832803ca6c38b707d34cc2a7bbb8bc961b8dda30c7fd1b312f41dc1e2d6daf
 Scientific Plot UI source SHA-256: 90ffa0bca1408d4aaabe73f6722b9144c9e0ab585e6cb15837701b6d8b6eb825
 Theme source SHA-256: c1149c09ec5cd35f71710288f9067c6949e00088b8a8d0470011e38ed07aedb8
 
@@ -668,8 +668,10 @@ Ensemble completion uses “Ensemble Training Completed.” It shows the number 
 valid/failed components, normalized weights, Ensemble and best-individual
 validation RMSE, the validation-based recommendation, and final test metrics.
 
-After either successful dialog is dismissed, the Studio opens Training Results
-for the newly completed run. The result is also reloaded whenever the project is
+After a successful dialog is dismissed, the Studio remains on Model Training so
+the user can start another run. The dialog names the explicit **View Training
+Results** action; choosing that footer action or the sidebar destination opens
+the newly completed run. The result is also reloaded whenever the project is
 reopened or Training Results is selected from the sidebar.
 
 If request validation fails, a user-facing “Invalid training configuration”
@@ -907,9 +909,12 @@ visible when no active Model Book is available.
 
 The narrower left New Sample panel shows the active interface's input-to-output
 counts without repeating the Model Book identity from the result header. It generates one
-labeled numeric entry for every saved feature in exact feature order. Up to
-eight inputs appear in a two-column grid; larger interfaces use Previous/Next
-pages while all entered values remain retained. A two-choice control offers
+labeled numeric entry for every saved feature in exact feature order. Each entry
+starts at that feature's training-set median and shows its immutable training
+minimum and maximum beneath the field. Up to eight inputs appear in a two-column
+grid; larger interfaces use Previous/Next pages while all entered values remain
+retained. Values outside the training range remain valid for prediction but show
+an explicit extrapolation warning. A two-choice control offers
 **Replace current curve** (default) and **Add to plot**. Predict validates that
 every value is present, numeric, and finite, then calls the unchanged local
 inference backend. The button reads “Predicting…” and is disabled only during
@@ -966,9 +971,11 @@ characters. Full curve names always remain available in the Curves manager.
 After a successful prediction, **View Raw Values** opens the complete inputs and
 predicted outputs in saved interface order. **Export Prediction** opens the
 operating system save dialog for either a JSON file containing Model Book identity,
-ordered input name/value records, structured output-axis metadata, output count,
-and ordered target/value records, or a curve CSV containing output-axis coordinate,
-predicted value, and output-variable name in saved order.
+ordered input name/value records, structured output-axis metadata, extrapolation
+warnings, output count, and ordered target/value records, or a curve CSV containing
+output-axis coordinate, predicted value, and output-variable name in saved order.
+The default JSON name includes the immutable inference run ID and adds a numeric
+suffix if that file already exists, so consecutive predictions do not collide.
 This explicit export is separate from the automatic project history. Both actions
 are disabled before prediction, during prediction, and after a failed result, and
 operate on the currently selected restored or newly generated curve.
@@ -998,7 +1005,7 @@ is disabled and the footer directs the user to select a valid Model Book.
 The page uses an Inference-style persistent split workspace: Search Configuration
 stays on the left and the scientific result workbench remains visible on the
 right. A draggable vertical divider adjusts their widths while enforcing minimum
-usable sizes. Search Configuration cannot be narrowed below 520 pixels. Its
+usable sizes. Search Configuration cannot be narrowed below 522 pixels. Its
 feature labels, Variable/Fixed controls, numeric fields, objective-range fields,
 and constraint controls resize with the pane; explanatory copy rewraps to the
 actual width. Dragged or restored divider positions are clamped before the
@@ -1019,9 +1026,15 @@ feature assigned exactly once.
 **Objective** has no long saved-output menu. It shows the saved output-axis label,
 coordinate bounds, and point count, then accepts a numeric coordinate for
 **Single point** or inclusive numeric start/end coordinates for **Mean over
-range**. Mean over range evaluates the arithmetic mean of all ordered saved
-outputs inside the range as one scalar objective and requires at least two
-points. Minimize, Maximize, or Target value applies to that scalar.
+range**. Typed coordinates snap to the nearest saved coordinate, including a
+rounded endpoint that lies within half of the adjacent grid interval. The result
+summary discloses each snap and the representative saved-grid spacing. Requests
+outside that selectable axis extent are rejected with the actual saved range.
+Mean over range applies the same endpoint snapping, evaluates the arithmetic mean
+of all ordered saved outputs inside the snapped range as one scalar objective,
+and requires at least two points. Minimize, Maximize, or Target value applies to
+that scalar. Programmatic numeric values use compact four-decimal display
+precision while their stored calculation precision remains unchanged.
 An on-page explanation defines the objective as the one predicted scalar that
 Differential Evolution improves: lowest for Minimize, highest for Maximize, or
 closest to the requested number for Target value. **Constraints** allows up to

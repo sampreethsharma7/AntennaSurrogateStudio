@@ -5214,6 +5214,10 @@ class ModelTrainingPage(ctk.CTkFrame):
         training_mode_label = (
             result.training_mode or (request.training_mode if request else "")
         ).title()
+        navigation_hint = (
+            "\n\nYou can start another run here. Choose View Training Results "
+            "when you are ready to review this run."
+        )
         if result.model_name == "ensemble_ai_engine":
             best_model = self._display_model_name(
                 result.best_individual_model or "Unknown"
@@ -5239,10 +5243,10 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"Test MAE: {metrics['MAE']:.6g}\n"
                     f"Test RMSE: {metrics['RMSE']:.6g}\n"
                     f"Test R²: {metrics['R²']:.6g}"
+                    f"{navigation_hint}"
                 ),
                 parent=self,
             )
-            self._open_latest_training_results(result)
             return
         if result.model_name in {"xgboost", "neural_network"} and (
             result.training_mode or request.training_mode
@@ -5269,10 +5273,10 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"MAE: {metrics['MAE']:.6g}\n"
                     f"RMSE: {metrics['RMSE']:.6g}\n"
                     f"R²: {metrics['R²']:.6g}"
+                    f"{navigation_hint}"
                 ),
                 parent=self,
             )
-            self._open_latest_training_results(result)
             return
         if (
             result.training_mode
@@ -5306,10 +5310,10 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"Test MAE: {test_metrics['MAE']:.6g}\n"
                     f"Test RMSE: {test_metrics['RMSE']:.6g}\n"
                     f"Test R²: {test_metrics['R²']:.6g}"
+                    f"{navigation_hint}"
                 ),
                 parent=self,
             )
-            self._open_latest_training_results(result)
             return
         messagebox.showinfo(
             "Training Completed",
@@ -5323,10 +5327,10 @@ class ModelTrainingPage(ctk.CTkFrame):
                 f"MAE: {metrics['MAE']:.6g}\n"
                 f"RMSE: {metrics['RMSE']:.6g}\n"
                 f"R²: {metrics['R²']:.6g}"
+                f"{navigation_hint}"
             ),
             parent=self,
         )
-        self._open_latest_training_results(result)
 
     def _open_latest_training_results(
         self,

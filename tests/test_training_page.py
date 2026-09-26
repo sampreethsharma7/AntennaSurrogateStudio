@@ -669,6 +669,22 @@ class ModelTrainingPageTests(unittest.TestCase):
             str(self.page.latest_run_var),
         )
 
+    def test_successful_training_stays_on_training_page(self):
+        self.app.show_page("training", persist=False)
+        with (
+            patch(
+                "studio.ui.submit_model_training_request",
+                return_value=self._successful_result(run_number=4),
+            ),
+            patch("studio.ui.messagebox.showinfo") as show_info,
+        ):
+            self.page.train_button.invoke()
+            self._wait_for_training()
+
+        self.assertEqual(self.app.active_page, "training")
+        self.assertIn("View Training Results", show_info.call_args.args[1])
+        self.assertEqual(self.page.results_button.cget("state"), "normal")
+
     def test_clicking_train_in_custom_mode_creates_the_correct_request(self):
         self.page._training_mode_changed("Custom")
         self.page.fit_intercept.set(False)

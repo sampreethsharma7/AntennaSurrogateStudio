@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import statistics
 import threading
 import tkinter as tk
 from dataclasses import dataclass
@@ -36,9 +37,17 @@ if TYPE_CHECKING:
 
 INPUTS_PER_PAGE = 5
 MAX_CONSTRAINTS = 4
-INPUT_COLUMN_MIN_WIDTHS = (105, 170, 56, 56, 56)
-CONFIGURATION_MIN_WIDTH = 520
-CONFIGURATION_DEFAULT_WIDTH = 520
+NUMERIC_ENTRY_MIN_WIDTH = 76
+COORDINATE_ENTRY_MIN_WIDTH = 110
+INPUT_COLUMN_MIN_WIDTHS = (
+    105,
+    171,
+    NUMERIC_ENTRY_MIN_WIDTH,
+    NUMERIC_ENTRY_MIN_WIDTH,
+    NUMERIC_ENTRY_MIN_WIDTH,
+)
+CONFIGURATION_MIN_WIDTH = 522
+CONFIGURATION_DEFAULT_WIDTH = 522
 # Include the workbench's plot/manager minima, its sash, and the result-card
 # padding.  Tk can otherwise satisfy the outer pane while silently compressing
 # both inner panes below their own readable widths.
@@ -66,6 +75,14 @@ MODEL_LABELS = {
     "neural_network": "Neural Network",
     "ensemble_ai_engine": "Ensemble AI Engine",
 }
+
+
+def _display_numeric_value(value: float) -> str:
+    if value == 0:
+        return "0"
+    if 1.0e-3 <= abs(value) < 1.0e6:
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return f"{value:.4g}"
 
 
 @dataclass(slots=True)
@@ -105,6 +122,7 @@ class InverseDesignPage(ctk.CTkFrame):
         self.input_page = 0
         self.input_widgets: dict[str, InputWidgets] = {}
         self.constraint_widgets: list[ConstraintWidgets] = []
+        self._coordinate_disclosures: list[str] = []
         self._clamping_workspace_sash = False
 
         self.grid_columnconfigure(0, weight=1)
@@ -472,7 +490,9 @@ class InverseDesignPage(ctk.CTkFrame):
         self.single_coordinate.grid(row=1, column=0, sticky="ew")
         self.range_coordinate_shell = ctk.CTkFrame(section, fg_color="transparent")
         self.range_coordinate_shell.grid(row=3, column=0, sticky="ew")
-        self.range_coordinate_shell.grid_columnconfigure((0, 1), weight=1)
+        self.range_coordinate_shell.grid_columnconfigure(
+            (0, 1), weight=1, minsize=COORDINATE_ENTRY_MIN_WIDTH
+        )
         start_shell = self._field_shell(self.range_coordinate_shell, "RANGE START")
         start_shell.grid(row=0, column=0, padx=(0, 4), sticky="ew")
         self.range_start = self._numeric_entry(start_shell, "Inclusive start")
@@ -683,7 +703,9 @@ class InverseDesignPage(ctk.CTkFrame):
 
     def _field_shell(self, parent: ctk.CTkFrame, label: str) -> ctk.CTkFrame:
         shell = ctk.CTkFrame(parent, fg_color="transparent")
-        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_columnconfigure(
+            0, weight=1, minsize=COORDINATE_ENTRY_MIN_WIDTH
+        )
         ctk.CTkLabel(
             shell,
             text=label,
@@ -839,6 +861,7 @@ class InverseDesignPage(ctk.CTkFrame):
         for widgets in self.constraint_widgets:
             widgets.frame.destroy()
         self.constraint_widgets.clear()
+        self._coordinate_disclosures = []
         self.input_pager.grid_remove()
         self.constraint_empty.grid()
         self.add_constraint_button.configure(state="normal")
@@ -877,7 +900,7 @@ class InverseDesignPage(ctk.CTkFrame):
             (self.range_end, max(values)),
         ):
             entry.delete(0, "end")
-            entry.insert(0, f"{value:.12g}")
+            entry.insert(0, _display_numeric_value(value))
 
     def _create_input_rows(self, features: list[str]) -> None:
         for index, name in enumerate(features):
@@ -1001,7 +1024,9 @@ class InverseDesignPage(ctk.CTkFrame):
         )
         frame.grid(row=index, column=0, pady=3, sticky="ew")
         frame.grid_columnconfigure(0, weight=5)
-        frame.grid_columnconfigure((1, 2), weight=4)
+        frame.grid_columnconfigure(
+            (1, 2), weight=4, minsize=COORDINATE_ENTRY_MIN_WIDTH
+        )
         scope = ctk.CTkOptionMenu(
             frame,
             values=["Single point", "Mean over range"],
@@ -1023,8 +1048,8 @@ class InverseDesignPage(ctk.CTkFrame):
         coordinate_start.grid(row=0, column=1, padx=3, pady=(6, 3), sticky="ew")
         coordinate_end.grid(row=0, column=2, padx=3, pady=(6, 3), sticky="ew")
         axis_values = list(self.active_book.output_axis.values)
-        coordinate_start.insert(0, f"{axis_values[0]:.12g}")
-        coordinate_end.insert(0, f"{axis_values[-1]:.12g}")
+        coordinate_start.insert(0, _display_numeric_value(axis_values[0]))
+        coordinate_end.insert(0, _display_numeric_value(axis_values[-1]))
         operator = ctk.CTkOptionMenu(
             frame,
             values=list(CONSTRAINT_LABELS),
@@ -1146,31 +1171,104 @@ class InverseDesignPage(ctk.CTkFrame):
             )
         )
 
+    def _axis_coordinate_text(self, value: float) -> str:
+        axis = (
+            self.active_book.output_axis
+            if self.active_book and self.active_book.output_axis
+            else None
+        )
+        unit = axis.unit if axis else None
+        return f"{value:.6g}{f' {unit}' if unit else ''}"
+
+    def _axis_spacing_text(self) -> str:
+        coordinates = sorted({coordinate for coordinate, _name in self._axis_pairs()})
+        if len(coordinates) < 2:
+            return "not available"
+        spacing = float(
+            statistics.median(
+                right - left for left, right in zip(coordinates, coordinates[1:])
+            )
+        )
+        axis = (
+            self.active_book.output_axis
+            if self.active_book and self.active_book.output_axis
+            else None
+        )
+        unit = axis.unit if axis else None
+        if unit == "GHz" and spacing < 1.0:
+            return f"{spacing * 1000:.4g} MHz"
+        if unit == "MHz" and spacing < 1.0:
+            return f"{spacing * 1000:.4g} kHz"
+        if unit == "kHz" and spacing < 1.0:
+            return f"{spacing * 1000:.4g} Hz"
+        return f"{spacing:.4g}{f' {unit}' if unit else ' coordinate units'}"
+
+    def _snap_output_coordinate(
+        self,
+        requested: float,
+        *,
+        label: str,
+    ) -> tuple[float, str]:
+        pairs = self._axis_pairs()
+        coordinates = sorted(coordinate for coordinate, _name in pairs)
+        minimum = coordinates[0]
+        maximum = coordinates[-1]
+        lower_snap_limit = minimum
+        upper_snap_limit = maximum
+        if len(coordinates) > 1:
+            lower_snap_limit -= (coordinates[1] - minimum) / 2.0
+            upper_snap_limit += (maximum - coordinates[-2]) / 2.0
+        if requested < lower_snap_limit or requested > upper_snap_limit:
+            raise ValueError(
+                f"{label} {self._axis_coordinate_text(requested)} is outside the "
+                f"saved axis range {self._axis_coordinate_text(minimum)} to "
+                f"{self._axis_coordinate_text(maximum)}."
+            )
+        coordinate, name = min(
+            pairs,
+            key=lambda pair: abs(pair[0] - requested),
+        )
+        if not math.isclose(coordinate, requested, rel_tol=0.0, abs_tol=1.0e-12):
+            if label == "Requested objective coordinate":
+                prefix = f"Optimizing at {self._axis_coordinate_text(coordinate)}"
+            else:
+                prefix = f"{label} snapped to {self._axis_coordinate_text(coordinate)}"
+            self._coordinate_disclosures.append(
+                f"{prefix} -- nearest saved point to "
+                f"{self._axis_coordinate_text(requested)} "
+                f"(grid spacing {self._axis_spacing_text()})."
+            )
+        return coordinate, name
+
     def _objective_outputs(self) -> tuple[str, list[str]]:
         pairs = self._axis_pairs()
         if self.objective_scope.get() == "Single point":
             requested = self._float_entry(
                 self.single_coordinate,
-                "an exact saved output coordinate",
+                "an output coordinate",
             )
-            match = next(
-                (
-                    name
-                    for coordinate, name in pairs
-                    if math.isclose(coordinate, requested, rel_tol=1e-10, abs_tol=1e-12)
-                ),
-                None,
+            _coordinate, match = self._snap_output_coordinate(
+                requested,
+                label="Requested objective coordinate",
             )
-            if match is None:
-                raise ValueError(
-                    f"No saved output exists at coordinate {requested:.12g}."
-                )
             return "single", [match]
         start = self._float_entry(self.range_start, "an output-range start")
         end = self._float_entry(self.range_end, "an output-range end")
         if start > end:
             raise ValueError("Output-range start cannot exceed output-range end.")
-        names = [name for coordinate, name in pairs if start <= coordinate <= end]
+        snapped_start, _start_name = self._snap_output_coordinate(
+            start,
+            label="Objective range start",
+        )
+        snapped_end, _end_name = self._snap_output_coordinate(
+            end,
+            label="Objective range end",
+        )
+        names = [
+            name
+            for coordinate, name in pairs
+            if snapped_start <= coordinate <= snapped_end
+        ]
         if len(names) < 2:
             raise ValueError(
                 "Mean over range requires at least two saved output coordinates."
@@ -1188,24 +1286,10 @@ class InverseDesignPage(ctk.CTkFrame):
                 widgets.coordinate_start,
                 f"constraint {index} output coordinate",
             )
-            match = next(
-                (
-                    name
-                    for coordinate, name in pairs
-                    if math.isclose(
-                        coordinate,
-                        requested,
-                        rel_tol=1e-10,
-                        abs_tol=1e-12,
-                    )
-                ),
-                None,
+            _coordinate, match = self._snap_output_coordinate(
+                requested,
+                label=f"Constraint {index} coordinate",
             )
-            if match is None:
-                raise ValueError(
-                    f"Constraint {index} has no saved output at coordinate "
-                    f"{requested:.12g}."
-                )
             return "single", [match]
         start = self._float_entry(
             widgets.coordinate_start,
@@ -1219,7 +1303,19 @@ class InverseDesignPage(ctk.CTkFrame):
             raise ValueError(
                 f"Constraint {index} range start cannot exceed its range end."
             )
-        names = [name for coordinate, name in pairs if start <= coordinate <= end]
+        snapped_start, _start_name = self._snap_output_coordinate(
+            start,
+            label=f"Constraint {index} range start",
+        )
+        snapped_end, _end_name = self._snap_output_coordinate(
+            end,
+            label=f"Constraint {index} range end",
+        )
+        names = [
+            name
+            for coordinate, name in pairs
+            if snapped_start <= coordinate <= snapped_end
+        ]
         if len(names) < 2:
             raise ValueError(
                 f"Constraint {index} mean requires at least two saved output coordinates."
@@ -1229,6 +1325,7 @@ class InverseDesignPage(ctk.CTkFrame):
     def build_request(self) -> InverseDesignRequest:
         if self.active_book is None:
             raise ValueError(self.load_error or "Select an active Model Book first.")
+        self._coordinate_disclosures = []
         variable_bounds: dict[str, tuple[float, float]] = {}
         fixed_inputs: dict[str, float] = {}
         for name, widgets in self.input_widgets.items():
@@ -1416,6 +1513,9 @@ class InverseDesignPage(ctk.CTkFrame):
             ),
             check_duplicate=not restoring,
             refresh_plot=not restoring,
+            coordinate_disclosures=(
+                () if restoring else tuple(self._coordinate_disclosures)
+            ),
         )
 
     @staticmethod
@@ -1486,6 +1586,7 @@ class InverseDesignPage(ctk.CTkFrame):
         replace_selected: bool,
         check_duplicate: bool = True,
         refresh_plot: bool = True,
+        coordinate_disclosures: tuple[str, ...] = (),
     ) -> None:
         aggregation = str(objective.get("aggregation") or "single")
         output_names = list(objective.get("output_names") or [])
@@ -1541,6 +1642,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 )
                 + matching_name
             )
+        summary_parts.extend(coordinate_disclosures)
         self.result_summary.configure(
             text=" · ".join(summary_parts),
             text_color=COLORS["muted"],
@@ -1579,7 +1681,8 @@ class InverseDesignPage(ctk.CTkFrame):
             else str(iterations)
         )
         input_text = " · ".join(
-            f"{name} = {value:.7g}" for name, value in best_inputs.items()
+            f"{name} = {_display_numeric_value(value)}"
+            for name, value in best_inputs.items()
         )
         constraint_text = (
             f" · {len(constraint_evaluations)}/{len(constraint_evaluations)} "

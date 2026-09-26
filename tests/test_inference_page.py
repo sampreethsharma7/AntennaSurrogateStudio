@@ -232,6 +232,17 @@ class InferencePageTests(unittest.TestCase):
                 for entry in self.page.input_entries.values()
             )
         )
+        self.assertEqual(self.page.input_entries["P2"].get(), "12.5")
+        self.assertEqual(self.page.input_entries["P3"].get(), "3")
+        self.assertEqual(self.page.input_entries["P4"].get(), "2")
+        self.assertEqual(
+            self.page.input_range_labels["P2"].cget("text"),
+            "Training range: 1 to 24",
+        )
+        self.assertEqual(
+            self.page.input_range_labels["P3"].cget("text"),
+            "Training range: 0 to 6",
+        )
         self.assertEqual(self.page.input_pager.winfo_manager(), "")
 
     def test_many_required_inputs_are_paged_without_losing_values(self):
@@ -743,6 +754,8 @@ class InferencePageTests(unittest.TestCase):
             payload["export_type"],
             "antenna_surrogate_studio_prediction",
         )
+        self.assertEqual(payload["schema_version"], 2)
+        self.assertEqual(payload["warnings"], [])
         self.assertEqual(payload["model_book"]["book_id"], self.multi_book.book_id)
         self.assertEqual(payload["model_book"]["name"], "Response Model")
         self.assertEqual(
@@ -800,6 +813,7 @@ class InferencePageTests(unittest.TestCase):
 
     def test_missing_and_invalid_numeric_values_show_clear_errors(self):
         with patch("studio.inference_ui.submit_inference_request") as submit:
+            self.page.input_entries["P2"].delete(0, "end")
             self.page.predict_button.invoke()
             self.assertIn("Enter a value for P2", self.page.input_error.cget("text"))
             submit.assert_not_called()
@@ -810,6 +824,55 @@ class InferencePageTests(unittest.TestCase):
             self.page.predict_button.invoke()
             self.assertIn("P3 must be a numeric value", self.page.input_error.cget("text"))
             submit.assert_not_called()
+
+    def test_extrapolation_warns_without_blocking_and_is_exported(self):
+        self._fill_inputs({"P2": 30.0, "P3": 2.0, "P4": 3.0})
+
+        self.page.predict_button.invoke()
+
+        self.assertTrue(self.page.last_result.success)
+        warning_text = self.page.input_error.cget("text")
+        self.assertIn("P2 = 30", warning_text)
+        self.assertIn("outside its training range 1 to 24", warning_text)
+        self.assertIn("extrapolation", warning_text)
+
+        export_path = Path(self.temp_dir.name) / "extrapolated_prediction.json"
+        with (
+            patch(
+                "studio.inference_ui.filedialog.asksaveasfilename",
+                return_value=str(export_path),
+            ),
+            patch("studio.inference_ui.messagebox.showinfo"),
+        ):
+            self.page.export_button.invoke()
+
+        payload = json.loads(export_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(payload["warnings"]), 1)
+        warning = payload["warnings"][0]
+        self.assertEqual(warning["type"], "training_range_extrapolation")
+        self.assertEqual(warning["feature"], "P2")
+        self.assertEqual(warning["value"], 30.0)
+        self.assertEqual(warning["training_minimum"], 1.0)
+        self.assertEqual(warning["training_maximum"], 24.0)
+
+    def test_prediction_export_default_filename_is_unique_per_run(self):
+        defaults: list[str] = []
+
+        for values in (
+            {"P2": 4.0, "P3": 2.0, "P4": 3.0},
+            {"P2": 5.0, "P3": 2.0, "P4": 3.0},
+        ):
+            self._fill_inputs(values)
+            self.page.predict_button.invoke()
+            with patch(
+                "studio.inference_ui.filedialog.asksaveasfilename",
+                return_value="",
+            ) as ask_save:
+                self.page.export_button.invoke()
+            defaults.append(ask_save.call_args.kwargs["initialfile"])
+
+        self.assertNotEqual(defaults[0], defaults[1])
+        self.assertTrue(all(name.endswith(".json") for name in defaults))
 
     def test_no_active_model_disables_prediction_with_guidance(self):
         project = self.store.open_project(self.empty_project.path, touch=False)

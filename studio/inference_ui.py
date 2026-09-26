@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import csv
 import math
+import re
+from dataclasses import dataclass
 from pathlib import Path
+from statistics import median
 from tkinter import filedialog, messagebox
 from typing import TYPE_CHECKING
 
 import customtkinter as ctk
 
+from studio.dataset_registry import DatasetRegistrationError, get_registered_dataset
 from studio.inference import (
     InferenceError,
     InferenceRequest,
@@ -28,7 +32,115 @@ if TYPE_CHECKING:
 
 INPUTS_PER_PAGE = 8
 MIN_USABLE_PREDICTION_PLOT_WIDTH = 420
-PREDICTION_EXPORT_SCHEMA_VERSION = 1
+PREDICTION_EXPORT_SCHEMA_VERSION = 2
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingFeatureStatistics:
+    minimum: float
+    median: float
+    maximum: float
+
+
+def _display_input_number(value: float) -> str:
+    if value == 0:
+        return "0"
+    if 1.0e-3 <= abs(value) < 1.0e6:
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return f"{value:.4g}"
+
+
+def load_training_feature_statistics(
+    book: ModelBook,
+) -> dict[str, TrainingFeatureStatistics]:
+    """Read input bounds and medians from the Model Book's immutable dataset."""
+
+    try:
+        dataset = get_registered_dataset(book.project_path, book.dataset_id)
+    except DatasetRegistrationError as exc:
+        raise InferenceError(
+            f"Training input ranges are unavailable. {exc}"
+        ) from exc
+    if dataset.fingerprint_sha256 != book.dataset_fingerprint:
+        raise InferenceError(
+            "Training input ranges are unavailable because the registered dataset "
+            "does not match the active Model Book."
+        )
+    values = {name: [] for name in book.feature_columns}
+    try:
+        with dataset.input_csv_path.open(newline="", encoding="utf-8-sig") as handle:
+            reader = csv.DictReader(handle)
+            if reader.fieldnames is None or any(
+                name not in reader.fieldnames for name in book.feature_columns
+            ):
+                raise InferenceError(
+                    "Training input ranges are unavailable because the registered "
+                    "input columns do not match the active Model Book."
+                )
+            for row in reader:
+                for name in book.feature_columns:
+                    value = float(row[name])
+                    if not math.isfinite(value):
+                        raise ValueError(name)
+                    values[name].append(value)
+    except (OSError, TypeError, ValueError) as exc:
+        raise InferenceError(
+            "Training input ranges could not be read from the registered dataset."
+        ) from exc
+    if any(not column for column in values.values()):
+        raise InferenceError("The registered training dataset contains no input rows.")
+    return {
+        name: TrainingFeatureStatistics(
+            minimum=min(column),
+            median=float(median(column)),
+            maximum=max(column),
+        )
+        for name, column in values.items()
+    }
+
+
+def extrapolation_warnings(
+    values: dict[str, float],
+    statistics: dict[str, TrainingFeatureStatistics],
+) -> list[dict[str, object]]:
+    warnings: list[dict[str, object]] = []
+    for name, value in values.items():
+        bounds = statistics.get(name)
+        if bounds is None or bounds.minimum <= value <= bounds.maximum:
+            continue
+        message = (
+            f"{name} = {_display_input_number(value)} is outside its training range "
+            f"{_display_input_number(bounds.minimum)} to "
+            f"{_display_input_number(bounds.maximum)}. The prediction is extrapolation."
+        )
+        warnings.append(
+            {
+                "type": "training_range_extrapolation",
+                "feature": name,
+                "value": value,
+                "training_minimum": bounds.minimum,
+                "training_maximum": bounds.maximum,
+                "message": message,
+            }
+        )
+    return warnings
+
+
+def _prediction_export_filename(
+    directory: Path,
+    book: ModelBook,
+    result: InferenceResult,
+) -> str:
+    tokens = ["prediction", book.book_id]
+    if result.run_id:
+        tokens.append(result.run_id)
+    stem = "_".join(re.sub(r"[^0-9A-Za-z_-]+", "-", token) for token in tokens)
+    candidate = directory / f"{stem}.json"
+    counter = 2
+    while candidate.exists():
+        candidate = directory / f"{stem}_{counter}.json"
+        counter += 1
+    return candidate.name
 
 
 def _ordered_items(
@@ -45,11 +157,18 @@ def _ordered_items(
 def prediction_export_payload(
     result: InferenceResult,
     book: ModelBook,
+    feature_statistics: dict[str, TrainingFeatureStatistics] | None = None,
 ) -> dict[str, object]:
     """Build a portable, explicitly ordered prediction export."""
 
     if not result.success or not result.predictions:
         raise ValueError("A successful prediction is required before export.")
+    statistics = (
+        load_training_feature_statistics(book)
+        if feature_statistics is None
+        else feature_statistics
+    )
+    warnings = extrapolation_warnings(result.input_values, statistics)
     return {
         "schema_version": PREDICTION_EXPORT_SCHEMA_VERSION,
         "export_type": "antenna_surrogate_studio_prediction",
@@ -69,6 +188,7 @@ def prediction_export_payload(
             {"name": name, "value": value}
             for name, value in _ordered_items(result.feature_order, result.input_values)
         ],
+        "warnings": warnings,
         "output_count": len(result.predictions),
         "predicted_outputs": [
             {"target": target, "value": value}
@@ -225,6 +345,10 @@ class InferencePage(ctk.CTkFrame):
         self.load_error: str | None = None
         self.input_entries: dict[str, ctk.CTkEntry] = {}
         self.input_shells: dict[str, ctk.CTkFrame] = {}
+        self.input_range_labels: dict[str, ctk.CTkLabel] = {}
+        self.input_statistics: dict[str, TrainingFeatureStatistics] = {}
+        self.input_statistics_error: str | None = None
+        self.current_extrapolation_warnings: list[dict[str, object]] = []
         self.input_page = 0
         self.prediction_in_progress = False
         self.last_result: InferenceResult | None = None
@@ -248,6 +372,8 @@ class InferencePage(ctk.CTkFrame):
     def reload(self) -> None:
         self.active_book = None
         self.load_error = None
+        self.input_statistics = {}
+        self.input_statistics_error = None
         if self.project is not None:
             try:
                 library = load_model_library(self.project.path)
@@ -279,6 +405,12 @@ class InferencePage(ctk.CTkFrame):
                         )
                     else:
                         self.active_book = entry.book
+                        try:
+                            self.input_statistics = load_training_feature_statistics(
+                                self.active_book
+                            )
+                        except InferenceError as exc:
+                            self.input_statistics_error = str(exc)
         new_workspace_key = (
             (self.project.path.resolve(), self.active_book.book_id)
             if self.project is not None and self.active_book is not None
@@ -785,6 +917,8 @@ class InferencePage(ctk.CTkFrame):
             child.destroy()
         self.input_entries.clear()
         self.input_shells.clear()
+        self.input_range_labels.clear()
+        self.current_extrapolation_warnings = []
         self.input_pager.grid_remove()
 
     def _create_input_fields(self, feature_columns: list[str]) -> None:
@@ -812,9 +946,27 @@ class InferencePage(ctk.CTkFrame):
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
             )
-            entry.grid(row=1, column=0, padx=8, pady=(0, 7), sticky="ew")
+            entry.grid(row=1, column=0, padx=8, pady=(0, 2), sticky="ew")
+            statistics = self.input_statistics.get(name)
+            range_text = "Training range unavailable"
+            if statistics is not None:
+                entry.insert(0, _display_input_number(statistics.median))
+                range_text = (
+                    "Training range: "
+                    f"{_display_input_number(statistics.minimum)} to "
+                    f"{_display_input_number(statistics.maximum)}"
+                )
+            range_label = ctk.CTkLabel(
+                shell,
+                text=range_text,
+                text_color=COLORS["subtle"],
+                font=FONTS["caption"],
+                anchor="w",
+            )
+            range_label.grid(row=2, column=0, padx=10, pady=(0, 6), sticky="ew")
             self.input_shells[name] = shell
             self.input_entries[name] = entry
+            self.input_range_labels[name] = range_label
         self._render_input_page()
 
     def _render_input_page(self) -> None:
@@ -854,26 +1006,53 @@ class InferencePage(ctk.CTkFrame):
         self._render_input_page()
 
     def _input_values(self) -> dict[str, float] | None:
+        self.current_extrapolation_warnings = []
         values: dict[str, float] = {}
         for name, entry in self.input_entries.items():
             raw = entry.get().strip()
             if not raw:
-                self.input_error.configure(text=f"Enter a value for {name}.")
+                self.input_error.configure(
+                    text=f"Enter a value for {name}.",
+                    text_color=COLORS["danger"],
+                )
                 entry.focus_set()
                 return None
             try:
                 value = float(raw)
             except ValueError:
-                self.input_error.configure(text=f"{name} must be a numeric value.")
+                self.input_error.configure(
+                    text=f"{name} must be a numeric value.",
+                    text_color=COLORS["danger"],
+                )
                 entry.focus_set()
                 return None
             if not math.isfinite(value):
                 self.input_error.configure(
-                    text=f"{name} must be a finite numeric value."
+                    text=f"{name} must be a finite numeric value.",
+                    text_color=COLORS["danger"],
                 )
                 entry.focus_set()
                 return None
             values[name] = value
+        self.current_extrapolation_warnings = extrapolation_warnings(
+            values,
+            self.input_statistics,
+        )
+        if self.current_extrapolation_warnings:
+            self.input_error.configure(
+                text="\n".join(
+                    str(item["message"])
+                    for item in self.current_extrapolation_warnings
+                ),
+                text_color=COLORS["warning"],
+            )
+        elif self.input_statistics_error:
+            self.input_error.configure(
+                text=self.input_statistics_error,
+                text_color=COLORS["warning"],
+            )
+        else:
+            self.input_error.configure(text="", text_color=COLORS["danger"])
         return values
 
     def _predict(self) -> None:
@@ -882,7 +1061,6 @@ class InferencePage(ctk.CTkFrame):
         values = self._input_values()
         if values is None:
             return
-        self.input_error.configure(text="")
         self._set_prediction_busy(True)
         try:
             result = submit_inference_request(
@@ -1143,7 +1321,11 @@ class InferencePage(ctk.CTkFrame):
             parent=self,
             title="Export Prediction",
             initialdir=str(self.project.path / "inference"),
-            initialfile=f"prediction_{self.active_book.book_id}.json",
+            initialfile=_prediction_export_filename(
+                self.project.path / "inference",
+                self.active_book,
+                result,
+            ),
             defaultextension=".json",
             filetypes=[
                 ("JSON prediction", "*.json"),
@@ -1160,7 +1342,11 @@ class InferencePage(ctk.CTkFrame):
             else:
                 atomic_write_json(
                     export_path,
-                    prediction_export_payload(result, self.active_book),
+                    prediction_export_payload(
+                        result,
+                        self.active_book,
+                        self.input_statistics,
+                    ),
                 )
         except (OSError, ValueError) as exc:
             messagebox.showerror(

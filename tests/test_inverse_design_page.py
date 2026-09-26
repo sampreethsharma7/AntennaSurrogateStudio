@@ -12,6 +12,7 @@ from studio.inverse_design import (
     InverseDesignResult,
 )
 from studio.inverse_design_ui import CONFIGURATION_MIN_WIDTH, RESULT_MIN_WIDTH
+from studio.output_axis import OutputAxisMetadata
 from studio.project_store import ProjectStore
 from studio.scientific_plot import CURVE_MANAGER_MIN_WIDTH, PLOT_PANE_MIN_WIDTH
 from studio.ui import StudioApp
@@ -185,6 +186,102 @@ class InverseDesignPageTests(unittest.TestCase):
             constraint.output_names,
             ["theta_2", "theta_3", "theta_4", "theta_5"],
         )
+
+    def test_round_coordinate_snaps_to_nearest_saved_point_and_is_disclosed(self):
+        self.page.active_book.output_axis = OutputAxisMetadata(
+            label="Frequency",
+            unit="GHz",
+            values=(
+                2.40026,
+                2.41736,
+                2.43446,
+                2.45156,
+                2.46866,
+                2.48576,
+                2.50286,
+                2.51996,
+            ),
+            source="target_columns",
+        )
+        self.page._configure_output_axis()
+        self.assertEqual(self.page.single_coordinate.get(), "2.4003")
+        self._fill_valid_form()
+        self.page.single_coordinate.delete(0, "end")
+        self.page.single_coordinate.insert(0, "2.4")
+
+        request = self.page.build_request()
+
+        self.assertEqual(request.objective.output_name, "theta_0")
+        disclosure = self.page._coordinate_disclosures[0]
+        self.assertIn("Optimizing at 2.40026 GHz", disclosure)
+        self.assertIn("nearest saved point to 2.4 GHz", disclosure)
+        self.assertIn("grid spacing 17.1 MHz", disclosure)
+
+        result = InverseDesignResult(
+            success=True,
+            status=INVERSE_DESIGN_COMPLETED,
+            model_book_id=self.book.book_id,
+            run_id="inverse-snap",
+            best_inputs={"P2": 28.92837, "P3": 2.0, "P4": 3.0},
+            predicted_outputs={
+                f"theta_{index}": float(index + 1) for index in range(8)
+            },
+            objective={
+                "output_name": "theta_0",
+                "output_names": ["theta_0"],
+                "aggregation": "single",
+                "goal": "minimize",
+                "target_value": None,
+            },
+            objective_value=1.0,
+            feasible=True,
+        )
+        self.page._show_success(result)
+        self.assertIn(disclosure, self.page.result_summary.cget("text"))
+        self.assertIn("P2 = 28.9284", self.page.latest_inputs.cget("text"))
+
+    def test_range_endpoints_snap_and_out_of_range_is_rejected(self):
+        self.page.active_book.output_axis = OutputAxisMetadata(
+            label="Frequency",
+            unit="GHz",
+            values=(
+                2.40026,
+                2.41736,
+                2.43446,
+                2.45156,
+                2.46866,
+                2.48576,
+                2.50286,
+                2.51996,
+            ),
+            source="target_columns",
+        )
+        self.page._configure_output_axis()
+        self._fill_valid_form()
+        self.page.objective_scope.set("Mean over range")
+        self.page._objective_scope_changed("Mean over range")
+        self.page.range_start.delete(0, "end")
+        self.page.range_start.insert(0, "2.4")
+        self.page.range_end.delete(0, "end")
+        self.page.range_end.insert(0, "2.43")
+
+        request = self.page.build_request()
+
+        self.assertEqual(
+            request.objective.output_names,
+            ["theta_0", "theta_1", "theta_2"],
+        )
+        self.assertEqual(len(self.page._coordinate_disclosures), 2)
+
+        self.page.objective_scope.set("Single point")
+        self.page._objective_scope_changed("Single point")
+        self.page.single_coordinate.delete(0, "end")
+        self.page.single_coordinate.insert(0, "2.3")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"outside the saved axis range 2\.40026 GHz to 2\.51996 GHz",
+        ):
+            self.page.build_request()
 
     def test_invalid_form_does_not_submit_and_shows_friendly_message(self):
         with patch("studio.inverse_design_ui.submit_inverse_design_request") as submit:
