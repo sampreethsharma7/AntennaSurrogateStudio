@@ -1,11 +1,11 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.82
+Contract version: 3.83
 Studio version: 0.33.2
 UI source SHA-256: 58c93c08f5be44dc1ea244aa36033fc99de0d9081e1220d06a96a624d734f266
 Sample Generator UI source SHA-256: d533a59e3a7f8cd5d8b69262833ac0ddc00ad99e5405c7bfdf0c05c7ce256be1
 Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
-Results UI source SHA-256: 794000a4d9e2d663889478b8fa2adf8b3bfcabb20f8e126616fcc2d26ed22d2f
+Results UI source SHA-256: e49c9b462163423c77056f3e10c00759fac4d6a4e95c25a1e0f22820aa300b3f
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: 805a23d7b3d745c77d392eda5bfe21b067a3d8366afd092ebc749a33862310fd
 Inverse Design UI source SHA-256: e2832803ca6c38b707d34cc2a7bbb8bc961b8dda30c7fd1b312f41dc1e2d6daf
@@ -717,7 +717,10 @@ search level, configuration count, folds, and lowest validation RMSE above the
 candidate table. Custom's Configuration panel contains the compatible
 side-by-side suggestion or the Run Auto guidance.
 
-The four cards are R², RMSE, MAE, and Validation RMSE. A visible **LATEST
+The four cards are Pooled R², RMSE, MAE, and Validation RMSE. Pooled R²
+combines every held-out sample/output value into the same population used by
+the displayed RMSE and MAE, rather than averaging one R² score per output.
+A visible **LATEST
 SELECTED RUN METRICS** label names the displayed run and model above them so
 these values cannot be mistaken for the separate family recommendation. They are compact
 62-pixel, value-first tiles: only the metric name, saved numeric value, and a
@@ -785,18 +788,19 @@ detail panel visible at a time:
    fingerprint, exact feature columns, exact target columns, test size, and
    random state. Four concise family cards show the best validation-backed
    Linear Regression, XGBoost, Neural Network, and Ensemble AI Engine run: mode, selected parameters, validation
-   RMSE, test RMSE, MAE, and R². Each card has Open Run N Results for detailed
+   RMSE, test RMSE, MAE, and pooled R². Each card has Open Run N Results for detailed
    Predictions, Residuals, Errors, Configuration, and Run Info. The banner says
    Recommended Model with the selected family only when at least two families
    have valid compatible validation evidence. A compact bar view
-   visualizes validation RMSE, test RMSE, MAE, and R² with exact values. Test
+   visualizes validation RMSE, test RMSE, MAE, and pooled R² with exact values. Test
    metrics are context only and never choose the recommendation. The section
    title is explicitly **MODEL FAMILY COMPARISON**. Its bars represent relative
    quality rather than raw magnitude: longer is always better, downward arrows
    identify Validation RMSE/Test RMSE/MAE as lower-is-better, and an upward
-   arrow identifies R² as higher-is-better. Exact values remain beside the bars.
+   arrow identifies pooled R² as higher-is-better. Exact values remain beside the bars.
 6. Run Info — run ID, model, mode, search level, parameters, training/test
-   samples, full dataset fingerprint, and training timestamp.
+   samples, full dataset fingerprint, training timestamp, and the artifact's
+   precisely labelled mean per-output test R² for provenance.
 
 There is no separate What This Means panel. The backend's deterministic
 sample-count, validation/test-gap, residual, error-concentration, Auto-separation,

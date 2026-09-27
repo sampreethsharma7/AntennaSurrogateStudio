@@ -773,7 +773,7 @@ class ResultsChart(ctk.CTkFrame):
 class ModelComparisonMetricChart(ctk.CTkFrame):
     """Compact comparison where longer bars consistently mean better quality."""
 
-    metric_names = ("Validation RMSE", "Test RMSE", "MAE", "R²")
+    metric_names = ("Validation RMSE", "Test RMSE", "MAE", "Pooled R²")
 
     def __init__(
         self,
@@ -841,7 +841,7 @@ class ModelComparisonMetricChart(ctk.CTkFrame):
             )
 
         for row, metric_name in enumerate(self.metric_names, start=2):
-            lower_is_better = metric_name != "R²"
+            lower_is_better = metric_name != "Pooled R²"
             ctk.CTkLabel(
                 self,
                 text=f"{metric_name} {'↓' if lower_is_better else '↑'}",
@@ -924,7 +924,7 @@ class ModelComparisonMetricChart(ctk.CTkFrame):
                 "Validation RMSE": float(run.validation_rmse),
                 "Test RMSE": run.test_rmse,
                 "MAE": run.mae,
-                "R²": run.r_squared,
+                "Pooled R²": run.r_squared,
             }[metric_name]
         return values
 
@@ -2128,7 +2128,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             f"Validation RMSE: {validation}\n"
             f"Test RMSE: {metrics['RMSE']:.6g}\n"
             f"Test MAE: {metrics['MAE']:.6g}\n"
-            f"Test R²: {metrics['R²']:.6g}"
+            f"Mean per-output test R²: {metrics['R²']:.6g}"
         )
 
     def _open_prediction_file(self) -> None:
@@ -2336,7 +2336,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             text=(
                 f"Validation RMSE {run.validation_rmse:.6g}   ·   "
                 f"Test RMSE {run.test_rmse:.6g}\n"
-                f"MAE {run.mae:.6g}   ·   R² {run.r_squared:.6g}"
+                f"MAE {run.mae:.6g}   ·   Pooled R² {run.r_squared:.6g}"
             ),
             text_color=COLORS["ink"],
             font=("Cascadia Mono", 10),

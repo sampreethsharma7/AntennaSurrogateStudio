@@ -26,6 +26,7 @@ from studio.theme import COLORS
 from studio.training_results import (
     CUSTOM_VALIDATION_RMSE_TOLERANCE,
     EXPECTED_PREDICTION_COLUMNS,
+    PredictionResult,
     TrainingResultsError,
     load_latest_training_results,
     metric_card_data,
@@ -173,7 +174,7 @@ class TrainingResultsAnalysisTests(unittest.TestCase):
         view = load_latest_training_results(self.project.path)
         cards = {card["name"]: card for card in metric_card_data(view)}
 
-        self.assertEqual(cards["R²"]["value"], trained.metrics["R²"])
+        self.assertEqual(cards["Pooled R²"]["value"], view.pooled_r_squared)
         self.assertEqual(cards["RMSE"]["value"], trained.metrics["RMSE"])
         self.assertEqual(cards["MAE"]["value"], trained.metrics["MAE"])
         self.assertEqual(
@@ -182,8 +183,26 @@ class TrainingResultsAnalysisTests(unittest.TestCase):
         )
         self.assertIsNone(view.target_unit)
         self.assertNotIn("GHz", cards["RMSE"]["display_value"])
-        self.assertIn("Higher is better", cards["R²"]["direction"])
+        self.assertIn("Higher is better", cards["Pooled R²"]["direction"])
         self.assertIn("Lower is better", cards["RMSE"]["direction"])
+
+    def test_pooled_r_squared_uses_same_flattened_population_as_error_metrics(self):
+        register_test_dataset(self.project)
+        self._train_auto("medium")
+        view = load_latest_training_results(self.project.path)
+        view.predictions = [
+            PredictionResult("1", "a", 0.0, 0.0, 0.0, 0.0),
+            PredictionResult("2", "a", 1.0, 1.0, 0.0, 0.0),
+            PredictionResult("1", "b", 100.0, 100.0, 0.0, 0.0),
+            PredictionResult("2", "b", 101.0, 100.0, 1.0, 1.0),
+        ]
+        view.metrics["R²"] = 0.0
+
+        actual = [row.actual_value for row in view.predictions]
+        mean = sum(actual) / len(actual)
+        expected = 1.0 - 1.0 / sum((value - mean) ** 2 for value in actual)
+        self.assertAlmostEqual(view.pooled_r_squared, expected)
+        self.assertNotEqual(view.pooled_r_squared, view.metrics["R²"])
 
     def test_prediction_data_residuals_and_largest_error_come_from_csv(self):
         register_test_dataset(self.project)
@@ -619,7 +638,7 @@ class TrainingResultsPageTests(unittest.TestCase):
         )
         self.assertEqual(
             set(page.comparison_metric_chart.metric_values),
-            {"Validation RMSE", "Test RMSE", "MAE", "R²"},
+            {"Validation RMSE", "Test RMSE", "MAE", "Pooled R²"},
         )
         for values in page.comparison_metric_chart.metric_values.values():
             self.assertEqual(set(values), {"linear_regression", "xgboost"})
@@ -633,8 +652,10 @@ class TrainingResultsPageTests(unittest.TestCase):
             better = min(values, key=values.get)
             worse = max(values, key=values.get)
             self.assertGreater(bars[better], bars[worse])
-        r_squared = page.comparison_metric_chart.metric_values["R²"]
-        r_squared_bars = page.comparison_metric_chart.metric_bar_values["R²"]
+        r_squared = page.comparison_metric_chart.metric_values["Pooled R²"]
+        r_squared_bars = page.comparison_metric_chart.metric_bar_values[
+            "Pooled R²"
+        ]
         self.assertGreater(
             r_squared_bars[max(r_squared, key=r_squared.get)],
             r_squared_bars[min(r_squared, key=r_squared.get)],
