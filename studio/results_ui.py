@@ -977,6 +977,7 @@ class TrainingResultsPage(ctk.CTkFrame):
     def reload(self) -> None:
         self.result = None
         self.load_error = None
+        self.failure_state = None
         self.saved_model_book_id = None
         self.saved_model_book_name = None
         self.model_comparison = None

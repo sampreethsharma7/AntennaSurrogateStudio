@@ -1,11 +1,11 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.81
+Contract version: 3.82
 Studio version: 0.33.2
-UI source SHA-256: 3f6ce2cc3ec15c908fcedc5ae08fae5e4f9030db01f3f79f0081fed7f01460aa
+UI source SHA-256: 58c93c08f5be44dc1ea244aa36033fc99de0d9081e1220d06a96a624d734f266
 Sample Generator UI source SHA-256: d533a59e3a7f8cd5d8b69262833ac0ddc00ad99e5405c7bfdf0c05c7ce256be1
 Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
-Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
+Results UI source SHA-256: 794000a4d9e2d663889478b8fa2adf8b3bfcabb20f8e126616fcc2d26ed22d2f
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: 805a23d7b3d745c77d392eda5bfe21b067a3d8366afd092ebc749a33862310fd
 Inverse Design UI source SHA-256: e2832803ca6c38b707d34cc2a7bbb8bc961b8dda30c7fd1b312f41dc1e2d6daf
@@ -693,8 +693,11 @@ SELECTED and opens that immutable run's Predictions detail. Before any completed
 and prediction plots.” A failed attempt can display “Training did not
 complete. No performance results are available for this run.” Missing or
 malformed artifacts produce a friendly saved-artifact error without a traceback
-or partial metrics. Loading another project, reopening a project, or completing
-a new training run always resets the ordered section navigator to Predictions.
+or partial metrics. Every navigation into Training Results reloads the latest
+completed run from the current project. Reloading also clears a prior failed-run
+display, so a later successful run cannot remain hidden behind stale failure
+state. Loading another project, reopening a project, or completing a new
+training run always resets the ordered section navigator to Predictions.
 A secondary section selected for one displayed result is never carried into a
 different project or run. Manual section changes remain active while the user
 continues viewing the same result.

@@ -960,6 +960,8 @@ class StudioApp(ctk.CTk):
         if name == "library" and self.current_project:
             self.library_page.project = self.current_project
             self.library_page.reload()
+        if name == "results" and self.current_project:
+            self.results_page.set_project(self.current_project)
         if name == "inference" and self.current_project:
             self.inference_page.project = self.current_project
             self.inference_page.reload()

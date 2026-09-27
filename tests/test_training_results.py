@@ -691,6 +691,50 @@ class TrainingResultsPageTests(unittest.TestCase):
         self.assertEqual(self.page.active_section, "fit")
         self.assertIsInstance(self.page.current_chart, ScientificPlotWorkbench)
 
+    def test_results_navigation_reloads_runs_created_after_project_open(self):
+        project = self.store.create_project("Results Navigation Refresh")
+        register_test_dataset(project)
+        project = self.store.open_project(project.path, touch=False)
+        self.app.set_project(project, target_page="training")
+        self.assertIsNone(self.app.results_page.result)
+
+        completed = submit_model_training_request(
+            auto_request("medium"), project_path=project.path
+        )
+        self.assertTrue(completed.success)
+
+        self.app.show_page("results")
+        self.app.update_idletasks()
+
+        self.assertIsNotNone(self.app.results_page.result)
+        self.assertEqual(self.app.results_page.result.run_id, completed.run_id)
+        self.assertIn("LATEST", self.app.results_page.run_badge.cget("text"))
+
+    def test_reload_clears_failed_attempt_and_shows_later_success(self):
+        project = self.store.create_project("Results Failure Recovery")
+        register_test_dataset(project)
+        first = submit_model_training_request(
+            auto_request("high"), project_path=project.path
+        )
+        self.assertTrue(first.success)
+        project = self.store.open_project(project.path, touch=False)
+        self.page.set_project(project)
+        self.page.show_training_failure()
+        self.assertIsNotNone(self.page.failure_state)
+        self.assertIn("did not complete", self.page.empty_label.cget("text"))
+
+        completed = submit_model_training_request(
+            auto_request("medium"), project_path=project.path
+        )
+        self.assertTrue(completed.success)
+        self.page.reload()
+        self.app.update_idletasks()
+
+        self.assertIsNone(self.page.failure_state)
+        self.assertIsNotNone(self.page.result)
+        self.assertEqual(self.page.result.run_id, completed.run_id)
+        self.assertIn("LATEST", self.page.run_badge.cget("text"))
+
     def test_predictions_section_is_plot_only_with_csv_access(self):
         self.page.show_section("fit")
         self.assertIsInstance(self.page.current_chart, ScientificPlotWorkbench)
