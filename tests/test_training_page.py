@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import customtkinter as ctk
+
 from studio.dataset_registry import register_dataset
 from studio.dataset_validation import validate_dataset
 from studio.model_training import (
@@ -27,7 +29,7 @@ from studio.training_ui import (
     TRAIN_BUTTON_LABEL,
 )
 from studio.theme import COLORS
-from studio.ui import StudioApp
+from studio.ui import CreateProjectDialog, StudioApp
 
 
 GUI_MAY_BE_AVAILABLE = (
@@ -197,6 +199,66 @@ class ModelTrainingPageTests(unittest.TestCase):
                 "Ensemble AI Engine",
             ],
         )
+
+    def test_dropdown_selection_finishes_before_first_train_click(self):
+        result = self._successful_result(run_number=12)
+        with patch(
+            "studio.ui.submit_model_training_request",
+            return_value=result,
+        ) as submit_request, patch("studio.ui.messagebox.showinfo"):
+            self.page._model_selected("XGBoost")
+            self.app.update()
+            self.page.train_button.invoke()
+            self._wait_for_training()
+
+        submit_request.assert_called_once()
+        request = submit_request.call_args.args[0]
+        self.assertEqual(request.model_name, "xgboost")
+
+    def test_start_create_project_button_opens_and_reuses_visible_dialog(self):
+        self.app.show_page("start", persist=False)
+        self.app.deiconify()
+        self.app.start_page.create_project_button.invoke()
+        self.app.update()
+
+        dialog = self.app.create_project_window
+        self.assertIsNotNone(dialog)
+        self.assertEqual(dialog.state(), "normal")
+        self.assertEqual(dialog.grab_current(), dialog)
+        self.app.start_page.create_project_button.invoke()
+        self.app.update()
+        self.assertIs(self.app.create_project_window, dialog)
+
+        dialog.destroy()
+        self.app.update()
+        self.app.withdraw()
+
+    def test_create_project_dialog_actions_fit_at_common_display_scaling(self):
+        original_window_scaling = self.app.window_layout.window_scaling_factor
+        original_widget_scaling = self.app.window_layout.widget_scaling_factor
+        self.app.deiconify()
+        try:
+            for dpi_scaling in (1.0, 1.25, 1.5):
+                with self.subTest(dpi_scaling=dpi_scaling):
+                    ctk.set_window_scaling(1.0 / dpi_scaling)
+                    ctk.set_widget_scaling(min(dpi_scaling, 1.08) / dpi_scaling)
+                    dialog = CreateProjectDialog(self.app, lambda *_args: None)
+                    self.app.update()
+                    bottom_margin = (
+                        dialog.winfo_rooty()
+                        + dialog.winfo_height()
+                        - dialog.create_button.winfo_rooty()
+                        - dialog.create_button.winfo_height()
+                    )
+                    self.assertGreaterEqual(bottom_margin, 20)
+                    self.assertGreater(dialog.create_button.winfo_width(), 0)
+                    self.assertGreater(dialog.create_button.winfo_height(), 0)
+                    dialog.destroy()
+                    self.app.update()
+        finally:
+            ctk.set_window_scaling(original_window_scaling)
+            ctk.set_widget_scaling(original_widget_scaling)
+            self.app.withdraw()
 
     def test_ensemble_selection_locks_auto_high_and_builds_request(self):
         self.page._model_changed("Ensemble AI Engine")

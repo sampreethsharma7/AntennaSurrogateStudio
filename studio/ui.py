@@ -316,6 +316,7 @@ class StudioApp(ctk.CTk):
         self.snowbuddy_collapsed = True
         self.snowbuddy_display_mode = "hidden"
         self.nav_tooltips: dict[str, HoverTooltip] = {}
+        self.create_project_window: CreateProjectDialog | None = None
 
         self._set_windows_identity()
         self._build_shell()
@@ -1241,7 +1242,22 @@ class StudioApp(ctk.CTk):
         return "\n".join(lines)
 
     def create_project_dialog(self) -> None:
-        CreateProjectDialog(self, self._create_project)
+        existing = self.create_project_window
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    existing.present()
+                    return
+            except tk.TclError:
+                pass
+        dialog = CreateProjectDialog(self, self._create_project)
+        self.create_project_window = dialog
+
+        def clear_reference(event: tk.Event) -> None:
+            if event.widget is dialog and self.create_project_window is dialog:
+                self.create_project_window = None
+
+        dialog.bind("<Destroy>", clear_reference, add="+")
 
     def _create_project(self, name: str, description: str) -> None:
         try:
@@ -4245,7 +4261,7 @@ class ModelTrainingPage(ctk.CTkFrame):
             font=FONTS["body_small"],
             dropdown_font=FONTS["body_small"],
             anchor="w",
-            command=self._model_changed,
+            command=self._model_selected,
         )
         self.model_dropdown.grid(
             row=0,
@@ -4783,6 +4799,12 @@ class ModelTrainingPage(ctk.CTkFrame):
         self.training_mode_control.set(self.state.training_mode)
         self.training_footer_model_label.configure(text=f"{value} · Local")
         self._apply_training_mode()
+
+    def _model_selected(self, value: str) -> None:
+        """Finish the native menu interaction before rebuilding its controls."""
+
+        self.model_dropdown._dropdown_menu.close()
+        self.after_idle(self._model_changed, value)
 
     def _training_mode_changed(self, value: str) -> None:
         if self.state.ensemble_mode_enabled:
@@ -5419,8 +5441,6 @@ class CreateProjectDialog(ctk.CTkToplevel):
         self.geometry("540x430")
         self.resizable(True, True)
         self.transient(parent)
-        self.grab_set()
-        self.after_idle(self._fit_to_content)
 
         ctk.CTkLabel(
             self,
@@ -5473,10 +5493,10 @@ class CreateProjectDialog(ctk.CTkToplevel):
         )
         self.description.pack(fill="x", padx=28)
 
-        actions = ctk.CTkFrame(self, fg_color="transparent")
-        actions.pack(fill="x", padx=28, pady=(22, 24))
-        ctk.CTkButton(
-            actions,
+        self.actions_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.actions_frame.pack(fill="x", padx=28, pady=(22, 24))
+        self.cancel_button = ctk.CTkButton(
+            self.actions_frame,
             text="Cancel",
             width=100,
             height=40,
@@ -5485,9 +5505,10 @@ class CreateProjectDialog(ctk.CTkToplevel):
             hover_color=COLORS["control_hover"],
             text_color=COLORS["ink"],
             command=self.destroy,
-        ).pack(side="right")
-        ctk.CTkButton(
-            actions,
+        )
+        self.cancel_button.pack(side="right")
+        self.create_button = ctk.CTkButton(
+            self.actions_frame,
             text="Create project  →",
             width=150,
             height=40,
@@ -5496,9 +5517,21 @@ class CreateProjectDialog(ctk.CTkToplevel):
             hover_color=COLORS["primary_hover"],
             font=FONTS["button"],
             command=self._submit,
-        ).pack(side="right", padx=(0, 8))
-        self.name_entry.focus_set()
+        )
+        self.create_button.pack(side="right", padx=(0, 8))
         self.bind("<Return>", lambda _event: self._submit())
+        self.after_idle(self.present)
+
+    def present(self) -> None:
+        """Size, raise, and focus the one active project dialog."""
+
+        if not self.winfo_exists():
+            return
+        self._fit_to_content()
+        self.deiconify()
+        self.lift()
+        self.grab_set()
+        self.name_entry.focus_set()
 
     def _submit(self) -> None:
         name = self.name_entry.get().strip()

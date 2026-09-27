@@ -1,8 +1,8 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.83
+Contract version: 3.84
 Studio version: 0.33.2
-UI source SHA-256: 58c93c08f5be44dc1ea244aa36033fc99de0d9081e1220d06a96a624d734f266
+UI source SHA-256: 37487e177436bd4e5b2745fec6410a25d6e147102d18db05daa2844d94c89c6d
 Sample Generator UI source SHA-256: d533a59e3a7f8cd5d8b69262833ac0ddc00ad99e5405c7bfdf0c05c7ce256be1
 Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
 Results UI source SHA-256: e49c9b462163423c77056f3e10c00759fac4d6a4e95c25a1e0f22820aa300b3f
@@ -94,6 +94,9 @@ build a trusted surrogate model.
   can create a project, describe an antenna in plain language, or bring an
   existing design.
 - With no project, the hero offers “+ Create project” and “Open project.”
+- Create project always raises and focuses the one active Create antenna
+  project dialog; repeated clicks reuse that visible dialog instead of opening
+  hidden or duplicate windows.
 - With a project active, those empty-state actions disappear and the hero shows
   one stage-aware resume action: Continue Data Prep, Validate & Register Data,
   Continue Model Training, Review Training Results, or Run Inference. New/Open
@@ -516,6 +519,8 @@ Instrument Lab fields rather than bright generic split buttons. Each has the
 current palette’s control surface, subtle border and arrow well. Its expanded
 menu uses the current Light or Dark surface, matching ink text, and the same
 teal-tinted navigation hover used elsewhere in the Studio.
+The native model menu closes before model-specific controls are rebuilt, so
+the first Train Model click after a selection is delivered normally.
 
 In Auto mode, an “Auto Search Level” panel is visible. Its dropdown contains
 “Medium” and “High,” with Medium selected by default. The two descriptions are
@@ -1128,7 +1133,9 @@ labels and limits remain in force as curves are added until
 
 Opened from the no-project hero, empty recent-project card, or File menu. It
 asks for a project name and an optional description, then creates the portable
-project structure.
+project structure. The Studio retains, raises, and focuses the single active
+dialog. The rendered action-row geometry is checked at 100%, 125%, and 150%
+display scaling so Cancel and Create project remain inside the window.
 
 ### Open project
 
