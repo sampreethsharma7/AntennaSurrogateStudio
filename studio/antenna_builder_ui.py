@@ -1687,6 +1687,13 @@ class AntennaBuilderPage(ctk.CTkFrame):
         except AntennaBuilderError as exc:
             messagebox.showwarning("Select sampling variables", str(exc), parent=self)
             return
+        self.project = self.app.update_current_project(
+            {
+                "antenna_builder": {
+                    "selected_sweep_parameters": selected,
+                }
+            }
+        )
         self.status_var.set("Selected CST parameters transferred to the LHS generator.")
         self.app.show_page("data")
         self.app.after_idle(

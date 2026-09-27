@@ -254,6 +254,41 @@ class DataPrepPageTests(unittest.TestCase):
         self.assertIn(str(destination.resolve()), info.call_args.args[1])
         self.assertIn(str(cst_destination.resolve()), info.call_args.args[1])
         self.assertIn("parameter sweep", info.call_args.args[1])
+        self.assertIn("Define multiple sequences", info.call_args.args[1])
+        self.assertIn("Do not use the default 'Define one sequence only'", info.call_args.args[1])
+        self.assertIn("25 curves", info.call_args.args[1])
+        self.assertIn("ASCII export includes only", info.call_args.args[1])
+
+    def test_builder_vary_parameters_preselect_matching_discovered_inputs(self):
+        self.project = self.app.update_current_project(
+            {
+                "antenna_builder": {
+                    "selected_sweep_parameters": [
+                        "PatchW",
+                        "SlotOffsetY",
+                        "NotInTheExtract",
+                    ]
+                }
+            }
+        )
+
+        self.page._analysis_complete(
+            DiscoveryResult(
+                mode="parameters",
+                files=["cst_parameters.txt"],
+                input_variables=["PatchL", "PatchW", "SlotOffsetY"],
+                output_variables=["S11"],
+                sample_count=1000,
+            )
+        )
+
+        self.assertFalse(self.page.input_checks["PatchL"].get())
+        self.assertTrue(self.page.input_checks["PatchW"].get())
+        self.assertTrue(self.page.input_checks["SlotOffsetY"].get())
+        self.assertIn("Builder VARY inputs are preselected", self.page.status_var.get())
+        prep = self.app.current_project.manifest["data_prep"]
+        self.assertEqual(prep["selected_inputs"], ["PatchW", "SlotOffsetY"])
+        self.assertFalse(prep["variable_contract_confirmed"])
 
     def test_lhs_invalid_form_is_reported_without_exportable_output(self):
         self.page.open_lhs_sample_generator()

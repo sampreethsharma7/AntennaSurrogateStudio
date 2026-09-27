@@ -784,6 +784,12 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertTrue(all(editor.minimum.get() for editor in dialog.variable_editors))
         self.assertTrue(all(editor.maximum.get() for editor in dialog.variable_editors))
         self.assertIn("Template parameters loaded", dialog.status_var.get())
+        self.assertEqual(
+            self.app.current_project.manifest["antenna_builder"][
+                "selected_sweep_parameters"
+            ],
+            ["PatchL", "PatchW", "Inset"],
+        )
 
     def test_native_cst_creation_runs_off_ui_thread_and_preserves_macro(self):
         self._create_inset_design()

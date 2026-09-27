@@ -774,9 +774,14 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
                 f"Saved {self.generated_samples.sample_count:,} simulation inputs.\n\n"
                 f"Studio Data Prep CSV:\n{exported_csv}\n\n"
                 f"CST parameter-sweep import TXT:\n{exported_cst}\n\n"
-                "Import the TXT file into CST's parameter sweep. Run the rows without "
-                "reordering them, then return with an output CSV containing the same "
-                "row count and order."
+                "Import the TXT file into CST's parameter sweep and choose "
+                "'Define multiple sequences' so each TXT row becomes one run. "
+                "Do not use the default 'Define one sequence only'.\n\n"
+                "CST's 1D plot view displays at most 25 curves by default, and ASCII "
+                "export includes only the curves currently displayed. Raise or remove "
+                "that display limit before exporting all simulation outputs.\n\n"
+                "Run the rows without reordering them, then return with an output CSV "
+                "containing the same row count and order."
             ),
             parent=self,
         )

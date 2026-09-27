@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.84
+Contract version: 3.85
 Studio version: 0.33.2
-UI source SHA-256: 37487e177436bd4e5b2745fec6410a25d6e147102d18db05daa2844d94c89c6d
-Sample Generator UI source SHA-256: d533a59e3a7f8cd5d8b69262833ac0ddc00ad99e5405c7bfdf0c05c7ce256be1
-Antenna Builder UI source SHA-256: 14c0a1a2744ab7078c97bb9eed79657c336b445b4bdee6a4c56e1e8dcc70f11a
+UI source SHA-256: 53d2f229fb2a1f3e23674f9c6490bc3c6d388e8ad749214c29b95585690a55f0
+Sample Generator UI source SHA-256: 03434fbab96a80cb921876b4c53d0f65b91ffbfc765a17f0629e7d35f02b6771
+Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e4514a988b4fa45081c5b8
 Results UI source SHA-256: e49c9b462163423c77056f3e10c00759fac4d6a4e95c25a1e0f22820aa300b3f
 Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
 Inference UI source SHA-256: 805a23d7b3d745c77d392eda5bfe21b067a3d8366afd092ebc749a33862310fd
@@ -288,7 +288,9 @@ build a trusted surrogate model.
   COM is uninitialized, so the generated file is not held by a hidden
   Studio-owned CST process. Neither export starts a solver.
 - **Send selected to LHS** opens Data Prep and the existing LHS dialog with the
-  selected meaningful CST parameter names and suggested editable bounds.
+  selected meaningful CST parameter names and suggested editable bounds. The
+  selected names are also retained in the project as the Builder's current
+  VARY selection for a later matching #Parameters import.
 - Builder state, raw conversation, and project engineering memory are
   project-local under `design/` and restore when the project reopens. A blank
   saved session reopens blank and opening the page alone does not create
@@ -372,7 +374,10 @@ training.
   must be a whole number from 0 through 4,294,967,295.
 - When opened through **Send selected to LHS** in the antenna builder, the same
   dialog starts with the selected meaningful CST parameter names and suggested
-  ranges. The user can review and edit every range before generation.
+  ranges. The user can review and edit every range before generation. If a
+  later #Parameters source contains those exact parameter names, Data Prep
+  preselects the matching inputs and still requires the user to review and save
+  the variable contract; unavailable names are ignored.
 - Generation uses SciPy Latin Hypercube sampling. The same settings and seed
   reproduce the same samples. Coverage plots the first two variables, or one
   variable against sample index, without inventing units. Both axes show the
@@ -384,7 +389,12 @@ training.
   in the editor order: a comma-delimited Studio CSV and a tab-delimited CST
   parameter-sweep TXT. Neither adds a Sample ID column. The default project
   files are `data/generated/lhs/inputs.csv` and `inputs.txt`. The confirmation
-  identifies the TXT as the file to import into CST's parameter sweep. Data Prep
+  identifies the TXT as the file to import into CST's parameter sweep. It tells
+  the user to select **Define multiple sequences**, not the default **Define one
+  sequence only**, so every row is a separate run. It also warns that CST's 1D
+  plot view shows 25 curves by default and ASCII export includes only displayed
+  curves, so that display limit must be raised or removed before a complete
+  export. Data Prep
   loads only the generated Input CSV path,
   clears any Output CSV path to prevent a stale pairing, collapses later subtasks,
   and explains that solver outputs with the same row count and unchanged row

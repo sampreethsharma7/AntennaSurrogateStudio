@@ -1064,6 +1064,12 @@ class StudioApp(ctk.CTk):
         ):
             self.antenna_builder_page.project = self.current_project
         if (
+            hasattr(self, "data_page")
+            and self.data_page.project is not None
+            and self.data_page.project.path == self.current_project.path
+        ):
+            self.data_page.project = self.current_project
+        if (
             hasattr(self, "library_page")
             and self.library_page.project is not None
             and self.library_page.project.path == self.current_project.path
@@ -3301,11 +3307,36 @@ class DataPrepPage(ctk.CTkFrame):
                 self.output_path_var.get().strip(),
             )
         self.discovery = result
-        self._render_discovery(result)
+        selected_inputs: list[str] = []
+        if result.mode == "parameters" and self.project is not None:
+            builder_state = self.project.manifest.get("antenna_builder", {})
+            builder_selection = (
+                builder_state.get("selected_sweep_parameters", [])
+                if isinstance(builder_state, dict)
+                else []
+            )
+            if isinstance(builder_selection, list):
+                selected_names = {
+                    name for name in builder_selection if isinstance(name, str)
+                }
+                selected_inputs = [
+                    name for name in result.input_variables if name in selected_names
+                ]
+        self._render_discovery(
+            result,
+            selected_inputs=(
+                selected_inputs if result.mode == "parameters" else None
+            ),
+        )
         self.status_var.set(
             "CSV pair accepted · all columns selected automatically."
             if result.mode == "pair"
-            else "Source discovered. Select inputs and one output."
+            else (
+                "Source discovered. Builder VARY inputs are preselected; "
+                "review them and select one output."
+                if selected_inputs
+                else "Source discovered. Select inputs and one output."
+            )
         )
         self.status_dot.configure(fg_color=COLORS["warning"])
         self.prepare_button.configure(text="Prepare input + output  →")
@@ -3340,7 +3371,9 @@ class DataPrepPage(ctk.CTkFrame):
                 "available_inputs": result.input_variables,
                 "available_outputs": result.output_variables,
                 "selected_inputs": (
-                    result.input_variables if result.mode == "pair" else []
+                    result.input_variables
+                    if result.mode == "pair"
+                    else selected_inputs
                 ),
                 "selected_output": (
                     IMPORTED_OUTPUT_LABEL if result.mode == "pair" else None
