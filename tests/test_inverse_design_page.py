@@ -103,6 +103,19 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertIn("Differential Evolution", self.page.footer_status.cget("text"))
         self.assertEqual(self.page.run_button.cget("state"), "normal")
 
+    def test_eight_inputs_fit_without_paging(self):
+        self.page._clear_form()
+        self.page._create_input_rows([f"P{index}" for index in range(1, 9)])
+
+        self.assertEqual(len(self.page.input_widgets), 8)
+        self.assertEqual(self.page.input_pager.winfo_manager(), "")
+        self.assertTrue(
+            all(
+                widgets.frame.winfo_manager() == "grid"
+                for widgets in self.page.input_widgets.values()
+            )
+        )
+
     def test_form_builds_variable_fixed_target_and_generic_constraint_request(self):
         self._fill_valid_form()
         self.page.single_coordinate.delete(0, "end")

@@ -505,7 +505,7 @@ class InferencePage(ctk.CTkFrame):
             text_color=COLORS["cyan"],
             font=FONTS["mono"],
             anchor="w",
-        ).grid(row=0, column=0, padx=16, pady=(14, 3), sticky="ew")
+        ).grid(row=0, column=0, padx=16, pady=(8, 2), sticky="ew")
         self.model_summary = ctk.CTkLabel(
             self.input_card,
             text="Select an active Model Book to begin.",
@@ -515,13 +515,10 @@ class InferencePage(ctk.CTkFrame):
             justify="left",
             wraplength=330,
         )
-        self.model_summary.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="ew")
+        self.model_summary.grid(row=1, column=0, padx=16, pady=(0, 4), sticky="ew")
         self.input_host = ctk.CTkFrame(self.input_card, fg_color="transparent")
         self.input_host.grid(row=2, column=0, padx=12, sticky="nsew")
-        self.input_host.grid_columnconfigure(0, weight=1, uniform="input")
-        self.input_host.grid_columnconfigure(1, weight=1, uniform="input")
-        for row in range(4):
-            self.input_host.grid_rowconfigure(row, weight=1, uniform="input-row")
+        self.input_host.grid_columnconfigure(0, weight=1)
 
         self.input_pager = ctk.CTkFrame(self.input_card, fg_color="transparent")
         self.input_pager.grid(row=3, column=0, padx=14, pady=(5, 0), sticky="ew")
@@ -598,7 +595,7 @@ class InferencePage(ctk.CTkFrame):
             row=5,
             column=0,
             padx=16,
-            pady=(7, 0),
+            pady=(4, 0),
             sticky="ew",
         )
         self.prediction_plot_mode.set("Replace current curve")
@@ -606,7 +603,7 @@ class InferencePage(ctk.CTkFrame):
             row=6,
             column=0,
             padx=16,
-            pady=(8, 6),
+            pady=(4, 4),
             sticky="ew",
         )
         self.inverse_design_button = ctk.CTkButton(
@@ -627,7 +624,7 @@ class InferencePage(ctk.CTkFrame):
             row=7,
             column=0,
             padx=16,
-            pady=(0, 14),
+            pady=(0, 8),
             sticky="ew",
         )
 
@@ -922,20 +919,43 @@ class InferencePage(ctk.CTkFrame):
         self.input_pager.grid_remove()
 
     def _create_input_fields(self, feature_columns: list[str]) -> None:
-        for name in feature_columns:
+        self.input_headings = ctk.CTkFrame(
+            self.input_host,
+            fg_color=COLORS["surface_alt"],
+            corner_radius=8,
+        )
+        self.input_headings.grid(row=0, column=0, pady=(0, 2), sticky="ew")
+        for column, (label, weight, minimum) in enumerate(
+            (("INPUT", 2, 75), ("VALUE", 1, 72), ("RANGE", 2, 105))
+        ):
+            self.input_headings.grid_columnconfigure(
+                column,
+                weight=weight,
+                minsize=minimum,
+            )
+            ctk.CTkLabel(
+                self.input_headings,
+                text=label,
+                text_color=COLORS["muted"],
+                font=FONTS["mono"],
+                anchor="w",
+            ).grid(row=0, column=column, padx=6, pady=2, sticky="ew")
+        for index, name in enumerate(feature_columns):
             shell = ctk.CTkFrame(
                 self.input_host,
-                fg_color=COLORS["surface_alt"],
-                corner_radius=10,
+                fg_color="transparent" if index % 2 == 0 else COLORS["surface_alt"],
+                corner_radius=8,
             )
-            shell.grid_columnconfigure(0, weight=1)
+            shell.grid_columnconfigure(0, weight=2, minsize=75)
+            shell.grid_columnconfigure(1, weight=1, minsize=72)
+            shell.grid_columnconfigure(2, weight=2, minsize=105)
             ctk.CTkLabel(
                 shell,
                 text=name,
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
                 anchor="w",
-            ).grid(row=0, column=0, padx=10, pady=(6, 2), sticky="ew")
+            ).grid(row=0, column=0, padx=6, sticky="ew")
             entry = ctk.CTkEntry(
                 shell,
                 placeholder_text="Numeric value",
@@ -946,13 +966,12 @@ class InferencePage(ctk.CTkFrame):
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
             )
-            entry.grid(row=1, column=0, padx=8, pady=(0, 2), sticky="ew")
+            entry.grid(row=0, column=1, padx=4, sticky="ew")
             statistics = self.input_statistics.get(name)
             range_text = "Training range unavailable"
             if statistics is not None:
                 entry.insert(0, _display_input_number(statistics.median))
                 range_text = (
-                    "Training range: "
                     f"{_display_input_number(statistics.minimum)} to "
                     f"{_display_input_number(statistics.maximum)}"
                 )
@@ -963,7 +982,7 @@ class InferencePage(ctk.CTkFrame):
                 font=FONTS["caption"],
                 anchor="w",
             )
-            range_label.grid(row=2, column=0, padx=10, pady=(0, 6), sticky="ew")
+            range_label.grid(row=0, column=2, padx=6, sticky="ew")
             self.input_shells[name] = shell
             self.input_entries[name] = entry
             self.input_range_labels[name] = range_label
@@ -979,11 +998,10 @@ class InferencePage(ctk.CTkFrame):
         visible = names[start : start + INPUTS_PER_PAGE]
         for index, name in enumerate(visible):
             self.input_shells[name].grid(
-                row=index // 2,
-                column=index % 2,
-                padx=(0 if index % 2 == 0 else 4, 4 if index % 2 == 0 else 0),
-                pady=4,
-                sticky="nsew",
+                row=index + 1,
+                column=0,
+                pady=0,
+                sticky="ew",
             )
         if len(names) > INPUTS_PER_PAGE:
             self.input_page_label.configure(
@@ -1227,12 +1245,26 @@ class InferencePage(ctk.CTkFrame):
     def _ensure_prediction_plot_visible(self) -> bool:
         """Recover plot width when the assistant leaves less than a usable canvas."""
 
+        if not self.app.snowbuddy_collapsed:
+            # A window resize may have made the docked layout viable after the
+            # assistant first chose its focus-only fallback. Re-evaluate that
+            # layout against the current workspace before closing it.
+            self.app._place_snowbuddy_panel()
         self.update_idletasks()
         canvas = self.response_plot.canvas
         if (
             canvas.winfo_ismapped()
             and canvas.winfo_width() >= MIN_USABLE_PREDICTION_PLOT_WIDTH
         ):
+            return False
+        if (
+            self.app.snowbuddy_display_mode == "docked"
+            and self.app._snowbuddy_can_dock()
+        ):
+            # Remapping after an earlier focus-only/narrow layout can lag one
+            # idle cycle even though the enforced dock width already reserves
+            # a usable plot. Preserve the assistant and redraw after mapping.
+            self.after_idle(self.response_plot.redraw)
             return False
         if self.app.snowbuddy_collapsed:
             return False

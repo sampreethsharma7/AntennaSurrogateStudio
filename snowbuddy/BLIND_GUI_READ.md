@@ -1,6 +1,6 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.86
+Contract version: 3.87
 Studio version: 0.33.2
 UI source SHA-256: a0146af81428421a92372fce083d06ed9fea36b8a40e57823367502418612f29
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
@@ -8,8 +8,8 @@ Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e45
 VTK Preview UI source SHA-256: 5601e76892b6681fbc0640dbcb77b78b854bd96fb0037232f7226f768a94fdb3
 Results UI source SHA-256: 77149f4b7fae377a43f638e3b30ee66e7059b4341b8a9c40ec4332c4f6b64ec2
 Library UI source SHA-256: 744dd50872c3a2c7ada092ff40c09b3df8ff8886345e2aea30bc6512daa3718e
-Inference UI source SHA-256: 64059b8a4cee0e386561a222869a51d1fadd1fb01eebdad383bfee119c3c9f82
-Inverse Design UI source SHA-256: e2832803ca6c38b707d34cc2a7bbb8bc961b8dda30c7fd1b312f41dc1e2d6daf
+Inference UI source SHA-256: c0cf6bf56dc0d0f00d49f0f8da671e4de18ac37c1838b69bd56100ea2cdd193d
+Inverse Design UI source SHA-256: af01a71fd2086795662fe37fc5f73c46fe9db4187645e7c275c925844608b2e8
 Scientific Plot UI source SHA-256: 419318bce402719348e16fbd864bbdd76821fe7a487f8ad040c522f70903d05b
 Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
 
@@ -932,11 +932,11 @@ visible when no active Model Book is available.
 
 The narrower left New Sample panel shows the active interface's input-to-output
 counts without repeating the Model Book identity from the result header. It generates one
-labeled numeric entry for every saved feature in exact feature order. Each entry
-starts at that feature's training-set median and shows its immutable training
-minimum and maximum beneath the field. Up to eight inputs appear in a two-column
-grid; larger interfaces use Previous/Next pages while all entered values remain
-retained. Values outside the training range remain valid for prediction but show
+compact table row for every saved feature in exact feature order: input name,
+numeric value, and immutable training minimum-to-maximum range share one eye-line.
+Each value starts at that feature's training-set median. Up to eight rows appear
+on one page; larger interfaces use Previous/Next pages while all entered values
+remain retained. Values outside the training range remain valid for prediction but show
 an explicit extrapolation warning. A two-choice control offers
 **Replace current curve** (default) and **Add to plot**. Predict validates that
 every value is present, numeric, and finite, then calls the unchanged local
@@ -1040,8 +1040,9 @@ fit these engineering-control minima and a docked SnowBuddy panel at the same
 time, SnowBuddy opens in its temporary focused presentation instead of squeezing
 or clipping the form or plot. Inputs, Objective, and Constraints are mutually exclusive
 configuration subtasks, so one compact section is visible at a time and the page
-never scrolls. **Inputs** lists saved features in exact feature order, five per
-page when necessary. Each row chooses Variable or Fixed. Variable rows enable
+never scrolls. **Inputs** lists saved features in exact feature order, up to eight
+per page. Each compact row keeps its feature name, Variable/Fixed selector, and
+Low, High, and Fixed fields on one eye-line. Each row chooses Variable or Fixed. Variable rows enable
 finite Lower and Upper fields; Fixed rows enable one finite Value field. The
 backend requires at least one variable, lower less than upper, and every saved
 feature assigned exactly once.

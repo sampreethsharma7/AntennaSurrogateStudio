@@ -237,13 +237,22 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.page.input_entries["P4"].get(), "2")
         self.assertEqual(
             self.page.input_range_labels["P2"].cget("text"),
-            "Training range: 1 to 24",
+            "1 to 24",
         )
         self.assertEqual(
             self.page.input_range_labels["P3"].cget("text"),
-            "Training range: 0 to 6",
+            "0 to 6",
         )
         self.assertEqual(self.page.input_pager.winfo_manager(), "")
+
+    def test_input_value_and_training_range_share_one_compact_row(self):
+        shell = self.page.input_shells["P2"]
+
+        self.assertEqual(self.page.input_entries["P2"].grid_info()["row"], 0)
+        self.assertEqual(self.page.input_range_labels["P2"].grid_info()["row"], 0)
+        self.assertEqual(self.page.input_entries["P2"].grid_info()["column"], 1)
+        self.assertEqual(self.page.input_range_labels["P2"].grid_info()["column"], 2)
+        self.assertEqual(shell.grid_info()["column"], 0)
 
     def test_many_required_inputs_are_paged_without_losing_values(self):
         self.page.active_book.feature_columns = [f"P{index}" for index in range(1, 11)]

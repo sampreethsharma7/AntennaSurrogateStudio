@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from studio.ui import StudioApp
 
 
-INPUTS_PER_PAGE = 5
+INPUTS_PER_PAGE = 8
 MAX_CONSTRAINTS = 4
 NUMERIC_ENTRY_MIN_WIDTH = 76
 COORDINATE_ENTRY_MIN_WIDTH = 110
@@ -418,7 +418,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 text=label,
                 text_color=COLORS["muted"],
                 font=FONTS["mono"],
-            ).grid(row=0, column=column, padx=4, pady=5, sticky="w")
+            ).grid(row=0, column=column, padx=4, pady=3, sticky="w")
         self.input_rows_host = ctk.CTkFrame(section, fg_color="transparent")
         self.input_rows_host.grid(row=2, column=0, sticky="nsew")
         self.input_rows_host.grid_columnconfigure(0, weight=1)
@@ -923,7 +923,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 anchor="w",
                 justify="left",
                 wraplength=95,
-            ).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+            ).grid(row=0, column=0, padx=5, pady=2, sticky="ew")
             mode = ctk.StringVar(value="Variable" if index == 0 else "Fixed")
             control = ctk.CTkSegmentedButton(
                 frame,
@@ -940,15 +940,15 @@ class InverseDesignPage(ctk.CTkFrame):
                 variable=mode,
                 command=lambda _value, feature=name: self._input_mode_changed(feature),
             )
-            control.grid(row=0, column=1, padx=3, pady=3, sticky="ew")
+            control.grid(row=0, column=1, padx=3, pady=1, sticky="ew")
             lower = self._numeric_entry(frame, "Min")
             upper = self._numeric_entry(frame, "Max")
             fixed = self._numeric_entry(frame, "Value")
             for entry in (lower, upper, fixed):
                 entry.configure(width=INPUT_COLUMN_MIN_WIDTHS[2])
-            lower.grid(row=0, column=2, padx=2, pady=3, sticky="ew")
-            upper.grid(row=0, column=3, padx=2, pady=3, sticky="ew")
-            fixed.grid(row=0, column=4, padx=2, pady=3, sticky="ew")
+            lower.grid(row=0, column=2, padx=2, pady=1, sticky="ew")
+            upper.grid(row=0, column=3, padx=2, pady=1, sticky="ew")
+            fixed.grid(row=0, column=4, padx=2, pady=1, sticky="ew")
             self.input_widgets[name] = InputWidgets(
                 frame, mode, control, lower, upper, fixed
             )
@@ -971,7 +971,7 @@ class InverseDesignPage(ctk.CTkFrame):
         start = self.input_page * INPUTS_PER_PAGE
         visible = names[start : start + INPUTS_PER_PAGE]
         for row, name in enumerate(visible):
-            self.input_widgets[name].frame.grid(row=row, column=0, pady=2, sticky="ew")
+            self.input_widgets[name].frame.grid(row=row, column=0, pady=1, sticky="ew")
         if len(names) > INPUTS_PER_PAGE:
             self.input_page_label.configure(
                 text=f"Inputs {start + 1}–{start + len(visible)} of {len(names)}"
