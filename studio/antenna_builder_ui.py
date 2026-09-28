@@ -269,6 +269,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self._session_load_error: str | None = None
         self.parameter_vars: dict[str, ctk.StringVar] = {}
         self.sweep_vars: dict[str, ctk.BooleanVar] = {}
+        self._persisted_sweep_parameters: set[str] | None = None
         self._field_update_job: str | None = None
         self._active_plan_cancel: threading.Event | None = None
         self._syncing_fields = False
@@ -782,6 +783,8 @@ class AntennaBuilderPage(ctk.CTkFrame):
 
     def _rebuild_parameter_table(self) -> None:
         selected = {name for name, variable in self.sweep_vars.items() if variable.get()}
+        if not self.sweep_vars and self._persisted_sweep_parameters is not None:
+            selected = set(self._persisted_sweep_parameters)
         for child in self.parameter_table.winfo_children():
             child.destroy()
         self.parameter_vars.clear()
@@ -829,7 +832,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             return
         definitions = recipe_parameter_definitions(self.state)
         available = {item.name for item in definitions if item.sweepable}
-        if not (selected & available):
+        if self._persisted_sweep_parameters is None and not (selected & available):
             preferred = {
                 "rectangular_inset_patch": {"PatchL", "PatchW", "Inset"},
                 "circular_patch": {"PatchRadius", "FeedOffset"},
@@ -855,7 +858,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 variable=sweep,
                 width=24,
                 state="normal" if definition.sweepable else "disabled",
-                command=self._update_sampling_summary,
+                command=self._sweep_selection_changed,
             ).grid(row=row, column=3, padx=(6, 2))
             variable.trace_add("write", lambda *_args: self._schedule_field_update())
             row += 1
@@ -995,11 +998,17 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.session = None
         self.state = None
         self.conversation = []
+        self._persisted_sweep_parameters = None
         self._session_load_error = None
         provider = LOCAL_OLLAMA
         model = DEFAULT_MODELS[provider]
         if project is not None:
             settings = project.manifest.get("antenna_builder", {})
+            stored_sweep_parameters = settings.get("selected_sweep_parameters")
+            if isinstance(stored_sweep_parameters, list) and all(
+                isinstance(name, str) for name in stored_sweep_parameters
+            ):
+                self._persisted_sweep_parameters = set(stored_sweep_parameters)
             legacy_backend = str(settings.get("planner_backend", "local_qwen"))
             provider = str(settings.get("planner_provider") or {
                 "local_qwen": LOCAL_OLLAMA,
@@ -1637,6 +1646,17 @@ class AntennaBuilderPage(ctk.CTkFrame):
             text=f"{len(selected)} selected for sweep"
         )
 
+    def _sweep_selection_changed(self) -> None:
+        self._update_sampling_summary()
+        selected = [
+            name for name, variable in self.sweep_vars.items() if variable.get()
+        ]
+        self._persisted_sweep_parameters = set(selected)
+        if self.project is not None:
+            self.project = self.app.update_current_project(
+                {"antenna_builder": {"selected_sweep_parameters": selected}}
+            )
+
     def export_cst(self) -> None:
         if self.project is None or self.state is None:
             return
@@ -1694,6 +1714,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
                 }
             }
         )
+        self._persisted_sweep_parameters = set(selected)
         self.status_var.set("Selected CST parameters transferred to the LHS generator.")
         self.app.show_page("data")
         self.app.after_idle(

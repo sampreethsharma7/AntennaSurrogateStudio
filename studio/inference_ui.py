@@ -919,6 +919,7 @@ class InferencePage(ctk.CTkFrame):
         self.input_pager.grid_remove()
 
     def _create_input_fields(self, feature_columns: list[str]) -> None:
+        saved_inputs = self._saved_input_values(feature_columns)
         self.input_headings = ctk.CTkFrame(
             self.input_host,
             fg_color=COLORS["surface_alt"],
@@ -969,8 +970,11 @@ class InferencePage(ctk.CTkFrame):
             entry.grid(row=0, column=1, padx=4, sticky="ew")
             statistics = self.input_statistics.get(name)
             range_text = "Training range unavailable"
-            if statistics is not None:
+            if name in saved_inputs:
+                entry.insert(0, _display_input_number(saved_inputs[name]))
+            elif statistics is not None:
                 entry.insert(0, _display_input_number(statistics.median))
+            if statistics is not None:
                 range_text = (
                     f"{_display_input_number(statistics.minimum)} to "
                     f"{_display_input_number(statistics.maximum)}"
@@ -987,6 +991,35 @@ class InferencePage(ctk.CTkFrame):
             self.input_entries[name] = entry
             self.input_range_labels[name] = range_label
         self._render_input_page()
+
+    def _saved_input_values(self, feature_columns: list[str]) -> dict[str, float]:
+        if self.project is None or self.active_book is None:
+            return {}
+        raw = self.project.manifest.get("inference", {}).get("ui_state", {})
+        if raw.get("model_book_id") != self.active_book.book_id:
+            return {}
+        values = raw.get("inputs")
+        if not isinstance(values, dict) or set(values) != set(feature_columns):
+            return {}
+        try:
+            parsed = {name: float(values[name]) for name in feature_columns}
+        except (TypeError, ValueError):
+            return {}
+        return parsed if all(math.isfinite(value) for value in parsed.values()) else {}
+
+    def _persist_input_values(self, values: dict[str, float]) -> None:
+        if self.project is None or self.active_book is None:
+            return
+        self.project = self.app.update_current_project(
+            {
+                "inference": {
+                    "ui_state": {
+                        "model_book_id": self.active_book.book_id,
+                        "inputs": dict(values),
+                    }
+                }
+            }
+        )
 
     def _render_input_page(self) -> None:
         names = list(self.input_entries)
@@ -1090,6 +1123,7 @@ class InferencePage(ctk.CTkFrame):
             )
             self.last_result = result
             if result.success:
+                self._persist_input_values(result.input_values)
                 self._show_success(result)
             else:
                 self._show_failure(

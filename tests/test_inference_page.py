@@ -247,6 +247,17 @@ class InferencePageTests(unittest.TestCase):
         self.assertIn("linkedin.com/in/sai-sampreeth-indharapu", message)
 
     def test_required_features_generate_numeric_input_fields(self):
+        project = self.app.update_current_project(
+            {
+                "inference": {
+                    "ui_state": {"model_book_id": "test-reset", "inputs": {}}
+                }
+            }
+        )
+        self.app.set_project(project, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+
         self.assertEqual(list(self.page.input_entries), ["P2", "P3", "P4"])
         self.assertEqual(list(self.page.input_shells), ["P2", "P3", "P4"])
         self.assertTrue(
@@ -999,6 +1010,21 @@ class InferencePageTests(unittest.TestCase):
         self.app.set_project(reopened)
         self.app.update_idletasks()
         self.assertEqual(self.app.active_page, "inference")
+
+    def test_successful_prediction_inputs_persist_across_project_reopen(self):
+        values = {"P2": 7.25, "P3": 1.5, "P4": 4.0}
+        self._fill_inputs(values)
+        self.page.predict_button.invoke()
+
+        reopened = self.store.open_project(self.single_project.path, touch=False)
+        self.app.set_project(reopened, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+
+        self.assertEqual(
+            {name: float(entry.get()) for name, entry in self.page.input_entries.items()},
+            values,
+        )
 
     def test_start_resume_button_uses_model_saved_stage(self):
         self.app.show_page("start")

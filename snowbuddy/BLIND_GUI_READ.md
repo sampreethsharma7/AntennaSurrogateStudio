@@ -1,15 +1,15 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.91
+Contract version: 3.92
 Studio version: 0.33.2
 UI source SHA-256: ae1aeb05e02b1d9b8c173fcf36e1f46ab5a9725e15f2cd1e95e25756fb3c993a
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
-Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e4514a988b4fa45081c5b8
+Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 77149f4b7fae377a43f638e3b30ee66e7059b4341b8a9c40ec4332c4f6b64ec2
 Library UI source SHA-256: 7c1ca0dd1aed057426f0d648c444125c84bab7d699059ddd7e68ac7f3de9c58c
-Inference UI source SHA-256: c0cf6bf56dc0d0f00d49f0f8da671e4de18ac37c1838b69bd56100ea2cdd193d
-Inverse Design UI source SHA-256: af01a71fd2086795662fe37fc5f73c46fe9db4187645e7c275c925844608b2e8
+Inference UI source SHA-256: 4e080ed89db6b06cd15b0dfbcedbe77814377896a0b69427587f3f86a7417bd0
+Inverse Design UI source SHA-256: 74e8eb07bbfbf9c5896e3bb2a2c81655fc7db5659e6fe63dcc33aae5c4325052
 Scientific Plot UI source SHA-256: 419318bce402719348e16fbd864bbdd76821fe7a487f8ad040c522f70903d05b
 Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
 
@@ -298,8 +298,10 @@ build a trusted surrogate model.
   Studio-owned CST process. Neither export starts a solver.
 - **Send selected to LHS** opens Data Prep and the existing LHS dialog with the
   selected meaningful CST parameter names and suggested editable bounds. The
-  selected names are also retained in the project as the Builder's current
-  VARY selection for a later matching #Parameters import.
+  VARY selection is retained in the project as soon as a checkbox changes, so
+  every selected or cleared checkbox survives page navigation and project reopen.
+  Sending to LHS uses and reaffirms that same saved selection for a later matching
+  #Parameters import.
 - Builder state, raw conversation, and project engineering memory are
   project-local under `design/` and restore when the project reopens. A blank
   saved session reopens blank and opening the page alone does not create
@@ -950,7 +952,10 @@ The narrower left New Sample panel shows the active interface's input-to-output
 counts without repeating the Model Book identity from the result header. It generates one
 compact table row for every saved feature in exact feature order: input name,
 numeric value, and immutable training minimum-to-maximum range share one eye-line.
-Each value starts at that feature's training-set median. Up to eight rows appear
+Each value starts at that feature's training-set median until a successful
+prediction has saved a project-local value for the active Model Book. Those exact
+latest inputs then restore with the matching saved curves after reopen, so fields
+and plotted results do not contradict one another. Up to eight rows appear
 on one page; larger interfaces use Previous/Next pages while all entered values
 remain retained. Values outside the training range remain valid for prediction but show
 an explicit extrapolation warning. A two-choice control offers
@@ -1062,6 +1067,10 @@ Low, High, and Fixed fields on one eye-line. Each row chooses Variable or Fixed.
 finite Lower and Upper fields; Fixed rows enable one finite Value field. The
 backend requires at least one variable, lower less than upper, and every saved
 feature assigned exactly once.
+The Variable/Fixed role and its validated numeric bounds or fixed value are saved
+after a successful inverse-design run. They restore only for the same active Model
+Book; a different book starts from safe defaults instead of inheriting an
+incompatible feature contract.
 
 **Objective** has no long saved-output menu. It shows the saved output-axis label,
 coordinate bounds, and point count, then accepts a numeric coordinate for

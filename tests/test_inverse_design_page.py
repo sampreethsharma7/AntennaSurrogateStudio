@@ -386,6 +386,35 @@ class InverseDesignPageTests(unittest.TestCase):
             legend_text,
         )
 
+    def test_successful_roles_and_bounds_persist_across_project_reopen(self):
+        self._fill_valid_form()
+        p2 = self.page.input_widgets["P2"]
+        p2.lower.delete(0, "end")
+        p2.lower.insert(0, "1.25")
+        p2.upper.delete(0, "end")
+        p2.upper.insert(0, "8.75")
+        request = self.page.build_request()
+        self.page._persist_input_configuration(request)
+
+        reopened = self.store.open_project(self.project.path, touch=False)
+        self.app.set_project(reopened, target_page="inverse_design")
+        self.app.update_idletasks()
+        self.page = self.app.inverse_design_page
+
+        self.assertEqual(self.page.input_widgets["P2"].mode.get(), "Variable")
+        self.assertEqual(self.page.input_widgets["P2"].lower.get(), "1.25")
+        self.assertEqual(self.page.input_widgets["P2"].upper.get(), "8.75")
+        self.assertEqual(self.page.input_widgets["P3"].mode.get(), "Fixed")
+        self.assertEqual(self.page.input_widgets["P3"].fixed.get(), "2")
+
+        self.app.update_current_project(
+            {
+                "inverse_design": {
+                    "ui_state": {"model_book_id": "test-reset", "inputs": {}}
+                }
+            }
+        )
+
     def test_repeated_search_results_add_or_replace_curves_without_leaving_configuration(self):
         predictions = {f"theta_{index}": float(index + 1) for index in range(8)}
         first = InverseDesignResult(

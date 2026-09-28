@@ -688,6 +688,21 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.app.set_project(reopened, target_page="antenna_builder")
         self.assertNotIn("slot_radius_mm", self.page.parameter_vars)
 
+    def test_vary_selection_persists_across_project_reopen(self):
+        self._create_inset_design()
+        selected = {"PatchL", "PatchW", "Inset", "FeedW"}
+        for name, variable in self.page.sweep_vars.items():
+            variable.set(name in selected)
+        self.page._sweep_selection_changed()
+
+        reopened = self.store.open_project(self.project.path, touch=False)
+        self.app.set_project(reopened, target_page="antenna_builder")
+
+        self.assertEqual(
+            {name for name, variable in self.page.sweep_vars.items() if variable.get()},
+            selected,
+        )
+
     def test_corner_cutout_prompt_adds_live_parameter_and_curved_preview(self):
         self._create_inset_design()
         self._apply_llm_plan(

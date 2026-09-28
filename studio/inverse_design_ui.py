@@ -118,6 +118,7 @@ class InverseDesignPage(ctk.CTkFrame):
         self.load_error: str | None = None
         self.optimization_in_progress = False
         self.last_result: InverseDesignResult | None = None
+        self._pending_request: InverseDesignRequest | None = None
         self._workspace_key: tuple[Path, str] | None = None
         self.input_page = 0
         self.input_widgets: dict[str, InputWidgets] = {}
@@ -903,6 +904,7 @@ class InverseDesignPage(ctk.CTkFrame):
             entry.insert(0, _display_numeric_value(value))
 
     def _create_input_rows(self, features: list[str]) -> None:
+        saved_inputs = self._saved_input_configuration(features)
         for index, name in enumerate(features):
             frame = ctk.CTkFrame(
                 self.input_rows_host,
@@ -924,7 +926,10 @@ class InverseDesignPage(ctk.CTkFrame):
                 justify="left",
                 wraplength=95,
             ).grid(row=0, column=0, padx=5, pady=2, sticky="ew")
-            mode = ctk.StringVar(value="Variable" if index == 0 else "Fixed")
+            saved = saved_inputs.get(name, {})
+            mode = ctk.StringVar(
+                value=str(saved.get("mode") or ("Variable" if index == 0 else "Fixed"))
+            )
             control = ctk.CTkSegmentedButton(
                 frame,
                 values=["Variable", "Fixed"],
@@ -952,8 +957,64 @@ class InverseDesignPage(ctk.CTkFrame):
             self.input_widgets[name] = InputWidgets(
                 frame, mode, control, lower, upper, fixed
             )
+            for entry, key in (
+                (lower, "lower"),
+                (upper, "upper"),
+                (fixed, "fixed"),
+            ):
+                value = saved.get(key)
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    entry.insert(0, _display_numeric_value(float(value)))
             self._input_mode_changed(name)
         self._render_input_page()
+
+    def _saved_input_configuration(
+        self,
+        features: list[str],
+    ) -> dict[str, dict[str, object]]:
+        if self.project is None or self.active_book is None:
+            return {}
+        raw = self.project.manifest.get("inverse_design", {}).get("ui_state", {})
+        if raw.get("model_book_id") != self.active_book.book_id:
+            return {}
+        inputs = raw.get("inputs")
+        if not isinstance(inputs, dict) or set(inputs) != set(features):
+            return {}
+        restored: dict[str, dict[str, object]] = {}
+        for name in features:
+            item = inputs.get(name)
+            if not isinstance(item, dict) or item.get("mode") not in {"Variable", "Fixed"}:
+                return {}
+            restored[name] = dict(item)
+        return restored
+
+    def _persist_input_configuration(self, request: InverseDesignRequest) -> None:
+        if self.project is None or self.active_book is None:
+            return
+        inputs: dict[str, dict[str, object]] = {}
+        for name in self.active_book.feature_columns:
+            if name in request.variable_bounds:
+                lower, upper = request.variable_bounds[name]
+                inputs[name] = {
+                    "mode": "Variable",
+                    "lower": lower,
+                    "upper": upper,
+                }
+            else:
+                inputs[name] = {
+                    "mode": "Fixed",
+                    "fixed": request.fixed_inputs[name],
+                }
+        self.project = self.app.update_current_project(
+            {
+                "inverse_design": {
+                    "ui_state": {
+                        "model_book_id": self.active_book.book_id,
+                        "inputs": inputs,
+                    }
+                }
+            }
+        )
 
     def _input_mode_changed(self, name: str) -> None:
         widgets = self.input_widgets[name]
@@ -1410,6 +1471,7 @@ class InverseDesignPage(ctk.CTkFrame):
         except (KeyError, TypeError, ValueError) as exc:
             self.footer_status.configure(text=str(exc), text_color=COLORS["danger"])
             return
+        self._pending_request = request
         self._set_busy(True)
         project_path = self.project.path
 
@@ -1442,6 +1504,9 @@ class InverseDesignPage(ctk.CTkFrame):
         self.last_result = result
         self._set_busy(False)
         if result.success:
+            if self._pending_request is not None:
+                self._persist_input_configuration(self._pending_request)
+            self._pending_request = None
             self._show_success(result)
             if self.project is not None:
                 try:
@@ -1452,6 +1517,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 except Exception:
                     pass
             return
+        self._pending_request = None
         failure_message = result.error_message or "No completed result is available."
         self.result_title.configure(text="Inverse design did not complete")
         self.result_summary.configure(
