@@ -1,6 +1,6 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.93
+Contract version: 3.94
 Studio version: 0.33.2
 UI source SHA-256: bbecedb91193182e8fade288db0c29a597cece4b028dee57ae12bf9eeba2cae9
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
@@ -8,9 +8,9 @@ Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
-Inference UI source SHA-256: 4e080ed89db6b06cd15b0dfbcedbe77814377896a0b69427587f3f86a7417bd0
-Inverse Design UI source SHA-256: eb6791d6e4ca5bb46135429c92c06306341b7182bf6ca7aed53bc1810df37f74
-Scientific Plot UI source SHA-256: 419318bce402719348e16fbd864bbdd76821fe7a487f8ad040c522f70903d05b
+Inference UI source SHA-256: 753390cd7610436f2f0cb296ca2e50281d6b97eb5dee77a5c358ea2bdc88f919
+Inverse Design UI source SHA-256: 01566d74fc24600ad8a39e3ce11b88e2f41c649fea4c0bba07fc0c1610d72a62
+Scientific Plot UI source SHA-256: 614d55eefbe090b57251eafc48b2a774fba828e7cf77c33b124ee261b4b41200
 Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
 
 This file is SnowBuddy’s visual and interaction map. It describes the interface
@@ -956,6 +956,9 @@ The narrower left New Sample panel shows the active interface's input-to-output
 counts without repeating the Model Book identity from the result header. It generates one
 compact table row for every saved feature in exact feature order: input name,
 numeric value, and immutable training minimum-to-maximum range share one eye-line.
+All rows use the same computed name, value, and range column widths, so a longer
+runtime-created parameter cannot shift the controls in only its own row. Names
+longer than the available label width wrap without reducing the text size.
 Each value starts at that feature's training-set median until a successful
 prediction has saved a project-local value for the active Model Book. Those exact
 latest inputs then restore with the matching saved curves after reopen, so fields
@@ -1014,7 +1017,9 @@ Every successful prediction is persisted as an immutable project-local run and
 all valid matching runs are restored as curves on reopen. A draggable vertical divider resizes
 the plot and Curves manager with minimum usable widths on both sides. Legend
 labels use the available legend width; they are no longer cut at a fixed 20
-characters. Full curve names always remain available in the Curves manager.
+characters. Full curve names always remain available in the Curves manager. The
+CURVES and MARKERS counters occupy equal, separately anchored header columns so
+their labels remain visibly separated at the minimum manager width.
 
 After a successful prediction, **View Raw Values** opens the complete inputs and
 predicted outputs in saved interface order. **Export Prediction** opens the
@@ -1067,8 +1072,12 @@ or clipping the form or plot. Inputs, Objective, and Constraints are mutually ex
 configuration subtasks, so one compact section is visible at a time and the page
 never scrolls. **Inputs** lists saved features in exact feature order, up to eight
 per page. Each compact row keeps its feature name, Variable/Fixed selector, and
-Low, High, and Fixed fields on one eye-line. Each row chooses Variable or Fixed. Variable rows enable
-finite Lower and Upper fields; Fixed rows enable one finite Value field. The
+contextual numeric fields aligned to shared column widths. Each row chooses
+Variable or Fixed. Variable rows show finite Low and High fields. Fixed rows hide
+those irrelevant bounds and show one full-width Value field in the same numeric
+area; there is no permanently allocated fifth column. Long runtime-created names
+wrap inside the shared name column rather than shifting or clipping only one row.
+The
 backend requires at least one variable, lower less than upper, and every saved
 feature assigned exactly once.
 Before a project-specific configuration exists, Variable Low/High fields use the

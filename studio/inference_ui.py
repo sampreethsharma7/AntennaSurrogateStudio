@@ -345,6 +345,7 @@ class InferencePage(ctk.CTkFrame):
         self.load_error: str | None = None
         self.input_entries: dict[str, ctk.CTkEntry] = {}
         self.input_shells: dict[str, ctk.CTkFrame] = {}
+        self.input_name_labels: dict[str, ctk.CTkLabel] = {}
         self.input_range_labels: dict[str, ctk.CTkLabel] = {}
         self.input_statistics: dict[str, TrainingFeatureStatistics] = {}
         self.input_statistics_error: str | None = None
@@ -914,12 +915,19 @@ class InferencePage(ctk.CTkFrame):
             child.destroy()
         self.input_entries.clear()
         self.input_shells.clear()
+        self.input_name_labels.clear()
         self.input_range_labels.clear()
         self.current_extrapolation_warnings = []
         self.input_pager.grid_remove()
 
     def _create_input_fields(self, feature_columns: list[str]) -> None:
         saved_inputs = self._saved_input_values(feature_columns)
+        label_width = min(
+            190,
+            max(105, 18 + max((len(name) for name in feature_columns), default=0) * 11),
+        )
+        value_width = 92
+        range_width = 118
         self.input_headings = ctk.CTkFrame(
             self.input_host,
             fg_color=COLORS["surface_alt"],
@@ -927,7 +935,11 @@ class InferencePage(ctk.CTkFrame):
         )
         self.input_headings.grid(row=0, column=0, pady=(0, 2), sticky="ew")
         for column, (label, weight, minimum) in enumerate(
-            (("INPUT", 2, 75), ("VALUE", 1, 72), ("RANGE", 2, 105))
+            (
+                ("INPUT", 0, label_width),
+                ("VALUE", 0, value_width),
+                ("RANGE", 1, range_width),
+            )
         ):
             self.input_headings.grid_columnconfigure(
                 column,
@@ -947,16 +959,20 @@ class InferencePage(ctk.CTkFrame):
                 fg_color="transparent" if index % 2 == 0 else COLORS["surface_alt"],
                 corner_radius=8,
             )
-            shell.grid_columnconfigure(0, weight=2, minsize=75)
-            shell.grid_columnconfigure(1, weight=1, minsize=72)
-            shell.grid_columnconfigure(2, weight=2, minsize=105)
-            ctk.CTkLabel(
+            shell.grid_columnconfigure(0, weight=0, minsize=label_width)
+            shell.grid_columnconfigure(1, weight=0, minsize=value_width)
+            shell.grid_columnconfigure(2, weight=1, minsize=range_width)
+            name_label = ctk.CTkLabel(
                 shell,
                 text=name,
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
                 anchor="w",
-            ).grid(row=0, column=0, padx=6, sticky="ew")
+                justify="left",
+                width=label_width,
+                wraplength=label_width - 12,
+            )
+            name_label.grid(row=0, column=0, padx=6, sticky="ew")
             entry = ctk.CTkEntry(
                 shell,
                 placeholder_text="Numeric value",
@@ -966,6 +982,7 @@ class InferencePage(ctk.CTkFrame):
                 border_color=COLORS["border"],
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
+                width=value_width,
             )
             entry.grid(row=0, column=1, padx=4, sticky="ew")
             statistics = self.input_statistics.get(name)
@@ -985,9 +1002,11 @@ class InferencePage(ctk.CTkFrame):
                 text_color=COLORS["subtle"],
                 font=FONTS["caption"],
                 anchor="w",
+                width=range_width,
             )
             range_label.grid(row=0, column=2, padx=6, sticky="ew")
             self.input_shells[name] = shell
+            self.input_name_labels[name] = name_label
             self.input_entries[name] = entry
             self.input_range_labels[name] = range_label
         self._render_input_page()

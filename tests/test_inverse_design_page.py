@@ -120,6 +120,35 @@ class InverseDesignPageTests(unittest.TestCase):
             )
         )
 
+    def test_columns_align_and_fixed_value_only_appears_for_fixed_rows(self):
+        names = ["P2", "SlotRadius", "ManufacturingKeepoutDistance"]
+        self.page._clear_form()
+        self.page._create_input_rows(names)
+        for name in names:
+            widgets = self.page.input_widgets[name]
+            widgets.mode.set("Variable")
+            self.page._input_mode_changed(name)
+        fixed = self.page.input_widgets[names[1]]
+        fixed.mode.set("Fixed")
+        self.page._input_mode_changed(names[1])
+        self.app.update()
+
+        self.assertEqual(
+            len({self.page.input_widgets[name].mode_control.winfo_rootx() for name in names}),
+            1,
+        )
+        variable = self.page.input_widgets[names[0]]
+        self.assertEqual(variable.fixed.winfo_manager(), "")
+        self.assertEqual(variable.lower.winfo_manager(), "grid")
+        self.assertEqual(variable.upper.winfo_manager(), "grid")
+        self.assertEqual(fixed.lower.winfo_manager(), "")
+        self.assertEqual(fixed.upper.winfo_manager(), "")
+        self.assertEqual(fixed.fixed.winfo_manager(), "grid")
+        self.assertEqual(int(fixed.fixed.grid_info()["columnspan"]), 2)
+        long_label = self.page.input_name_labels[names[-1]]
+        self.assertEqual(long_label.cget("text"), names[-1])
+        self.assertGreaterEqual(long_label.winfo_height(), long_label.winfo_reqheight())
+
     def test_form_builds_variable_fixed_target_and_generic_constraint_request(self):
         self._fill_valid_form()
         self.page.single_coordinate.delete(0, "end")
@@ -816,10 +845,14 @@ class InverseDesignPageTests(unittest.TestCase):
             CONFIGURATION_MIN_WIDTH,
         )
         first_input = next(iter(self.page.input_widgets.values()))
-        self.assertGreaterEqual(first_input.mode_control.winfo_width(), 165)
+        self.assertGreaterEqual(first_input.mode_control.winfo_width(), 140)
         self.assertGreaterEqual(first_input.lower.winfo_width(), 54)
         self.assertGreaterEqual(first_input.upper.winfo_width(), 54)
-        self.assertGreaterEqual(first_input.fixed.winfo_width(), 54)
+        self.assertEqual(first_input.fixed.winfo_manager(), "")
+        self.assertGreaterEqual(first_input.lower.winfo_width(), 54)
+        fixed_input = list(self.page.input_widgets.values())[1]
+        self.assertEqual(fixed_input.fixed.winfo_manager(), "grid")
+        self.assertGreaterEqual(fixed_input.fixed.winfo_width(), 108)
         self.assertGreaterEqual(self.page.config_section_control.winfo_width(), 450)
         self.assertEqual(
             int(float(self.page.configuration_intro.cget("wraplength"))),

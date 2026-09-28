@@ -42,14 +42,12 @@ if TYPE_CHECKING:
 
 INPUTS_PER_PAGE = 8
 MAX_CONSTRAINTS = 4
-NUMERIC_ENTRY_MIN_WIDTH = 76
 COORDINATE_ENTRY_MIN_WIDTH = 110
 INPUT_COLUMN_MIN_WIDTHS = (
-    105,
-    171,
-    NUMERIC_ENTRY_MIN_WIDTH,
-    NUMERIC_ENTRY_MIN_WIDTH,
-    NUMERIC_ENTRY_MIN_WIDTH,
+    140,
+    150,
+    90,
+    90,
 )
 CONFIGURATION_MIN_WIDTH = 522
 CONFIGURATION_DEFAULT_WIDTH = 522
@@ -128,6 +126,7 @@ class InverseDesignPage(ctk.CTkFrame):
         self._workspace_key: tuple[Path, str] | None = None
         self.input_page = 0
         self.input_widgets: dict[str, InputWidgets] = {}
+        self.input_name_labels: dict[str, ctk.CTkLabel] = {}
         self.constraint_widgets: list[ConstraintWidgets] = []
         self._coordinate_disclosures: list[str] = []
         self._clamping_workspace_sash = False
@@ -417,18 +416,22 @@ class InverseDesignPage(ctk.CTkFrame):
         self.input_explanation.grid(
             row=0, column=0, padx=2, pady=(2, 5), sticky="ew"
         )
-        headings = ctk.CTkFrame(section, fg_color=COLORS["surface_alt"], corner_radius=8)
-        headings.grid(row=1, column=0, pady=(0, 4), sticky="ew")
+        self.input_headings = ctk.CTkFrame(
+            section,
+            fg_color=COLORS["surface_alt"],
+            corner_radius=8,
+        )
+        self.input_headings.grid(row=1, column=0, pady=(0, 4), sticky="ew")
         for column, (label, weight) in enumerate(
-            (("INPUT", 2), ("ROLE", 2), ("LOW", 1), ("HIGH", 1), ("FIXED", 1))
+            (("INPUT", 0), ("ROLE", 0), ("LOW / VALUE", 1), ("HIGH", 1))
         ):
-            headings.grid_columnconfigure(
+            self.input_headings.grid_columnconfigure(
                 column,
                 weight=weight,
                 minsize=INPUT_COLUMN_MIN_WIDTHS[column],
             )
             ctk.CTkLabel(
-                headings,
+                self.input_headings,
                 text=label,
                 text_color=COLORS["muted"],
                 font=FONTS["mono"],
@@ -872,6 +875,7 @@ class InverseDesignPage(ctk.CTkFrame):
         for widgets in self.input_widgets.values():
             widgets.frame.destroy()
         self.input_widgets.clear()
+        self.input_name_labels.clear()
         for widgets in self.constraint_widgets:
             widgets.frame.destroy()
         self.constraint_widgets.clear()
@@ -918,27 +922,38 @@ class InverseDesignPage(ctk.CTkFrame):
 
     def _create_input_rows(self, features: list[str]) -> None:
         saved_inputs = self._saved_input_configuration(features)
+        self.input_name_labels.clear()
+        label_width = min(
+            190,
+            max(
+                INPUT_COLUMN_MIN_WIDTHS[0],
+                18 + max((len(name) for name in features), default=0) * 11,
+            ),
+        )
+        self.input_headings.grid_columnconfigure(0, minsize=label_width)
         for index, name in enumerate(features):
             frame = ctk.CTkFrame(
                 self.input_rows_host,
                 fg_color="transparent" if index % 2 == 0 else COLORS["surface_alt"],
                 corner_radius=8,
             )
-            for column, weight in enumerate((2, 2, 1, 1, 1)):
+            for column, weight in enumerate((0, 0, 1, 1)):
                 frame.grid_columnconfigure(
                     column,
                     weight=weight,
-                    minsize=INPUT_COLUMN_MIN_WIDTHS[column],
+                    minsize=(label_width if column == 0 else INPUT_COLUMN_MIN_WIDTHS[column]),
                 )
-            ctk.CTkLabel(
+            name_label = ctk.CTkLabel(
                 frame,
                 text=name,
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
                 anchor="w",
                 justify="left",
-                wraplength=95,
-            ).grid(row=0, column=0, padx=5, pady=2, sticky="ew")
+                width=label_width,
+                wraplength=label_width - 12,
+            )
+            name_label.grid(row=0, column=0, padx=5, pady=2, sticky="ew")
             saved = saved_inputs.get(name, {})
             mode = ctk.StringVar(
                 value=str(saved.get("mode") or ("Variable" if index == 0 else "Fixed"))
@@ -966,10 +981,18 @@ class InverseDesignPage(ctk.CTkFrame):
                 entry.configure(width=INPUT_COLUMN_MIN_WIDTHS[2])
             lower.grid(row=0, column=2, padx=2, pady=1, sticky="ew")
             upper.grid(row=0, column=3, padx=2, pady=1, sticky="ew")
-            fixed.grid(row=0, column=4, padx=2, pady=1, sticky="ew")
+            fixed.grid(
+                row=0,
+                column=2,
+                columnspan=2,
+                padx=2,
+                pady=1,
+                sticky="ew",
+            )
             self.input_widgets[name] = InputWidgets(
                 frame, mode, control, lower, upper, fixed
             )
+            self.input_name_labels[name] = name_label
             feature_statistics = self.input_statistics.get(name)
             defaults = {
                 "lower": feature_statistics.minimum if feature_statistics else None,
@@ -1038,9 +1061,17 @@ class InverseDesignPage(ctk.CTkFrame):
     def _input_mode_changed(self, name: str) -> None:
         widgets = self.input_widgets[name]
         variable = widgets.mode.get() == "Variable"
-        widgets.lower.configure(state="normal" if variable else "disabled")
-        widgets.upper.configure(state="normal" if variable else "disabled")
-        widgets.fixed.configure(state="disabled" if variable else "normal")
+        if variable:
+            widgets.fixed.grid_remove()
+            widgets.lower.configure(state="normal")
+            widgets.upper.configure(state="normal")
+            widgets.lower.grid()
+            widgets.upper.grid()
+        else:
+            widgets.lower.grid_remove()
+            widgets.upper.grid_remove()
+            widgets.fixed.configure(state="normal")
+            widgets.fixed.grid()
 
     def _render_input_page(self) -> None:
         names = list(self.input_widgets)

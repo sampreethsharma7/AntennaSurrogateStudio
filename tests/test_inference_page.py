@@ -288,6 +288,24 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.page.input_range_labels["P2"].grid_info()["column"], 2)
         self.assertEqual(shell.grid_info()["column"], 0)
 
+    def test_parameter_columns_align_with_a_longer_runtime_name(self):
+        names = ["P2", "SlotRadius", "ManufacturingKeepoutDistance"]
+        self.page._clear_input_fields()
+        self.page._create_input_fields(names)
+        self.app.update()
+
+        self.assertEqual(
+            len({self.page.input_entries[name].winfo_rootx() for name in names}),
+            1,
+        )
+        self.assertEqual(
+            len({self.page.input_range_labels[name].winfo_rootx() for name in names}),
+            1,
+        )
+        long_label = self.page.input_name_labels[names[-1]]
+        self.assertEqual(long_label.cget("text"), names[-1])
+        self.assertGreaterEqual(long_label.winfo_height(), long_label.winfo_reqheight())
+
     def test_many_required_inputs_are_paged_without_losing_values(self):
         self.page.active_book.feature_columns = [f"P{index}" for index in range(1, 11)]
         self.page._refresh()
@@ -586,6 +604,12 @@ class InferencePageTests(unittest.TestCase):
         workbench = self.page.response_plot
         plot_width = workbench.canvas.winfo_width()
         self.assertGreaterEqual(plot_width, 420)
+        self.assertLessEqual(
+            workbench.curve_count_label.winfo_rootx()
+            + workbench.curve_count_label.winfo_width()
+            + 4,
+            workbench.marker_count_label.winfo_rootx(),
+        )
         self.assertLess(
             workbench._plot_bounds[3],
             workbench.canvas.winfo_height(),

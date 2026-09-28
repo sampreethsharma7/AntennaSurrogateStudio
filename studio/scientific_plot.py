@@ -1220,14 +1220,16 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
         manager.grid_columnconfigure(0, weight=1)
         manager.grid_rowconfigure(2, weight=1)
         header = ctk.CTkFrame(manager, fg_color="transparent")
-        header.grid(row=0, column=0, padx=10, pady=(9, 4), sticky="ew")
-        header.grid_columnconfigure(0, weight=1)
+        header.grid(row=0, column=0, padx=2, pady=(9, 4), sticky="ew")
+        header.grid_columnconfigure(0, weight=1, minsize=100, uniform="plot_counts")
+        header.grid_columnconfigure(1, weight=1, minsize=100, uniform="plot_counts")
         self.curve_count_label = ctk.CTkLabel(
             header,
             text="CURVES · 0",
             text_color=COLORS["cyan"],
             font=FONTS["mono"],
             anchor="w",
+            width=100,
         )
         self.curve_count_label.grid(row=0, column=0, sticky="w")
         self.marker_count_label = ctk.CTkLabel(
@@ -1235,6 +1237,8 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             text="MARKERS · 0",
             text_color=COLORS["muted"],
             font=FONTS["mono"],
+            anchor="e",
+            width=100,
         )
         self.marker_count_label.grid(row=0, column=1, sticky="e")
         self.manager_context = ctk.CTkFrame(manager, fg_color="transparent")
