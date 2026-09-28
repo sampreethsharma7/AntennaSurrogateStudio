@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 import tkinter as tk
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,39 @@ def _rgb(color: str) -> tuple[float, float, float]:
     if len(value) != 6:
         raise ValueError(f"Expected a six-digit hex color, got {color!r}.")
     return tuple(int(value[index:index + 2], 16) / 255 for index in (0, 2, 4))
+
+
+def _window_dpi_scale(widget: tk.Misc) -> float:
+    """Return the physical-pixel scale of the Tk window containing ``widget``."""
+
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            return max(
+                1.0,
+                ctypes.windll.user32.GetDpiForWindow(widget.winfo_id()) / 96.0,
+            )
+        except (AttributeError, OSError, ValueError):
+            pass
+    try:
+        return max(1.0, float(widget.winfo_fpixels("1i")) / 96.0)
+    except (tk.TclError, TypeError, ValueError):
+        return 1.0
+
+
+def physical_render_size(
+    logical_width: int,
+    logical_height: int,
+    dpi_scale: float,
+) -> tuple[int, int]:
+    """Convert a logical Tk viewport to a physical VTK framebuffer size."""
+
+    scale = max(1.0, float(dpi_scale or 1.0))
+    return (
+        max(1, int(round(logical_width * scale))),
+        max(1, int(round(logical_height * scale))),
+    )
 
 
 def polydata_from_solid(solid: GeometrySolid):
@@ -104,6 +138,8 @@ class VtkAntennaPreview(tk.Frame):
         self._pan_origin: tuple[int, int] | None = None
         self._photo: ImageTk.PhotoImage | None = None
         self._image_item: int | None = None
+        self._render_dpi_scale = 1.0
+        self._overlay_font_sizes: dict[Any, int] = {}
         self._available = VTK_IMPORT_ERROR is None
         if not self._available:
             self._error_label = tk.Label(
@@ -169,6 +205,12 @@ class VtkAntennaPreview(tk.Frame):
             self._help_actor,
         ):
             self._annotation_renderer.AddViewProp(actor)
+        self._overlay_font_sizes = {
+            self._title_actor: 16,
+            self._summary_actor: 13,
+            self._warning_actor: 12,
+            self._help_actor: 12,
+        }
         self._help_actor.SetInput(
             "Left-drag orbit · Right/middle-drag pan · Wheel zoom"
         )
@@ -289,15 +331,33 @@ class VtkAntennaPreview(tk.Frame):
         else:
             self._render_after_id = self.after(35, self.render)
 
-    def _position_overlays(self) -> None:
+    def _position_overlays(
+        self,
+        width: int | None = None,
+        height: int | None = None,
+        scale: float | None = None,
+    ) -> None:
         if not self._available or not self.winfo_exists():
             return
-        width = max(self._canvas.winfo_width(), 320)
-        height = max(self._canvas.winfo_height(), 260)
-        self._title_actor.SetDisplayPosition(18, height - 32)
-        self._summary_actor.SetDisplayPosition(18, height - 56)
-        self._warning_actor.SetDisplayPosition(18, height - 82)
-        self._help_actor.SetDisplayPosition(width - 16, 14)
+        dpi_scale = max(1.0, float(scale or self._render_dpi_scale))
+        render_width = width or max(self._canvas.winfo_width(), 320)
+        render_height = height or max(self._canvas.winfo_height(), 260)
+        for actor, base_size in self._overlay_font_sizes.items():
+            actor.GetTextProperty().SetFontSize(max(1, round(base_size * dpi_scale)))
+        for label in self._port_labels:
+            label.GetTextProperty().SetFontSize(max(1, round(16 * dpi_scale)))
+        self._title_actor.SetDisplayPosition(
+            round(18 * dpi_scale), render_height - round(32 * dpi_scale)
+        )
+        self._summary_actor.SetDisplayPosition(
+            round(18 * dpi_scale), render_height - round(56 * dpi_scale)
+        )
+        self._warning_actor.SetDisplayPosition(
+            round(18 * dpi_scale), render_height - round(82 * dpi_scale)
+        )
+        self._help_actor.SetDisplayPosition(
+            render_width - round(16 * dpi_scale), round(14 * dpi_scale)
+        )
 
     def _solid_actor(self, solid: GeometrySolid):
         data = polydata_from_solid(solid)
@@ -545,9 +605,15 @@ class VtkAntennaPreview(tk.Frame):
         self._render_after_id = None
         if not self._available or self._finalized or not self.winfo_exists():
             return
-        width = max(self._canvas.winfo_width(), 320)
-        height = max(self._canvas.winfo_height(), 260)
-        self._position_overlays()
+        logical_width = max(self._canvas.winfo_width(), 320)
+        logical_height = max(self._canvas.winfo_height(), 260)
+        self._render_dpi_scale = _window_dpi_scale(self._canvas)
+        width, height = physical_render_size(
+            logical_width,
+            logical_height,
+            self._render_dpi_scale,
+        )
+        self._position_overlays(width, height, self._render_dpi_scale)
         self._render_window.SetSize(width, height)
         self._render_window.Render()
         capture = vtkWindowToImageFilter()
@@ -560,6 +626,11 @@ class VtkAntennaPreview(tk.Frame):
         scalars = output.GetPointData().GetScalars()
         pixels = vtk_to_numpy(scalars).reshape(dimensions[1], dimensions[0], 4)
         image = Image.fromarray(np.flipud(pixels).copy(), mode="RGBA")
+        if image.size != (logical_width, logical_height):
+            image = image.resize(
+                (logical_width, logical_height),
+                resample=Image.Resampling.LANCZOS,
+            )
         self._photo = ImageTk.PhotoImage(image=image, master=self._canvas)
         if self._image_item is None:
             self._image_item = self._canvas.create_image(

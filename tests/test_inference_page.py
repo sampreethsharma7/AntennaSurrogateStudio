@@ -80,6 +80,29 @@ class ResponsiveWindowLayoutTests(unittest.TestCase):
                     self.assertLessEqual(round(width * window_scaling), 1326)
                     self.assertLessEqual(round(height * window_scaling), 728)
 
+    def test_runtime_dpi_change_reapplies_bounded_scaling(self):
+        initial = responsive_window_layout(1366, 768, 1.0)
+        app = SimpleNamespace(
+            _applied_dpi_scaling=1.0,
+            window_layout=initial,
+            ui_scaling=initial.ui_scaling,
+            winfo_screenwidth=lambda: 1366 / 1.5,
+            winfo_screenheight=lambda: 768 / 1.5,
+        )
+
+        with (
+            patch("studio.ui._window_dpi_scaling", return_value=1.5),
+            patch("studio.ui.ctk.set_window_scaling") as set_window_scaling,
+            patch("studio.ui.ctk.set_widget_scaling") as set_widget_scaling,
+        ):
+            changed = StudioApp._refresh_dpi_scaling(app)
+
+        self.assertTrue(changed)
+        self.assertEqual(app._applied_dpi_scaling, 1.5)
+        self.assertLessEqual(app.ui_scaling, 1.08)
+        set_window_scaling.assert_called_once_with(1.0 / 1.5)
+        set_widget_scaling.assert_called_once_with(app.ui_scaling / 1.5)
+
 
 def create_active_book(project, *, output_count=1, name="Page Model"):
     input_path = project.path / "data" / "prepared" / "inputs.csv"

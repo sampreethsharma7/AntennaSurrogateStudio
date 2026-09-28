@@ -296,6 +296,7 @@ class StudioApp(ctk.CTk):
         ctk.set_window_scaling(self.window_layout.window_scaling_factor)
         ctk.set_widget_scaling(self.window_layout.widget_scaling_factor)
         self.ui_scaling = self.window_layout.ui_scaling
+        self._applied_dpi_scaling = self.window_layout.dpi_scaling
         self.minsize(
             self.window_layout.min_width,
             self.window_layout.min_height,
@@ -492,8 +493,34 @@ class StudioApp(ctk.CTk):
         self.snowbuddy_panel.tkraise()
 
     def _window_resized(self, event: tk.Event) -> None:
-        if event.widget is self and not self.snowbuddy_collapsed:
+        if event.widget is not self:
+            return
+        self._refresh_dpi_scaling()
+        if not self.snowbuddy_collapsed:
             self._place_snowbuddy_panel()
+
+    def _refresh_dpi_scaling(self) -> bool:
+        """Reapply the bounded UI scale after a per-monitor DPI transition."""
+
+        dpi_scaling = _window_dpi_scaling(self)
+        if math.isclose(
+            dpi_scaling,
+            self._applied_dpi_scaling,
+            rel_tol=0.0,
+            abs_tol=0.01,
+        ):
+            return False
+        layout = responsive_window_layout(
+            self.winfo_screenwidth(),
+            self.winfo_screenheight(),
+            dpi_scaling,
+        )
+        ctk.set_window_scaling(layout.window_scaling_factor)
+        ctk.set_widget_scaling(layout.widget_scaling_factor)
+        self.window_layout = layout
+        self.ui_scaling = layout.ui_scaling
+        self._applied_dpi_scaling = dpi_scaling
+        return True
 
     def _build_menu_bar(self) -> None:
         menu_bar = ctk.CTkFrame(

@@ -21,6 +21,7 @@ from studio.antenna_design import AntennaDesign
 from studio.antenna_llm_planner import AgentStep, EngineeringDisposition, LLMToolPlan, PlannedToolCall
 from studio.planner_model_discovery import GEMINI, ModelDiscoveryError, PlannerModel
 from studio.project_store import ProjectStore
+from studio.theme import FONTS
 from studio.ui import StudioApp
 
 
@@ -330,7 +331,10 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.page._conversation_resized(SimpleNamespace(width=700))
         wide_wrap = int(label.cget("wraplength"))
 
-        self.assertEqual(TRANSCRIPT_BODY_FONT[1], round(16 * 1.30))
+        self.assertEqual(
+            TRANSCRIPT_BODY_FONT[1],
+            round(FONTS["body_small"][1] * 1.30),
+        )
         self.assertGreater(wide_wrap, narrow_wrap)
         self.assertEqual((narrow_wrap, wide_wrap), (268, 608))
 
@@ -895,6 +899,30 @@ class AntennaBuilderPageTests(unittest.TestCase):
         ):
             self.assertLessEqual(button.winfo_rootx() + button.winfo_width(), app_right)
             self.assertLessEqual(button.winfo_rooty() + button.winfo_height(), app_bottom)
+
+    def test_preview_renders_physical_pixels_but_displays_logical_size(self):
+        self._create_inset_design()
+        self.app.geometry("1366x768+0+0")
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(True)
+        self.app.set_snowbuddy_collapsed(True)
+        self.app.update()
+        preview = self.page.preview
+        logical_width = max(preview._canvas.winfo_width(), 320)
+        logical_height = max(preview._canvas.winfo_height(), 260)
+
+        with patch("studio.antenna_vtk_preview._window_dpi_scale", return_value=1.5):
+            preview.render()
+
+        self.assertEqual(
+            preview._render_window.GetSize(),
+            (round(logical_width * 1.5), round(logical_height * 1.5)),
+        )
+        self.assertEqual(
+            (preview._photo.width(), preview._photo.height()),
+            (logical_width, logical_height),
+        )
+        self.app.withdraw()
 
 
 if __name__ == "__main__":

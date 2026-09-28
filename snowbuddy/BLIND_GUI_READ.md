@@ -1,11 +1,11 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.87
+Contract version: 3.88
 Studio version: 0.33.2
-UI source SHA-256: a0146af81428421a92372fce083d06ed9fea36b8a40e57823367502418612f29
+UI source SHA-256: e5339935616621de9727141da5630dd3eff82e52620584505fa34dedf1b8d91c
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e4514a988b4fa45081c5b8
-VTK Preview UI source SHA-256: 5601e76892b6681fbc0640dbcb77b78b854bd96fb0037232f7226f768a94fdb3
+VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 77149f4b7fae377a43f638e3b30ee66e7059b4341b8a9c40ec4332c4f6b64ec2
 Library UI source SHA-256: 744dd50872c3a2c7ada092ff40c09b3df8ff8886345e2aea30bc6512daa3718e
 Inference UI source SHA-256: c0cf6bf56dc0d0f00d49f0f8da671e4de18ac37c1838b69bd56100ea2cdd193d
@@ -34,6 +34,10 @@ adds the user’s current page, values, selections, and status.
   points, and buttons are 17-point semibold. Every GUI source routes small text
   through this shared scale: no literal GUI font is smaller than its 16-point
   floor. Secondary hierarchy uses muted colour and weight instead of tiny type.
+  The root window rechecks its live per-monitor DPI on Configure events. A DPI
+  transition reapplies these same bounded window/widget scale factors without
+  resizing the workspace; CustomTkinter's title bar remains limited by its
+  per-monitor-awareness implementation.
 - SnowBuddy uses a violet accent. Success is green, warnings are amber, and
   errors are red.
 - A fixed top application-menu row spans the window. “File,” “Edit,” and
@@ -250,8 +254,10 @@ build a trusted surrogate model.
   actions.
 - The right side is a prominent depth-buffered VTK 3D preview evaluated from
   the same canonical primitive, transform, Boolean, and triangulated mesh graph
-  used by export. Tk displays VTK's rendered framebuffer and forwards camera
-  input; it does not draw or sort individual geometry faces.
+  used by export. VTK renders the framebuffer at the current monitor's physical
+  pixel density, including proportionally scaled overlays, then downsamples it
+  into the logical Tk viewport. Tk forwards camera input; it does not draw or
+  sort individual geometry faces.
   Left-drag orbits through top, edge, and underside views; right- or
   middle-drag pans; the mouse wheel zooms; Reset view restores orbit, pan, and
   zoom. The preview preserves millimetre Z dimensions instead of visually

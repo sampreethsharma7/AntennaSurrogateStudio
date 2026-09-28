@@ -5,6 +5,7 @@ from studio.antenna_builder import apply_text_instruction, build_geometry_scene,
 from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.antenna_vtk_preview import (
     VTK_IMPORT_ERROR,
+    physical_render_size,
     polydata_from_solid,
     polydata_matches_solid,
 )
@@ -20,6 +21,13 @@ class _Planner:
 
     def plan(self, **_kwargs):
         return self.result
+
+
+class VtkPhysicalResolutionTests(unittest.TestCase):
+    def test_logical_viewport_is_scaled_to_physical_framebuffer(self):
+        self.assertEqual(physical_render_size(700, 500, 1.0), (700, 500))
+        self.assertEqual(physical_render_size(700, 500, 1.25), (875, 625))
+        self.assertEqual(physical_render_size(700, 500, 1.5), (1050, 750))
 
 
 def _apply(state, *calls):
