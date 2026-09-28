@@ -75,7 +75,13 @@ from studio.results_ui import TrainingResultsPage
 from studio.sample_generator_ui import LHSSampleGeneratorDialog
 from studio.sample_generator import LHSVariable
 from studio.settings import load_appearance_mode, save_appearance_mode
-from studio.theme import COLORS, FONTS, status_palette
+from studio.theme import (
+    COLORS,
+    FONTS,
+    column_safe_width,
+    status_palette,
+    widest_text_width,
+)
 from studio.training_ui import (
     AUTO_SEARCH_DESCRIPTIONS,
     AUTO_SEARCH_LEVELS,
@@ -99,6 +105,60 @@ DEFAULT_WINDOW_HEIGHT = 900
 MAX_EFFECTIVE_UI_SCALE = 1.08
 SNOWBUDDY_PANEL_WIDTH = 390
 MIN_DOCKED_PAGE_WIDTH = 980
+SIDEBAR_COLLAPSED_WIDTH = 76
+SIDEBAR_NAV_BUTTON_WIDTH = 200
+SIDEBAR_BRAND_BADGE_WIDTH = 38
+SIDEBAR_TOGGLE_WIDTH = 28
+HERO_PROGRESS_WIDTH = 300
+# Every label project_resume_destination can return.  The hero action stack is
+# measured against these, so the longest one cannot be clipped.
+RESUME_ACTION_LABELS = (
+    "Run Inference  →",
+    "Open Model Library  →",
+    "Continue Antenna Builder  →",
+    "Choose a Design Start  →",
+    "Continue Data Prep  →",
+    "Validate & Register Data  →",
+    "Continue Model Training  →",
+    "Review Training Results  →",
+    "Resume Project  →",
+)
+
+
+def hero_action_width() -> int:
+    """Width that shows the longest hero action label in full."""
+
+    return widest_text_width(
+        "button",
+        RESUME_ACTION_LABELS + ("+  Create project", "Open project"),
+        padding=28,
+        minimum=196,
+    )
+
+
+def expanded_sidebar_width() -> int:
+    """Width that shows the brand, navigation, project card and footer uncut.
+
+    Measured from the strings the rail actually renders.  A hard-coded 226
+    clipped the brand subtitle under the collapse chevron, cut the final letter
+    from "LOCAL COMPUTE - PRIVATE", and trimmed the Return to Welcome button.
+    """
+
+    return max(
+        # Brand badge, gap, wordmark, gap, collapse chevron, frame padding.
+        SIDEBAR_BRAND_BADGE_WIDTH
+        + 9
+        + widest_text_width("caption", ("RF SURROGATE LAB",))
+        + 18
+        + SIDEBAR_TOGGLE_WIDTH
+        + 32,
+        widest_text_width("mono", ("LOCAL COMPUTE · PRIVATE", "LAB WORKFLOW")) + 44,
+        widest_text_width("caption", (f"Studio Preview  ·  v{__version__}",)) + 44,
+        # Project card: shell padding, button padding, then the label.
+        widest_text_width("button", ("←  Return to Welcome",)) + 24 + 56,
+        SIDEBAR_NAV_BUTTON_WIDTH + 24,
+        SIDEBAR_COLLAPSED_WIDTH,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -251,6 +311,32 @@ class HoverTooltip:
             except tk.TclError:
                 pass
         self.window = None
+
+
+# What the resumed page actually asks the user to do.  The hero subtitle used
+# to show manifest["workflow"]["next_action"], which is written once at project
+# creation and then goes stale, so the card could advise "Load and prepare
+# antenna data." beside a button reading "Choose a Design Start".  Both now
+# come from the resolved destination.
+RESUME_DESCRIPTIONS = {
+    "design_start": "Choose how this project starts: describe an antenna, or bring an existing design.",
+    "antenna_builder": "Keep describing the antenna and review the geometry it generates.",
+    "data": "Load and prepare antenna data.",
+    "training": "Train a surrogate model on the registered dataset.",
+    "results": "Review how the trained model performed before saving it.",
+    "library": "Set a saved Model Book as active so it can be used.",
+    "inference": "Predict a response from the active Model Book.",
+}
+
+
+def project_resume_description(project: Project) -> str:
+    """One sentence describing the step the resume action leads to."""
+
+    destination, _label = project_resume_destination(project)
+    return RESUME_DESCRIPTIONS.get(
+        destination,
+        str(project.manifest.get("workflow", {}).get("next_action", "")),
+    )
 
 
 def project_resume_destination(project: Project) -> tuple[str, str]:
@@ -666,15 +752,19 @@ class StudioApp(ctk.CTk):
         )
 
     def _build_sidebar(self) -> None:
+        self.sidebar_expanded_width = expanded_sidebar_width()
         self.sidebar = ctk.CTkFrame(
             self,
-            width=226,
+            width=self.sidebar_expanded_width,
             corner_radius=0,
             fg_color=COLORS["sidebar"],
         )
         self.sidebar.grid(row=1, column=0, sticky="nsew")
         self.sidebar.grid_propagate(False)
-        self.sidebar.grid_rowconfigure(9, weight=1)
+        # Row 9 holds the last navigation button; the growing spacer belongs on
+        # its own row below, or Inverse Design is pushed away from the workflow
+        # it is part of.
+        self.sidebar.grid_rowconfigure(10, weight=1)
 
         self.sidebar_brand = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.sidebar_brand.grid(row=0, column=0, padx=16, pady=(22, 30), sticky="ew")
@@ -722,7 +812,7 @@ class StudioApp(ctk.CTk):
             font=("Segoe UI Semibold", 22),
             command=lambda: self.set_sidebar_collapsed(not self.sidebar_collapsed),
         )
-        self.sidebar_toggle_button.pack(side="right")
+        self.sidebar_toggle_button.pack(side="right", padx=(10, 0))
         self.sidebar_toggle_button.accessible_name = "Collapse workflow navigation"
 
         self.sidebar_workflow_label = ctk.CTkLabel(
@@ -809,7 +899,7 @@ class StudioApp(ctk.CTk):
             border_color=COLORS["border"],
         )
         self.sidebar_project_shell.grid(
-            row=10,
+            row=11,
             column=0,
             padx=16,
             pady=(18, 0),
@@ -854,7 +944,7 @@ class StudioApp(ctk.CTk):
         )
 
         self.sidebar_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.sidebar_footer.grid(row=11, column=0, padx=22, pady=20, sticky="ew")
+        self.sidebar_footer.grid(row=12, column=0, padx=22, pady=20, sticky="ew")
         self.sidebar_version_label = ctk.CTkLabel(
             self.sidebar_footer,
             text=f"Studio Preview  ·  v{__version__}",
@@ -879,7 +969,7 @@ class StudioApp(ctk.CTk):
         self.sidebar_brand_text.pack_forget()
         self.sidebar_toggle_button.pack_forget()
         if self.sidebar_collapsed:
-            self.sidebar.configure(width=76)
+            self.sidebar.configure(width=SIDEBAR_COLLAPSED_WIDTH)
             self.sidebar_brand.grid_configure(padx=18, pady=(20, 24))
             self.sidebar_toggle_button.configure(text="›")
             self.sidebar_toggle_button.accessible_name = "Expand workflow navigation"
@@ -888,7 +978,7 @@ class StudioApp(ctk.CTk):
             self.sidebar_project_shell.grid_remove()
             self.sidebar_footer.grid_remove()
         else:
-            self.sidebar.configure(width=226)
+            self.sidebar.configure(width=self.sidebar_expanded_width)
             self.sidebar_brand.grid_configure(padx=16, pady=(22, 30))
             self.sidebar_brand_badge.pack(side="left")
             self.sidebar_brand_text.pack(side="left", padx=(9, 0))
@@ -903,7 +993,9 @@ class StudioApp(ctk.CTk):
             button.configure(
                 text=icon if self.sidebar_collapsed else f"{icon}    {label}",
                 anchor="center" if self.sidebar_collapsed else "w",
-                width=48 if self.sidebar_collapsed else 200,
+                width=(
+                    48 if self.sidebar_collapsed else SIDEBAR_NAV_BUTTON_WIDTH
+                ),
             )
             button.grid_configure(
                 padx=12 if self.sidebar_collapsed else 12,
@@ -1328,7 +1420,10 @@ class StartPage(ctk.CTkFrame):
 
         self._build_header()
         self._build_workspace()
-        self._build_footer()
+        # The hero's continue button is the page's single "next step" control.
+        # Callers that reach for next_page_button get that same widget rather
+        # than a second copy of it at the bottom of the page.
+        self.next_page_button = self.continue_project_button
 
     def _build_header(self) -> None:
         header = ctk.CTkFrame(self, fg_color="transparent")
@@ -1350,8 +1445,10 @@ class StartPage(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["body"],
             anchor="w",
+            justify="left",
         )
         self.workspace_subtitle.pack(anchor="w", pady=(4, 0))
+        heading.bind("<Configure>", self._rewrap_workspace_subtitle, add="+")
 
         date_text = datetime.now().strftime("%A  ·  %B %d")
         ctk.CTkLabel(
@@ -1364,11 +1461,16 @@ class StartPage(ctk.CTkFrame):
             font=FONTS["mono"],
         ).grid(row=0, column=1, sticky="e")
 
+    def _rewrap_workspace_subtitle(self, event: tk.Event) -> None:
+        available = column_safe_width(self, max(320, int(event.width)))
+        if int(self.workspace_subtitle.cget("wraplength")) != available:
+            self.workspace_subtitle.configure(wraplength=available)
+
     def _build_workspace(self) -> None:
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.grid(row=1, column=0, padx=(28, 24), pady=(0, 12), sticky="nsew")
         body.grid_columnconfigure(0, weight=1)
-        body.grid_rowconfigure(1, weight=1)
+        body.grid_rowconfigure(2, weight=1)
 
         self.hero = ctk.CTkFrame(
             body,
@@ -1389,9 +1491,8 @@ class StartPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
         )
-        recent_shell.grid(row=1, column=0, pady=(18, 0), sticky="nsew")
+        recent_shell.grid(row=1, column=0, pady=(18, 0), sticky="ew")
         recent_shell.grid_columnconfigure(0, weight=1)
-        recent_shell.grid_rowconfigure(1, weight=1)
 
         title_row = ctk.CTkFrame(recent_shell, fg_color="transparent")
         title_row.grid(row=0, column=0, padx=20, pady=(18, 8), sticky="ew")
@@ -1405,7 +1506,7 @@ class StartPage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
             title_row,
-            text="Your five latest workspaces",
+            text="Your five most recent projects",
             text_color=COLORS["muted"],
             font=FONTS["caption"],
         ).grid(row=0, column=1, sticky="e")
@@ -1414,41 +1515,18 @@ class StartPage(ctk.CTkFrame):
             recent_shell,
             fg_color="transparent",
         )
-        self.recent_frame.grid(row=1, column=0, padx=12, pady=(2, 14), sticky="nsew")
+        self.recent_frame.grid(row=1, column=0, padx=12, pady=(2, 14), sticky="ew")
         for column in range(5):
             self.recent_frame.grid_columnconfigure(column, weight=1, uniform="recent")
 
-    def _build_footer(self) -> None:
-        footer = ctk.CTkFrame(self, fg_color="transparent")
-        footer.grid(row=2, column=0, padx=(28, 24), pady=(0, 18), sticky="ew")
-        footer.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            footer,
-            text="MAIN WORKFLOW",
-            text_color=COLORS["subtle"],
-            font=FONTS["mono"],
-        ).grid(row=0, column=0, sticky="w")
-        self.next_page_button = ctk.CTkButton(
-            footer,
-            text="Next workflow step  →",
-            width=176,
-            height=42,
-            corner_radius=11,
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
-            font=FONTS["button"],
-            state="disabled",
-            command=self._continue_project,
-        )
-        self.next_page_button.grid(row=0, column=1, sticky="e")
-
     def _build_hero_contents(self) -> None:
+        self.hero_action_width = hero_action_width()
         left = ctk.CTkFrame(self.hero, fg_color="transparent")
         left.grid(row=0, column=0, padx=26, pady=24, sticky="nsew")
 
         ctk.CTkLabel(
             left,
-            text="ACTIVE WORKSPACE",
+            text="ACTIVE PROJECT",
             text_color=COLORS["cyan"],
             font=FONTS["mono"],
             anchor="w",
@@ -1476,22 +1554,25 @@ class StartPage(ctk.CTkFrame):
         self.progress_row.pack(fill="x", pady=(18, 0))
         self.progress_bar = ctk.CTkProgressBar(
             self.progress_row,
-            width=190,
-            height=7,
+            width=HERO_PROGRESS_WIDTH,
+            height=9,
             corner_radius=4,
             progress_color=COLORS["cyan"],
             fg_color=COLORS["disabled"],
         )
-        self.progress_bar.pack(side="left")
+        self.progress_bar.pack(side="left", fill="x", expand=True)
         self.progress_text = ctk.CTkLabel(
             self.progress_row,
             text="1 of 5",
             text_color=COLORS["subtle"],
             font=FONTS["button"],
         )
-        self.progress_text.pack(side="left", padx=(10, 0))
+        self.progress_text.pack(side="left", padx=(12, 0))
 
-        self.hero_actions = ctk.CTkFrame(self.hero, fg_color="transparent")
+        self.hero_actions = ctk.CTkFrame(
+            self.hero, fg_color="transparent", width=self.hero_action_width
+        )
+        self.hero_actions.pack_propagate(False)
         self.hero_actions.grid(
             row=0,
             column=1,
@@ -1502,20 +1583,23 @@ class StartPage(ctk.CTkFrame):
         self.create_project_button = ctk.CTkButton(
             self.hero_actions,
             text="+  Create project",
-            width=164,
+            width=self.hero_action_width,
             height=43,
             corner_radius=12,
             font=FONTS["button"],
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
+            fg_color="transparent",
+            hover_color=COLORS["control_hover"],
+            border_width=1,
+            border_color=COLORS["border_strong"],
+            text_color=COLORS["ink"],
             command=self.app.create_project_dialog,
         )
-        self.create_project_button.pack()
+        self.create_project_button.pack(fill="x")
         self.open_project_button = ctk.CTkButton(
             self.hero_actions,
             text="Open project",
-            width=164,
-            height=41,
+            width=self.hero_action_width,
+            height=43,
             corner_radius=12,
             font=FONTS["button"],
             fg_color="transparent",
@@ -1525,11 +1609,11 @@ class StartPage(ctk.CTkFrame):
             text_color=COLORS["ink"],
             command=self.app.open_project_dialog,
         )
-        self.open_project_button.pack(pady=(10, 0))
+        self.open_project_button.pack(fill="x", pady=(10, 0))
         self.continue_project_button = ctk.CTkButton(
             self.hero_actions,
             text="Continue Data Prep  →",
-            width=182,
+            width=self.hero_action_width,
             height=43,
             corner_radius=12,
             font=FONTS["button"],
@@ -1558,9 +1642,7 @@ class StartPage(ctk.CTkFrame):
             completed = int(workflow.get("completed_steps", 1))
             total = max(1, int(workflow.get("total_steps", 5)))
             self.hero_title.configure(text=project.name)
-            self.hero_subtitle.configure(
-                text=workflow.get("next_action", "Continue building this surrogate project.")
-            )
+            self.hero_subtitle.configure(text=project_resume_description(project))
             _destination, action_label = project_resume_destination(project)
             self.continue_project_button.configure(text=action_label)
             self.progress_bar.set(min(1.0, completed / total))
@@ -1577,15 +1659,6 @@ class StartPage(ctk.CTkFrame):
             self.progress_text.configure(text="No active project")
             self.create_project_button.pack()
             self.open_project_button.pack(pady=(10, 0))
-        self.next_page_button.configure(
-            state="normal" if project else "disabled",
-            text=(action_label if project else "Next workflow step  →"),
-            fg_color=(COLORS["primary"] if project else COLORS["disabled"]),
-            text_color=(
-                COLORS["on_primary"] if project else COLORS["disabled_text"]
-            ),
-        )
-
         for child in self.recent_frame.winfo_children():
             child.destroy()
         recent = self.app.store.recent_projects(limit=5)
@@ -1615,8 +1688,6 @@ class StartPage(ctk.CTkFrame):
 
 
 class ProjectCard(ctk.CTkFrame):
-    ACCENTS = ("#0C8091", "#6952D4", "#138159", "#A66A00", "#2D6FD2")
-
     def __init__(
         self,
         parent: ctk.CTkFrame,
@@ -1627,6 +1698,9 @@ class ProjectCard(ctk.CTkFrame):
         super().__init__(
             parent,
             width=100,
+            # Tall enough for a two-line name at the Start page's smallest
+            # supported window.  The timestamp is packed against the bottom, so
+            # a longer name is trimmed instead of evicting it.
             height=196,
             corner_radius=16,
             fg_color=COLORS["surface_alt"],
@@ -1635,7 +1709,9 @@ class ProjectCard(ctk.CTkFrame):
         )
         self.pack_propagate(False)
         self.command = command
-        accent = self.ACCENTS[accent_index % len(self.ACCENTS)]
+        # The icon carries the same status colour as the badge.  Five rotating
+        # accents implied a meaning the colours did not have.
+        _, accent = status_palette(project.status_label)
 
         icon_shell = ctk.CTkFrame(
             self, width=38, height=38, corner_radius=12, fg_color=accent
@@ -1661,16 +1737,8 @@ class ProjectCard(ctk.CTkFrame):
         )
         self.status_badge.pack(anchor="w", padx=9, pady=(0, 7))
 
-        ctk.CTkLabel(
-            self,
-            text=project.name,
-            text_color=COLORS["ink"],
-            font=FONTS["card_title"],
-            justify="left",
-            anchor="w",
-            wraplength=78,
-        ).pack(fill="x", padx=9)
-
+        # Pack the timestamp against the bottom first so a long name can never
+        # push it out of a fixed-height card.  It used to disappear entirely.
         date = _friendly_date(project.last_opened_at)
         ctk.CTkLabel(
             self,
@@ -1678,9 +1746,31 @@ class ProjectCard(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["caption"],
             anchor="w",
-        ).pack(fill="x", padx=9, pady=(4, 0))
+        ).pack(side="bottom", fill="x", padx=9, pady=(4, 9))
+
+        self.name_label = ctk.CTkLabel(
+            self,
+            text=project.name,
+            text_color=COLORS["ink"],
+            font=FONTS["card_title"],
+            justify="left",
+            anchor="nw",
+            wraplength=1,
+        )
+        self.name_label.pack(side="top", fill="both", expand=True, padx=9)
+        # The card's width comes from its grid column, so the name can only be
+        # wrapped once that width is known.  A fixed 78px forced short names
+        # like "Pilot01 2p4GHz patch" onto three lines.
+        self.bind("<Configure>", self._rewrap_name, add="+")
 
         self._bind_clicks(self)
+
+    def _rewrap_name(self, event: tk.Event) -> None:
+        # CustomTkinter scales wraplength, so convert the measured on-screen
+        # width into the value that renders at that width.
+        available = column_safe_width(self, max(60, int(event.width) - 26))
+        if int(self.name_label.cget("wraplength")) != available:
+            self.name_label.configure(wraplength=available)
 
     def _bind_clicks(self, widget) -> None:
         widget.bind("<Button-1>", lambda _event=None: self.command(), add="+")

@@ -26,8 +26,10 @@ from studio.parser_engine import TrainingRequest
 from studio.project_store import ProjectStore
 from studio.scientific_plot import MAX_SCATTER_MARKERS
 from studio.ui import (
+    SIDEBAR_COLLAPSED_WIDTH,
     StudioApp,
     _content_sized_dialog_dimensions,
+    expanded_sidebar_width,
     responsive_window_layout,
 )
 
@@ -520,6 +522,62 @@ class InferencePageTests(unittest.TestCase):
         self.assertFalse(self.app.snowbuddy_collapsed)
         self.assertEqual(self.app.snowbuddy_panel.winfo_manager(), "grid")
 
+    def test_every_resume_label_is_covered_by_the_measured_action_width(self):
+        """The hero action stack is sized against every label it can show."""
+
+        from studio.project_store import Project
+        from studio.ui import RESUME_ACTION_LABELS, project_resume_destination
+
+        stages = (
+            "project_created",
+            "data_discovered",
+            "data_prepared",
+            "dataset_registered",
+            "model_trained",
+            "model_saved",
+            "an_unknown_future_stage",
+        )
+        seen = set()
+        for stage in stages:
+            for extra in (
+                {},
+                {"design_start": {"choice": "generated_template"}},
+                {"design_start": {"choice": "existing_design"}},
+                {"model_library": {"active_book_id": "book-0001"}},
+            ):
+                manifest = {"workflow": {"stage": stage}, **extra}
+                project = Project(self.single_project.path, manifest)
+                _destination, label = project_resume_destination(project)
+                seen.add(label)
+        self.assertTrue(
+            seen.issubset(set(RESUME_ACTION_LABELS)),
+            msg=f"unmeasured labels: {sorted(seen - set(RESUME_ACTION_LABELS))}",
+        )
+
+    def test_expanded_sidebar_shows_its_own_text_without_clipping(self):
+        """Nothing in the expanded rail may be narrower than its own text."""
+
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(False)
+        self.app.update()
+
+        clipped = []
+
+        def inspect(widget):
+            if not widget.winfo_ismapped():
+                return
+            width = widget.winfo_width()
+            required = widget.winfo_reqwidth()
+            if width > 1 and required > width + 1:
+                label = str(widget.cget("text"))[:32] if "text" in widget.keys() else ""
+                clipped.append((widget.__class__.__name__, label, width, required))
+            for child in widget.winfo_children():
+                inspect(child)
+
+        inspect(self.app.sidebar)
+        self.assertEqual(clipped, [])
+        self.app.withdraw()
+
     def test_workflow_sidebar_collapses_to_icons_and_navigation_still_works(self):
         self.assertEqual(self.app.workflow_divider.winfo_manager(), "grid")
         self.assertEqual(int(self.app.workflow_divider.cget("width")), 2)
@@ -527,7 +585,7 @@ class InferencePageTests(unittest.TestCase):
         self.app.update_idletasks()
 
         self.assertTrue(self.app.sidebar_collapsed)
-        self.assertEqual(self.app.sidebar.cget("width"), 76)
+        self.assertEqual(self.app.sidebar.cget("width"), SIDEBAR_COLLAPSED_WIDTH)
         self.assertEqual(self.app.sidebar_workflow_label.winfo_manager(), "")
         self.assertEqual(self.app.sidebar_project_shell.winfo_manager(), "")
         seen_icons = set()
@@ -556,7 +614,14 @@ class InferencePageTests(unittest.TestCase):
         self.app.sidebar_toggle_button.invoke()
         self.app.update_idletasks()
         self.assertFalse(self.app.sidebar_collapsed)
-        self.assertEqual(self.app.sidebar.cget("width"), 226)
+        # The expanded rail is measured from the strings it renders; a fixed
+        # 226 clipped the brand subtitle, the footer and the Return button.
+        self.assertEqual(
+            self.app.sidebar.cget("width"), self.app.sidebar_expanded_width
+        )
+        self.assertGreaterEqual(
+            self.app.sidebar_expanded_width, expanded_sidebar_width()
+        )
         self.assertIn("Inference", self.app.nav_buttons["inference"].cget("text"))
 
     def test_snowbuddy_uses_top_bar_launcher_and_docked_non_overlay_panel(self):

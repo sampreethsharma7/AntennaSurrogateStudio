@@ -2,7 +2,7 @@
 
 Contract version: 3.95
 Studio version: 0.33.2
-UI source SHA-256: e2efbd143eb93d415fd1df2e06b3556258c274b945aa98166930768c4b540945
+UI source SHA-256: 01999eadc0d2d83a84b1e1e3bd005fc520afe08b09bba663546513c7014e9d34
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
@@ -50,7 +50,10 @@ adds the user’s current page, values, selections, and status.
 - A light-steel or graphite workflow sidebar sits on the left. Expanded, its
   brand subtitle is “RF SURROGATE LAB,” its navigation label is “LAB WORKFLOW,”
   and its footer reads “LOCAL COMPUTE · PRIVATE.” A clear chevron collapses it
-  from 226 pixels to a 76-pixel icon-only rail. The same control expands it.
+  from its expanded width to a 76-pixel icon-only rail, and the same control
+  expands it. The expanded width is measured from the strings the rail renders
+  (brand subtitle, navigation labels, the active-project card and the footer),
+  so none of them is clipped.
   Navigation remains active and the chosen state survives page changes for the
   current application session. The Active Project card and footer hide only in
   compact mode; no project or page state is changed. Compact mode shows one
@@ -75,7 +78,8 @@ adds the user’s current page, values, selections, and status.
   form values, or chat. The choice is global for this local Studio library and
   is restored from `studio_settings.json` on the next launch.
 - The sidebar contains the AS brand badge, Start, Text / CAD Design, Data Prep, Model Training,
-  Training Results, Model Library, Inference, and Inverse Design. Collapsed mode shows those same
+  Training Results, Model Library, Inference, and Inverse Design, evenly spaced
+  as one group with no gap before the last destination. Collapsed mode shows those same
   destinations as single icon marks. All project workflow pages are available
   while a project is active. Selecting one without a project returns to Start
   with an Open project message.
@@ -92,11 +96,13 @@ The page heading is “Your surrogate workspace” with a subtitle that introduc
 the full path: describe a supported antenna, inspect generated geometry, then
 build a trusted surrogate model.
 
-### Active workspace hero
+### Active project hero
 
 - A pale blue instrument card in Light mode or blue-black instrument card in
-  Dark mode, with a teal/cyan border, shows the active project name, next
-  action, progress bar, and completed-step count.
+  Dark mode, with a teal/cyan border, labelled ACTIVE PROJECT. It shows the
+  active project name, the step its resume action leads to, a progress bar, and
+  the completed-step count. The sentence and the button are both derived from
+  the resolved resume destination, so they always describe the same step.
 - With no project it says “Start something precise” and explains that the user
   can create a project, describe an antenna in plain language, or bring an
   existing design.
@@ -104,32 +110,37 @@ build a trusted surrogate model.
 - Create project always raises and focuses the one active Create antenna
   project dialog; repeated clicks reuse that visible dialog instead of opening
   hidden or duplicate windows.
-- With a project active, the hero keeps all three actions visible. The primary
-  stage-aware resume action appears first and reads Continue Data Prep,
-  Validate & Register Data, Continue Model Training, Review Training Results,
-  or Run Inference. **+ Create project** and **Open project** remain directly
-  beneath it, as well as in File, so switching workspaces does not require
-  returning to an empty Welcome state.
+- With a project active, the hero keeps all three actions visible, stacked to a
+  shared width with matching edges. The stage-aware resume action appears first
+  and is the only filled button, so the one likely action is also the most
+  prominent; it reads Continue Data Prep, Validate & Register Data, Continue
+  Model Training, Review Training Results, or Run Inference. **+ Create
+  project** and **Open project** stay directly beneath it as outlined buttons,
+  as well as in File, so switching projects does not require returning to an
+  empty Welcome state.
 
 ### Recent projects
 
 - An appearance-aware “Recent projects” instrument panel displays up to five
   project icon cards in latest-opened order.
 - Each card shows a status badge immediately below its icon, followed by project
-  name and relative last-opened time. The badge remains visible even when a long
-  project name wraps; a completed Model Book appears as **Model saved**.
+  name and relative last-opened time. The icon carries the same status colour as
+  the badge rather than a rotating decorative accent. The badge and the
+  last-opened time both remain visible even when a long project name wraps: the
+  time is anchored to the bottom of the card and the name wraps to the card's
+  measured width. A completed Model Book appears as **Model saved**.
 - Clicking a project card opens that project.
 - When empty, the card says “Your project shelf is empty” and offers “Create
   project.”
 - The Create antenna project dialog measures its rendered content before
   centering, is resizable, and keeps the Cancel and Create project actions
   visible at 100%, 125%, and 150% Windows display scaling.
-- The five cards share one fixed responsive row. The Start page has no page
-  scrollbar.
-- A fixed bottom workflow footer mirrors the same stage-aware destination as
-  the hero action. It is enabled only while a project is open and may read
-  Continue Data Prep, Validate & Register Data, Continue Model Training,
-  Review Training Results, Open Model Library, or Run Inference.
+- The five cards share one fixed responsive row, and the panel is sized to that
+  row rather than stretched to the window, so no large empty area opens beneath
+  the cards. The Start page has no page scrollbar.
+- There is no separate bottom workflow footer. The hero's resume button is the
+  page's single next-step control; it previously appeared a second time at the
+  page foot under a caption placed at the opposite edge.
 
 ## Design Start page
 
