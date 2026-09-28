@@ -2356,6 +2356,27 @@ def _local_reply_conflicts_with_current_product(
     lowered = reply.lower()
     intent = classify_project_question(question) if project else "welcome"
     normalized_start = lowered.lstrip("*# -")
+    visible_page = _visible_page(live_ui_state).casefold()
+    claimed_page = re.search(
+        r"(?:visible|current) page\s*(?:is|:)\s*"
+        r"(welcome|start|design start|experimental antenna builder|data prep|"
+        r"model training|training results|model library|inference|inverse design)\b",
+        lowered,
+    )
+    if claimed_page and visible_page and claimed_page.group(1) != visible_page:
+        return True
+    if project is not None:
+        if any(
+            re.search(pattern, lowered)
+            for pattern in (
+                r"\bno active project\b",
+                r"\bno project (?:is )?(?:active|loaded|open)\b",
+                r"\bwithout an active project\b",
+                r"\byou are (?:currently )?in welcome mode\b",
+                r"\bstudio is (?:currently )?in welcome mode\b",
+            )
+        ):
+            return True
     if intent in {
         "status",
         "current_data",

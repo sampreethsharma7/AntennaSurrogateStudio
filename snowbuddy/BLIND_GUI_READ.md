@@ -1,6 +1,6 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.89
+Contract version: 3.90
 Studio version: 0.33.2
 UI source SHA-256: 244cb99832ed0ef6016db0d5867c06f585718f992fa9b57d11b594aab6f33d6d
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
@@ -332,6 +332,10 @@ build a trusted surrogate model.
   being available, Model Library being future work, or changing the fixed split—
   are excluded with their paired question. The live snapshot and current contracts
   remain authoritative; saved history is not rewritten.
+- A local-model reply that directly contradicts the authoritative active
+  project, SnowBuddy mode, or visible-page snapshot is discarded and replaced
+  by the built-in project-grounded guide. If Ollama is unreachable, the reply
+  says so plainly before giving that fallback guidance.
 - “Return to Welcome” removes the active project and restores the current
   launch’s Welcome session.
 - The same SnowBuddy panel remains visible while the user moves between Start,
