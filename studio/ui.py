@@ -1546,6 +1546,12 @@ class StartPage(ctk.CTkFrame):
 
     def refresh(self) -> None:
         project = self.app.current_project
+        for button in (
+            self.create_project_button,
+            self.open_project_button,
+            self.continue_project_button,
+        ):
+            button.pack_forget()
         if project:
             workflow = project.manifest.get("workflow", {})
             completed = int(workflow.get("completed_steps", 1))
@@ -1558,9 +1564,9 @@ class StartPage(ctk.CTkFrame):
             self.continue_project_button.configure(text=action_label)
             self.progress_bar.set(min(1.0, completed / total))
             self.progress_text.configure(text=f"{completed} of {total} steps")
-            self.create_project_button.pack_forget()
-            self.open_project_button.pack_forget()
             self.continue_project_button.pack()
+            self.create_project_button.pack(pady=(10, 0))
+            self.open_project_button.pack(pady=(10, 0))
         else:
             self.hero_title.configure(text="Start something precise")
             self.hero_subtitle.configure(
@@ -1568,7 +1574,6 @@ class StartPage(ctk.CTkFrame):
             )
             self.progress_bar.set(0.0)
             self.progress_text.configure(text="No active project")
-            self.continue_project_button.pack_forget()
             self.create_project_button.pack()
             self.open_project_button.pack(pady=(10, 0))
         self.next_page_button.configure(

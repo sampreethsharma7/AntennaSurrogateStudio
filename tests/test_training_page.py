@@ -233,6 +233,31 @@ class ModelTrainingPageTests(unittest.TestCase):
         self.app.update()
         self.app.withdraw()
 
+    def test_start_keeps_create_and_open_available_with_active_project(self):
+        self.app.show_page("start", persist=False)
+        self.app.start_page.refresh()
+
+        self.assertEqual(
+            self.app.start_page.continue_project_button.winfo_manager(),
+            "pack",
+        )
+        self.assertEqual(
+            self.app.start_page.create_project_button.winfo_manager(),
+            "pack",
+        )
+        self.assertEqual(
+            self.app.start_page.open_project_button.winfo_manager(),
+            "pack",
+        )
+        self.assertEqual(
+            self.app.start_page.hero_actions.pack_slaves(),
+            [
+                self.app.start_page.continue_project_button,
+                self.app.start_page.create_project_button,
+                self.app.start_page.open_project_button,
+            ],
+        )
+
     def test_create_project_dialog_actions_fit_at_common_display_scaling(self):
         original_window_scaling = self.app.window_layout.window_scaling_factor
         original_widget_scaling = self.app.window_layout.widget_scaling_factor

@@ -1,8 +1,8 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.88
+Contract version: 3.89
 Studio version: 0.33.2
-UI source SHA-256: e5339935616621de9727141da5630dd3eff82e52620584505fa34dedf1b8d91c
+UI source SHA-256: 244cb99832ed0ef6016db0d5867c06f585718f992fa9b57d11b594aab6f33d6d
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e4514a988b4fa45081c5b8
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
@@ -102,10 +102,12 @@ build a trusted surrogate model.
 - Create project always raises and focuses the one active Create antenna
   project dialog; repeated clicks reuse that visible dialog instead of opening
   hidden or duplicate windows.
-- With a project active, those empty-state actions disappear and the hero shows
-  one stage-aware resume action: Continue Data Prep, Validate & Register Data,
-  Continue Model Training, Review Training Results, or Run Inference. New/Open
-  remain available from File.
+- With a project active, the hero keeps all three actions visible. The primary
+  stage-aware resume action appears first and reads Continue Data Prep,
+  Validate & Register Data, Continue Model Training, Review Training Results,
+  or Run Inference. **+ Create project** and **Open project** remain directly
+  beneath it, as well as in File, so switching workspaces does not require
+  returning to an empty Welcome state.
 
 ### Recent projects
 
