@@ -42,6 +42,7 @@ class ModelLibraryPage(ctk.CTkFrame):
         self.summary_values: dict[str, ctk.CTkLabel] = {}
         self.metric_cards: dict[str, ctk.CTkFrame] = {}
         self.metric_values: dict[str, ctk.CTkLabel] = {}
+        self.metric_labels: dict[str, ctk.CTkLabel] = {}
         self.provenance_values: dict[str, ctk.CTkLabel] = {}
         self.provenance_expanded = False
 
@@ -381,16 +382,17 @@ class ModelLibraryPage(ctk.CTkFrame):
         metrics = (
             ("RMSE", "RMSE"),
             ("MAE", "MAE"),
-            ("R²", "R²"),
+            ("R²", "POOLED R²"),
             ("validation_rmse", "VALIDATION RMSE"),
         )
         for column, (key, label) in enumerate(metrics):
-            card, value = self._metric_field(
+            card, label_widget, value = self._metric_field(
                 self.performance_panel,
                 column,
                 label,
             )
             self.metric_cards[key] = card
+            self.metric_labels[key] = label_widget
             self.metric_values[key] = value
 
     def _metric_field(
@@ -398,7 +400,7 @@ class ModelLibraryPage(ctk.CTkFrame):
         parent: ctk.CTkFrame,
         column: int,
         label: str,
-    ) -> tuple[ctk.CTkFrame, ctk.CTkLabel]:
+    ) -> tuple[ctk.CTkFrame, ctk.CTkLabel, ctk.CTkLabel]:
         card = ctk.CTkFrame(
             parent,
             fg_color=COLORS["surface_alt"],
@@ -410,12 +412,13 @@ class ModelLibraryPage(ctk.CTkFrame):
             padx=(0 if column == 0 else 3, 0 if column == 3 else 3),
             sticky="nsew",
         )
-        ctk.CTkLabel(
+        label_widget = ctk.CTkLabel(
             card,
             text=label,
             text_color=COLORS["muted"],
             font=FONTS["mono"],
-        ).grid(row=0, column=0, padx=8, pady=(7, 0))
+        )
+        label_widget.grid(row=0, column=0, padx=8, pady=(7, 0))
         value = ctk.CTkLabel(
             card,
             text="—",
@@ -423,7 +426,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             font=FONTS["section"],
         )
         value.grid(row=1, column=0, padx=8, pady=(0, 7))
-        return card, value
+        return card, label_widget, value
 
     def _build_required_inputs(self) -> None:
         inputs_card = ctk.CTkFrame(
@@ -856,9 +859,13 @@ class ModelLibraryPage(ctk.CTkFrame):
         self.summary_values["outputs"].configure(
             text=_book_output_summary(book)
         )
-        for key in ("RMSE", "MAE", "R²"):
+        for key in ("RMSE", "MAE"):
             self.metric_values[key].configure(text=_format_metric(book.test_metrics[key]))
             self.metric_cards[key].grid()
+        r_squared, r_squared_label = _headline_r_squared(book)
+        self.metric_values["R²"].configure(text=_format_metric(r_squared))
+        self.metric_labels["R²"].configure(text=r_squared_label.upper())
+        self.metric_cards["R²"].grid()
         validation_rmse = book.validation_metrics.get("RMSE")
         if validation_rmse is None:
             self.metric_cards["validation_rmse"].grid_remove()
@@ -1066,10 +1073,17 @@ def _format_metric(value: float) -> str:
 
 
 def _card_performance_summary(book: ModelBook) -> str:
+    r_squared, label = _headline_r_squared(book)
     return (
         f"RMSE {_format_metric(book.test_metrics['RMSE'])} · "
-        f"R² {_format_metric(book.test_metrics['R²'])}"
+        f"{label} {_format_metric(r_squared)}"
     )
+
+
+def _headline_r_squared(book: ModelBook) -> tuple[float, str]:
+    if book.pooled_test_r_squared is not None:
+        return book.pooled_test_r_squared, "Pooled R²"
+    return book.test_metrics["R²"], "Mean per-output R²"
 
 
 def _interface_summary(book: ModelBook) -> str:

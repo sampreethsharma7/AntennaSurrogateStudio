@@ -52,6 +52,7 @@ from studio.model_training import (
     XGBOOST_CUSTOM_PARAMETER_NAMES,
     ModelTrainingRequest,
     ModelTrainingResult,
+    pooled_r_squared_from_prediction_records,
     submit_model_training_request,
 )
 from studio.parser_engine import (
@@ -5299,6 +5300,15 @@ class ModelTrainingPage(ctk.CTkFrame):
         self.project = self.app.update_current_project({})
         self._set_latest_run(result.run_number)
         metrics = result.metrics
+        pooled_r_squared = pooled_r_squared_from_prediction_records(result.predictions)
+        r_squared_label = (
+            "Pooled R²"
+            if pooled_r_squared is not None
+            else "Mean per-output R²"
+        )
+        r_squared_value = (
+            pooled_r_squared if pooled_r_squared is not None else metrics["R²"]
+        )
         parameters = result.parameters_used
         training_mode_label = (
             result.training_mode or (request.training_mode if request else "")
@@ -5331,7 +5341,7 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"Recommendation: {decision}\n\n"
                     f"Test MAE: {metrics['MAE']:.6g}\n"
                     f"Test RMSE: {metrics['RMSE']:.6g}\n"
-                    f"Test R²: {metrics['R²']:.6g}"
+                    f"Test {r_squared_label}: {r_squared_value:.6g}"
                     f"{navigation_hint}"
                 ),
                 parent=self,
@@ -5361,7 +5371,7 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"{configuration}\n\n"
                     f"MAE: {metrics['MAE']:.6g}\n"
                     f"RMSE: {metrics['RMSE']:.6g}\n"
-                    f"R²: {metrics['R²']:.6g}"
+                    f"{r_squared_label}: {r_squared_value:.6g}"
                     f"{navigation_hint}"
                 ),
                 parent=self,
@@ -5398,7 +5408,7 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"Validation RMSE: {validation_rmse_text}\n"
                     f"Test MAE: {test_metrics['MAE']:.6g}\n"
                     f"Test RMSE: {test_metrics['RMSE']:.6g}\n"
-                    f"Test R²: {test_metrics['R²']:.6g}"
+                    f"Test {r_squared_label}: {r_squared_value:.6g}"
                     f"{navigation_hint}"
                 ),
                 parent=self,
@@ -5415,7 +5425,7 @@ class ModelTrainingPage(ctk.CTkFrame):
                 f"positive: {parameters['positive']}\n\n"
                 f"MAE: {metrics['MAE']:.6g}\n"
                 f"RMSE: {metrics['RMSE']:.6g}\n"
-                f"R²: {metrics['R²']:.6g}"
+                f"{r_squared_label}: {r_squared_value:.6g}"
                 f"{navigation_hint}"
             ),
             parent=self,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import math
@@ -16,7 +17,10 @@ from studio.dataset_registry import (
     DatasetRegistrationError,
     get_registered_dataset,
 )
-from studio.model_training import TRAINING_COMPLETED
+from studio.model_training import (
+    TRAINING_COMPLETED,
+    pooled_r_squared_from_prediction_records,
+)
 from studio.output_axis import (
     OutputAxisMetadata,
     infer_output_axis,
@@ -65,6 +69,7 @@ class ModelBook:
     dataset_fingerprint: str
     validation_metrics: dict[str, float]
     test_metrics: dict[str, float]
+    pooled_test_r_squared: float | None
     source_run_id: str
     source_run_number: int
     source_trained_at: str
@@ -91,6 +96,7 @@ class ModelBook:
             "dataset_fingerprint": self.dataset_fingerprint,
             "validation_metrics": dict(self.validation_metrics),
             "test_metrics": dict(self.test_metrics),
+            "pooled_test_r_squared": self.pooled_test_r_squared,
             "source_run_id": self.source_run_id,
             "source_run_number": self.source_run_number,
             "source_trained_at": self.source_trained_at,
@@ -222,6 +228,7 @@ def save_model_book(
         "performance": {
             "validation_metrics": source["validation_metrics"],
             "test_metrics": source["test_metrics"],
+            "pooled_test_r_squared": source["pooled_test_r_squared"],
         },
         "source": {
             "run_id": source["run_id"],
@@ -505,6 +512,13 @@ def _collect_source_metadata(
         "training_config.json",
     )
     metrics = _test_metrics(_read_json(metrics_path, "metrics.json"))
+    predictions_path = _required_artifact(
+        project_root,
+        run_record,
+        "predictions",
+        "test_predictions.csv",
+    )
+    pooled_test_r_squared = _pooled_r_squared_from_csv(predictions_path)
     training_config = _read_json(training_config_path, "training_config.json")
     training_mode = str(training_config.get("training_mode") or "").lower()
     if training_mode not in {"auto", "custom"}:
@@ -650,6 +664,7 @@ def _collect_source_metadata(
         "dataset_fingerprint": dataset.fingerprint_sha256,
         "validation_metrics": validation_metrics,
         "test_metrics": metrics,
+        "pooled_test_r_squared": pooled_test_r_squared,
         "run_id": run_id,
         "run_number": run_number,
         "trained_at": trained_at,
@@ -869,6 +884,15 @@ def _model_book_from_payload(
                 "The Ensemble Model Book must use Auto High mode."
             )
     test_metrics = _test_metrics(performance.get("test_metrics"))
+    pooled_test_r_squared = _optional_finite_float(
+        performance.get("pooled_test_r_squared"),
+        "pooled test R²",
+    )
+    if pooled_test_r_squared is None:
+        pooled_test_r_squared = _legacy_source_pooled_r_squared(
+            project_root,
+            source,
+        )
     validation_metrics = _numeric_metrics(
         performance.get("validation_metrics"),
         allow_empty=True,
@@ -911,6 +935,7 @@ def _model_book_from_payload(
         dataset_fingerprint=dataset_fingerprint,
         validation_metrics=validation_metrics,
         test_metrics=test_metrics,
+        pooled_test_r_squared=pooled_test_r_squared,
         source_run_id=source_run_id,
         source_run_number=run_number,
         source_trained_at=source_trained_at,
@@ -957,6 +982,49 @@ def _read_json(path: Path, label: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ModelBookError(f"The saved {label} has an invalid structure.")
     return payload
+
+
+def _pooled_r_squared_from_csv(path: Path) -> float:
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        value = pooled_r_squared_from_prediction_records(rows)
+    except (OSError, csv.Error, KeyError, TypeError, ValueError) as exc:
+        raise ModelBookError(
+            "The saved test_predictions.csv is malformed or unreadable."
+        ) from exc
+    if value is None:
+        raise ModelBookError("The saved test_predictions.csv contains no predictions.")
+    return value
+
+
+def _legacy_source_pooled_r_squared(
+    project_root: Path,
+    source: dict[str, Any],
+) -> float | None:
+    """Recover a pooled score for an older book while its source run is available."""
+
+    relative_manifest = source.get("run_manifest")
+    if not isinstance(relative_manifest, str) or not relative_manifest:
+        return None
+    try:
+        manifest_path = _safe_project_path(project_root, relative_manifest)
+        run_record = _read_json(manifest_path, "source run manifest")
+        predictions_path = _required_artifact(
+            project_root,
+            run_record,
+            "predictions",
+            "test_predictions.csv",
+        )
+        return _pooled_r_squared_from_csv(predictions_path)
+    except ModelBookError:
+        return None
+
+
+def _optional_finite_float(value: Any, label: str) -> float | None:
+    if value is None:
+        return None
+    return _finite_float(value, label)
 
 
 def _required_artifact(

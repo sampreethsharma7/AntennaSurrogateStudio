@@ -1,13 +1,13 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.90
+Contract version: 3.91
 Studio version: 0.33.2
-UI source SHA-256: 244cb99832ed0ef6016db0d5867c06f585718f992fa9b57d11b594aab6f33d6d
+UI source SHA-256: ae1aeb05e02b1d9b8c173fcf36e1f46ab5a9725e15f2cd1e95e25756fb3c993a
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e4514a988b4fa45081c5b8
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 77149f4b7fae377a43f638e3b30ee66e7059b4341b8a9c40ec4332c4f6b64ec2
-Library UI source SHA-256: 744dd50872c3a2c7ada092ff40c09b3df8ff8886345e2aea30bc6512daa3718e
+Library UI source SHA-256: 7c1ca0dd1aed057426f0d648c444125c84bab7d699059ddd7e68ac7f3de9c58c
 Inference UI source SHA-256: c0cf6bf56dc0d0f00d49f0f8da671e4de18ac37c1838b69bd56100ea2cdd193d
 Inverse Design UI source SHA-256: af01a71fd2086795662fe37fc5f73c46fe9db4187645e7c275c925844608b2e8
 Scientific Plot UI source SHA-256: 419318bce402719348e16fbd864bbdd76821fe7a487f8ad040c522f70903d05b
@@ -675,7 +675,7 @@ artifact paths. The page retains the last request and structured result.
 After a successful Auto run, the dialog title is “Auto Search Completed.” Its
 body shows the selected model family, Search Level, Configurations Evaluated,
 Cross-Validation Folds, that model's Best Parameters, Validation RMSE, Test MAE,
-Test RMSE, and Test R². A successful Custom run retains the “Training Completed”
+Test RMSE, and Test Pooled R². A successful Custom run retains the “Training Completed”
 dialog with its mode, applied parameters, and test metrics. Neither dialog shows
 fake metrics.
 
@@ -902,7 +902,7 @@ Model Library is a fixed, non-scrolling project page. It reloads
 `books/index.json` whenever opened. The left Model Books panel displays five
 books per page with Previous/Next arrow controls. Newest books appear first.
 Each whole saved-model card is selectable and shows the Model Book name, model
-type, test RMSE and R², input-to-output counts, and one of ACTIVE, SELECTED,
+type, test RMSE and Pooled R², input-to-output counts, and one of ACTIVE, SELECTED,
 SAVED, or INVALID. There is no separate Open button. The header shows only the
 indexed book count; active status remains on the relevant saved-book card and
 selected-book detail rather than being repeated in the header and footer.
@@ -912,9 +912,13 @@ summary shows the Model Book name, active/selected status, model type, input
 count, and output count. A single output is named in the prediction subtitle;
 multiple outputs show a saved axis label/range only when the Model Book contains
 reliable structured coordinates; otherwise they use a neutral count. RMSE, MAE,
-R², and available Validation RMSE
+Pooled R², and available Validation RMSE
 appear as prominent metric cards. Required Inputs lists up to six feature names
 inline and offers View all inputs when the list is longer.
+New Model Books persist pooled test R² beside the estimator's mean per-output
+test R². Older books recover pooled R² from their source predictions when that
+run remains available; if it is unavailable, the fallback is labelled explicitly
+as Mean per-output R² rather than shown under a bare R² label.
 
 Source run, creation time, training mode/search level, exact parameters, full
 dataset fingerprint, and Model Book version are secondary and collapsed under

@@ -613,6 +613,28 @@ class ModelTrainingResult:
     run_directory: Path | None = None
 
 
+def pooled_r_squared_from_prediction_records(
+    predictions: list[dict[str, str | float]],
+) -> float | None:
+    """Return R² over all held-out sample/output values as one population."""
+
+    if not predictions:
+        return None
+    actual_values = [float(row["actual_value"]) for row in predictions]
+    predicted_values = [float(row["predicted_value"]) for row in predictions]
+    actual_mean = math.fsum(actual_values) / len(actual_values)
+    residual_sum_squares = math.fsum(
+        (actual - predicted) ** 2
+        for actual, predicted in zip(actual_values, predicted_values, strict=True)
+    )
+    total_sum_squares = math.fsum(
+        (actual - actual_mean) ** 2 for actual in actual_values
+    )
+    if total_sum_squares == 0.0:
+        return 1.0 if residual_sum_squares == 0.0 else 0.0
+    return float(1.0 - residual_sum_squares / total_sum_squares)
+
+
 @dataclass(slots=True)
 class _SavedRunArtifacts:
     run_number: int

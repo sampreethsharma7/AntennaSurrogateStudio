@@ -312,7 +312,11 @@ class ModelLibraryPageTests(unittest.TestCase):
         )
         self.assertEqual(
             self.page.metric_values["R²"].cget("text"),
-            f"{self.first.test_metrics['R²']:.6g}",
+            f"{self.first.pooled_test_r_squared:.6g}",
+        )
+        self.assertEqual(
+            self.page.metric_labels["R²"].cget("text"),
+            "POOLED R²",
         )
         self.assertEqual(self.page.details_badge.cget("text"), "Selected Model Book")
         self.assertFalse(self.page.provenance_expanded)

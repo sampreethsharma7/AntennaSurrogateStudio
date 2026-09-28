@@ -852,7 +852,7 @@ class ModelTrainingPageTests(unittest.TestCase):
         self.assertIn("Validation RMSE:", show_info.call_args.args[1])
         self.assertIn("Test MAE:", show_info.call_args.args[1])
         self.assertIn("Test RMSE:", show_info.call_args.args[1])
-        self.assertIn("Test R²:", show_info.call_args.args[1])
+        self.assertIn("Test Pooled R²:", show_info.call_args.args[1])
         result = self.page.last_training_result
         self.assertTrue(result.success)
         self.assertTrue(result.model_artifact_path.is_file())
