@@ -234,7 +234,7 @@ class HoverTooltip:
             fg=COLORS["surface"][index],
             padx=9,
             pady=5,
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
         ).pack()
         tooltip.update_idletasks()
         tooltip.geometry(
@@ -585,7 +585,7 @@ class StudioApp(ctk.CTk):
             disabledforeground=COLORS["disabled_text"][color_index],
             borderwidth=1,
             relief="solid",
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
         )
         if name == "file":
             menu.add_command(
@@ -677,7 +677,7 @@ class StudioApp(ctk.CTk):
             self.sidebar_brand_text,
             text="RF SURROGATE LAB",
             text_color=COLORS["subtle"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         ).pack(anchor="w")
         self.sidebar_toggle_button = ctk.CTkButton(
@@ -807,7 +807,7 @@ class StudioApp(ctk.CTk):
             self.sidebar_project_shell,
             text="Create or open a project",
             text_color=COLORS["muted"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         )
         self.sidebar_project_status.pack(fill="x", padx=14, pady=(3, 8))
@@ -831,7 +831,7 @@ class StudioApp(ctk.CTk):
             self.sidebar_footer,
             text=f"Studio Preview  ·  v{__version__}",
             text_color=COLORS["muted"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         )
         self.sidebar_version_label.pack(anchor="w")
@@ -1459,7 +1459,7 @@ class StartPage(ctk.CTkFrame):
             self.progress_row,
             text="1 of 5",
             text_color=COLORS["subtle"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
         )
         self.progress_text.pack(side="left", padx=(10, 0))
 
@@ -1643,7 +1643,7 @@ class ProjectCard(ctk.CTkFrame):
             corner_radius=12,
             fg_color=background,
             text_color=foreground,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         ).pack(anchor="w", padx=9, pady=(10, 0))
 
         self._bind_clicks(self)
@@ -1772,7 +1772,7 @@ class SnowBuddyPanel(ctk.CTkFrame):
             fg_color=COLORS["violet_soft"],
             hover_color=COLORS["violet_hover"],
             text_color=COLORS["on_violet_soft"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             command=self._show_model_dialog,
         )
         self.connect_button.grid(row=0, column=2, rowspan=2, sticky="e")
@@ -1843,7 +1843,7 @@ class SnowBuddyPanel(ctk.CTkFrame):
             composer,
             textvariable=self.context_hint,
             text_color=COLORS["subtle"],
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
             anchor="w",
         ).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
 
@@ -2691,7 +2691,7 @@ class DataPrepPage(ctk.CTkFrame):
                 "project schema."
             ),
             text_color=COLORS["subtle"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             height=28,
             wraplength=370,
             justify="left",
@@ -5496,7 +5496,7 @@ class CreateProjectDialog(ctk.CTkToplevel):
             self,
             text="PROJECT NAME",
             text_color=COLORS["muted"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             anchor="w",
         ).pack(fill="x", padx=28, pady=(24, 7))
         self.name_entry = ctk.CTkEntry(
@@ -5513,7 +5513,7 @@ class CreateProjectDialog(ctk.CTkToplevel):
             self,
             text="DESCRIPTION  ·  OPTIONAL",
             text_color=COLORS["muted"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             anchor="w",
         ).pack(fill="x", padx=28, pady=(18, 7))
         self.description = ctk.CTkTextbox(
@@ -5651,7 +5651,7 @@ class LocalModelDialog(ctk.CTkToplevel):
             self,
             text=recommendation_text,
             text_color=COLORS["primary"],
-            font=("Segoe UI Semibold", 15),
+            font=FONTS["button"],
             anchor="w",
         ).pack(fill="x", padx=26, pady=(14, 10))
 

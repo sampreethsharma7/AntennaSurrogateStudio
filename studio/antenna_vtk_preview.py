@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image, ImageTk
 
 from studio.antenna_geometry import GeometryScene, GeometrySolid
+from studio.theme import FONTS
 
 try:
     from vtkmodules.util.numpy_support import vtk_to_numpy
@@ -113,7 +114,7 @@ class VtkAntennaPreview(tk.Frame):
                 ),
                 background=background,
                 foreground=danger,
-                font=("Segoe UI Semibold", 13),
+                font=FONTS["button"],
                 justify="center",
             )
             self._error_label.pack(fill="both", expand=True)

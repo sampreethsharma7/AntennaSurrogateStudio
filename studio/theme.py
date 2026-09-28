@@ -93,15 +93,15 @@ COLORS: dict[str, ColorValue] = {
 }
 
 FONTS = {
-    "display": ("Segoe UI Semibold", 39),
-    "title": ("Segoe UI Semibold", 30),
-    "section": ("Segoe UI Semibold", 23),
-    "card_title": ("Segoe UI Semibold", 20),
-    "body": ("Segoe UI", 17),
-    "body_small": ("Segoe UI", 16),
-    "caption": ("Segoe UI", 15),
-    "button": ("Segoe UI Semibold", 16),
-    "mono": ("Cascadia Mono", 15),
+    "display": ("Segoe UI Semibold", 40),
+    "title": ("Segoe UI Semibold", 31),
+    "section": ("Segoe UI Semibold", 24),
+    "card_title": ("Segoe UI Semibold", 21),
+    "body": ("Segoe UI", 18),
+    "body_small": ("Segoe UI", 17),
+    "caption": ("Segoe UI", 16),
+    "button": ("Segoe UI Semibold", 17),
+    "mono": ("Cascadia Mono", 16),
 }
 
 

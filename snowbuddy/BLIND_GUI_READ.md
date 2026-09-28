@@ -1,16 +1,17 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.85
+Contract version: 3.86
 Studio version: 0.33.2
-UI source SHA-256: 53d2f229fb2a1f3e23674f9c6490bc3c6d388e8ad749214c29b95585690a55f0
-Sample Generator UI source SHA-256: 03434fbab96a80cb921876b4c53d0f65b91ffbfc765a17f0629e7d35f02b6771
+UI source SHA-256: a0146af81428421a92372fce083d06ed9fea36b8a40e57823367502418612f29
+Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: 1410d6f385b64f0919330f09e7cbd21552b8284005e4514a988b4fa45081c5b8
-Results UI source SHA-256: e49c9b462163423c77056f3e10c00759fac4d6a4e95c25a1e0f22820aa300b3f
-Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
-Inference UI source SHA-256: 805a23d7b3d745c77d392eda5bfe21b067a3d8366afd092ebc749a33862310fd
+VTK Preview UI source SHA-256: 5601e76892b6681fbc0640dbcb77b78b854bd96fb0037232f7226f768a94fdb3
+Results UI source SHA-256: 77149f4b7fae377a43f638e3b30ee66e7059b4341b8a9c40ec4332c4f6b64ec2
+Library UI source SHA-256: 744dd50872c3a2c7ada092ff40c09b3df8ff8886345e2aea30bc6512daa3718e
+Inference UI source SHA-256: 64059b8a4cee0e386561a222869a51d1fadd1fb01eebdad383bfee119c3c9f82
 Inverse Design UI source SHA-256: e2832803ca6c38b707d34cc2a7bbb8bc961b8dda30c7fd1b312f41dc1e2d6daf
-Scientific Plot UI source SHA-256: 90ffa0bca1408d4aaabe73f6722b9144c9e0ab585e6cb15837701b6d8b6eb825
-Theme source SHA-256: c1149c09ec5cd35f71710288f9067c6949e00088b8a8d0470011e38ed07aedb8
+Scientific Plot UI source SHA-256: 419318bce402719348e16fbd864bbdd76821fe7a487f8ad040c522f70903d05b
+Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
 
 This file is SnowBuddy’s visual and interaction map. It describes the interface
 without assuming screen vision. The live UI-state snapshot supplied at runtime
@@ -29,10 +30,10 @@ adds the user’s current page, values, selections, and status.
   scaling by bounding the effective CustomTkinter UI scale to 1.08. The initial
   window is at most 1440 by 900, never larger than the physical monitor, and a
   1366-by-768 monitor starts in compact-sidebar mode. The shared type scale runs
-  from 15 through 39 points; body copy is 16 or 17 points, captions are 15
-  points, and buttons are 16-point semibold. Plot titles, labels, tick values,
-  legends, and legacy page-local text are also at least 20% larger than in the
-  preceding release.
+  from 16 through 40 points; body copy is 17 or 18 points, captions are 16
+  points, and buttons are 17-point semibold. Every GUI source routes small text
+  through this shared scale: no literal GUI font is smaller than its 16-point
+  floor. Secondary hierarchy uses muted colour and weight instead of tiny type.
 - SnowBuddy uses a violet accent. Success is green, warnings are amber, and
   errors are red.
 - A fixed top application-menu row spans the window. “File,” “Edit,” and

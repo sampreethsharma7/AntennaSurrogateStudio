@@ -150,7 +150,7 @@ class MetricHelpButton(ctk.CTkButton):
             border_width=1,
             border_color=COLORS["border_strong"],
             text_color=COLORS["muted"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
         )
         self.help_title = ""
         self.help_text = ""
@@ -334,7 +334,7 @@ class CurveComparisonChart(ctk.CTkFrame):
             text="Actual",
             anchor="w",
             fill=ink,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             tags="actual_legend",
         )
         predicted_x = legend_x + 98
@@ -367,7 +367,7 @@ class CurveComparisonChart(ctk.CTkFrame):
             text="Predicted",
             anchor="w",
             fill=ink,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             tags="predicted_legend",
         )
 
@@ -389,7 +389,7 @@ class CurveComparisonChart(ctk.CTkFrame):
                 text=f"{value:.5g}",
                 anchor="e",
                 fill=muted,
-                font=("Segoe UI", 11),
+                font=FONTS["caption"],
             )
         canvas.create_line(left, bottom, right, bottom, fill=border, width=2)
         canvas.create_line(left, top, left, bottom, fill=border, width=2)
@@ -422,14 +422,14 @@ class CurveComparisonChart(ctk.CTkFrame):
                 bottom + 16,
                 text=f"{value:.5g}",
                 fill=muted,
-                font=("Segoe UI", 11),
+                font=FONTS["caption"],
             )
         canvas.create_text(
             (left + right) / 2,
             bottom + 38,
             text=self.x_label,
             fill=ink,
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             tags="x_axis_label",
         )
         canvas.create_text(
@@ -437,7 +437,7 @@ class CurveComparisonChart(ctk.CTkFrame):
             (top + bottom) / 2,
             text=self.y_label,
             fill=ink,
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             angle=90,
             tags="y_axis_label",
         )
@@ -475,7 +475,7 @@ class CurveComparisonChart(ctk.CTkFrame):
                     "are required to form curves."
                 ),
                 fill=muted,
-                font=("Segoe UI", 12),
+                font=FONTS["caption"],
             )
 
         for index, (x_value, record) in enumerate(
@@ -534,7 +534,7 @@ class CurveComparisonChart(ctk.CTkFrame):
                     text=detail,
                     anchor="sw",
                     fill=_palette(COLORS["ink"]),
-                    font=("Segoe UI", 11),
+                    font=FONTS["caption"],
                     tags="tooltip",
                 )
                 bounds = self.canvas.bbox(text_id)
@@ -711,14 +711,14 @@ class ResultsChart(ctk.CTkFrame):
             bottom + 28,
             text=x_label,
             fill=ink,
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
         )
         self.canvas.create_text(
             14,
             (top + bottom) / 2,
             text=y_label,
             fill=ink,
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
             angle=90,
         )
         for value, x in ((x_min, left), (x_max, right)):
@@ -727,7 +727,7 @@ class ResultsChart(ctk.CTkFrame):
                 bottom + 12,
                 text=f"{value:.4g}",
                 fill=_palette(COLORS["muted"]),
-                font=("Segoe UI", 11),
+                font=FONTS["caption"],
             )
         for value, y in ((y_min, bottom), (y_max, top)):
             self.canvas.create_text(
@@ -735,7 +735,7 @@ class ResultsChart(ctk.CTkFrame):
                 y,
                 text=f"{value:.4g}",
                 fill=_palette(COLORS["muted"]),
-                font=("Segoe UI", 11),
+                font=FONTS["caption"],
                 anchor="e",
             )
 
@@ -749,7 +749,7 @@ class ResultsChart(ctk.CTkFrame):
                     text=detail,
                     anchor="sw",
                     fill=_palette(COLORS["ink"]),
-                    font=("Segoe UI", 11),
+                    font=FONTS["caption"],
                     tags="tooltip",
                 )
                 bounds = self.canvas.bbox(text_id)
@@ -830,7 +830,7 @@ class ModelComparisonMetricChart(ctk.CTkFrame):
                     if comparison.recommended_model == model_name
                     else COLORS["ink"]
                 ),
-                font=("Segoe UI Semibold", 12),
+                font=FONTS["button"],
             ).grid(
                 row=1,
                 column=column,
@@ -847,7 +847,7 @@ class ModelComparisonMetricChart(ctk.CTkFrame):
                 text=f"{metric_name} {'↓' if lower_is_better else '↑'}",
                 height=18,
                 text_color=COLORS["muted"],
-                font=("Segoe UI", 12),
+                font=FONTS["caption"],
                 anchor="w",
             ).grid(row=row, column=0, padx=(12, 8), pady=1, sticky="w")
             values = self._metric_pair(metric_name)
@@ -874,7 +874,7 @@ class ModelComparisonMetricChart(ctk.CTkFrame):
                     text="—" if value is None else f"{value:.6g}",
                     height=18,
                     text_color=COLORS["ink"],
-                    font=("Cascadia Mono", 11),
+                    font=FONTS["mono"],
                     width=70,
                     anchor="e",
                 ).grid(row=row, column=value_column, padx=(4, 5), pady=1, sticky="e")
@@ -1096,7 +1096,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             corner_radius=8,
             fg_color=COLORS["primary"],
             text_color=COLORS["on_primary"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         self.recommendation_title.grid(
             row=0, column=0, padx=(10, 8), pady=10, sticky="w"
@@ -1196,7 +1196,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                 border_width=1,
                 border_color=COLORS["border"],
                 text_color=COLORS["ink"],
-                font=("Segoe UI Semibold", 12),
+                font=FONTS["button"],
                 command=lambda section=key: self.show_section(section),
             )
             button.grid(
@@ -1635,7 +1635,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             command=self._open_prediction_file,
         )
         self.open_predictions_button.grid(
@@ -1717,7 +1717,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             parent,
             text="TEST SAMPLE",
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, pady=(0, 3), sticky="ew")
         self.curve_sample_menu = ctk.CTkOptionMenu(
@@ -1850,7 +1850,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                 table,
                 text=header,
                 text_color=COLORS["cyan"],
-                font=("Segoe UI Semibold", 12),
+                font=FONTS["button"],
             ).grid(row=0, column=column, padx=4, pady=4, sticky="ew")
         row_number = 1
         for component in self.result.ensemble_components:
@@ -1869,7 +1869,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                     corner_radius=7,
                     fg_color=COLORS["surface_alt"],
                     text_color=COLORS["ink"],
-                    font=("Segoe UI", 12),
+                    font=FONTS["caption"],
                 ).grid(row=row_number, column=column, padx=2, pady=2, sticky="nsew")
             row_number += 1
         for failure in self.result.ensemble_failures:
@@ -1888,7 +1888,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                     corner_radius=7,
                     fg_color=COLORS["surface_alt"],
                     text_color=COLORS["danger"] if column == 4 else COLORS["muted"],
-                    font=("Segoe UI", 12),
+                    font=FONTS["caption"],
                     wraplength=220 if column == 4 else 130,
                 ).grid(row=row_number, column=column, padx=2, pady=2, sticky="nsew")
             row_number += 1
@@ -1985,7 +1985,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                 table,
                 text=header,
                 text_color=COLORS["cyan"],
-                font=("Segoe UI Semibold", 12),
+                font=FONTS["button"],
             ).grid(row=0, column=column, padx=4, pady=4, sticky="ew")
         for row, candidate in enumerate(self.result.auto_candidates, start=1):
             status = "Completed" if candidate.success else "Failed"
@@ -2051,7 +2051,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                         if not candidate.success
                         else COLORS["ink"]
                     ),
-                    font=("Segoe UI", 12),
+                    font=FONTS["caption"],
                     wraplength=(
                         260
                         if self.result.model_name in {"xgboost", "neural_network"}
@@ -2228,7 +2228,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             recommendation,
             text=comparison.recommendation_reason,
             text_color=COLORS["ink"],
-            font=("Segoe UI", 11),
+            font=FONTS["caption"],
             anchor="w",
             justify="left",
             wraplength=650,
@@ -2309,7 +2309,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                 card,
                 text=message,
                 text_color=COLORS["muted"],
-                font=("Segoe UI", 12),
+                font=FONTS["caption"],
                 justify="left",
                 anchor="nw",
                 wraplength=390,
@@ -2326,7 +2326,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                 f"{_comparison_parameter_lines(run.parameters_used)}"
             ),
             text_color=COLORS["muted"],
-            font=("Segoe UI", 11),
+            font=FONTS["caption"],
             justify="left",
             anchor="nw",
             wraplength=390,
@@ -2339,7 +2339,7 @@ class TrainingResultsPage(ctk.CTkFrame):
                 f"MAE {run.mae:.6g}   ·   Pooled R² {run.r_squared:.6g}"
             ),
             text_color=COLORS["ink"],
-            font=("Cascadia Mono", 10),
+            font=FONTS["mono"],
             justify="left",
             anchor="w",
         ).grid(row=2, column=0, padx=12, pady=(0, 2), sticky="ew")
@@ -2353,7 +2353,7 @@ class TrainingResultsPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border_strong"],
             text_color=COLORS["primary"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             command=lambda selected_run=run.run_id: self._open_comparison_run(
                 selected_run
             ),

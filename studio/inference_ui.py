@@ -311,7 +311,7 @@ class RawPredictionDialog(ctk.CTkToplevel):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Cascadia Mono", 15),
+            font=FONTS["mono"],
             wrap="none",
         )
         self.textbox.grid(row=2, column=0, padx=24, pady=(0, 12), sticky="nsew")
@@ -592,7 +592,7 @@ class InferencePage(ctk.CTkFrame):
             unselected_color=COLORS["control"],
             unselected_hover_color=COLORS["control_hover"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         self.prediction_plot_mode.grid(
             row=5,
@@ -683,7 +683,7 @@ class InferencePage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             command=self._show_model_info,
         )
         self.model_info_button.grid(row=0, column=2, padx=(6, 8), pady=5)
@@ -734,7 +734,7 @@ class InferencePage(ctk.CTkFrame):
             inputs_used_card,
             text="INPUTS USED",
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, padx=10, pady=(6, 0), sticky="ew")
         self.inputs_used_value = ctk.CTkLabel(
@@ -817,7 +817,7 @@ class InferencePage(ctk.CTkFrame):
             card,
             text=label,
             text_color=COLORS["muted"],
-            font=("Cascadia Mono", 10),
+            font=FONTS["mono"],
         ).grid(row=0, column=0, padx=8, pady=(5, 0))
         value = ctk.CTkLabel(
             card,

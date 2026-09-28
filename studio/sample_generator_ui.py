@@ -660,7 +660,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             height / 2,
             text="Coverage preview appears after generation",
             fill=_active_color(COLORS["muted"]),
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
         )
 
     def _draw_coverage(self) -> None:
@@ -707,7 +707,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             height - 16,
             text=x_label,
             fill=ink,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         canvas.create_text(
             17,
@@ -715,7 +715,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             text=y_label,
             angle=90,
             fill=ink,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         canvas.create_text(
             left - 8,
@@ -723,7 +723,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             text=format(y_max, ".4g"),
             fill=muted,
             anchor="ne",
-            font=("Segoe UI", 10),
+            font=FONTS["caption"],
         )
         canvas.create_text(
             left - 8,
@@ -731,7 +731,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             text=format(y_min, ".4g"),
             fill=muted,
             anchor="se",
-            font=("Segoe UI", 10),
+            font=FONTS["caption"],
         )
         canvas.create_line(left - 4, top, left, top, fill=grid)
         canvas.create_line(left - 4, bottom, left, bottom, fill=grid)

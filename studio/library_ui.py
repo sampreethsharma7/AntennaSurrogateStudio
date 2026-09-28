@@ -266,7 +266,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             corner_radius=12,
             fg_color=COLORS["surface_alt"],
             text_color=COLORS["muted"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         self.details_badge.grid(row=0, column=1, padx=(8, 0), sticky="e")
         self.details_subtitle = ctk.CTkLabel(
@@ -344,7 +344,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             card,
             text=label,
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, sticky="ew")
         value = ctk.CTkLabel(
@@ -414,7 +414,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             card,
             text=label,
             text_color=COLORS["muted"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
         ).grid(row=0, column=0, padx=8, pady=(7, 0))
         value = ctk.CTkLabel(
             card,
@@ -437,7 +437,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             inputs_card,
             text="REQUIRED INPUTS",
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, padx=12, pady=(7, 0), sticky="ew")
         self.required_inputs_value = ctk.CTkLabel(
@@ -497,7 +497,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             provenance_header,
             text="MODEL DETAILS",
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, sticky="w")
         self.provenance_button = ctk.CTkButton(
@@ -557,7 +557,7 @@ class ModelLibraryPage(ctk.CTkFrame):
             field,
             text=label,
             text_color=COLORS["subtle"],
-            font=("Cascadia Mono", 10),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, sticky="ew")
         value = ctk.CTkLabel(
@@ -696,7 +696,7 @@ class ModelLibraryPage(ctk.CTkFrame):
                 frame,
                 text=model_type,
                 text_color=COLORS["muted"],
-                font=("Segoe UI", 12),
+                font=FONTS["caption"],
                 anchor="w",
                 cursor="hand2",
             )
@@ -705,7 +705,7 @@ class ModelLibraryPage(ctk.CTkFrame):
                 frame,
                 text=metrics,
                 text_color=COLORS["ink"],
-                font=("Segoe UI Semibold", 12),
+                font=FONTS["button"],
                 anchor="w",
                 cursor="hand2",
             )
@@ -714,7 +714,7 @@ class ModelLibraryPage(ctk.CTkFrame):
                 frame,
                 text=interface,
                 text_color=COLORS["muted"],
-                font=("Segoe UI", 12),
+                font=FONTS["caption"],
                 anchor="w",
                 cursor="hand2",
             )
@@ -754,7 +754,7 @@ class ModelLibraryPage(ctk.CTkFrame):
                     if entry.is_active
                     else COLORS["muted"]
                 ),
-                font=("Segoe UI Semibold", 11),
+                font=FONTS["button"],
                 cursor="hand2",
             )
             status_label.grid(row=0, column=1, padx=(0, 8), pady=(7, 2))

@@ -1,11 +1,45 @@
+import ast
 import math
 import unittest
+from pathlib import Path
 
 from studio.scientific_plot import ScientificPlotState
 from studio.theme import FONTS
 
 
 class ReadabilityScaleTests(unittest.TestCase):
+    def test_smallest_theme_text_is_sixteen_points(self):
+        self.assertGreaterEqual(
+            min(font[1] for font in FONTS.values()),
+            16,
+        )
+
+    def test_gui_sources_have_no_literal_font_below_theme_floor(self):
+        studio_root = Path(__file__).resolve().parents[1] / "studio"
+        floor = min(font[1] for font in FONTS.values())
+        undersized: list[str] = []
+        for source_path in studio_root.glob("*.py"):
+            tree = ast.parse(source_path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                for keyword in node.keywords:
+                    if keyword.arg not in {"font", "dropdown_font"}:
+                        continue
+                    value = keyword.value
+                    if not isinstance(value, ast.Tuple) or len(value.elts) < 2:
+                        continue
+                    size = value.elts[1]
+                    if (
+                        isinstance(size, ast.Constant)
+                        and isinstance(size.value, int)
+                        and size.value < floor
+                    ):
+                        undersized.append(
+                            f"{source_path.name}:{node.lineno}={size.value}"
+                        )
+        self.assertEqual(undersized, [])
+
     def test_application_type_scale_is_at_least_twenty_percent_larger(self):
         previous_sizes = {
             "display": 32,
