@@ -530,10 +530,16 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.app.sidebar.cget("width"), 76)
         self.assertEqual(self.app.sidebar_workflow_label.winfo_manager(), "")
         self.assertEqual(self.app.sidebar_project_shell.winfo_manager(), "")
+        seen_icons = set()
         for name, button in self.app.nav_buttons.items():
             icon, label = self.app.nav_specs[name]
-            self.assertTrue(icon.isascii())
-            self.assertTrue(icon.isalpha())
+            # Collapsed navigation shows one distinct mark per destination.
+            # Letter pairs were tried here and read as jargon ("ML" in a
+            # machine-learning tool), so the icons stay pictorial and the label
+            # is carried by the tooltip and the accessible name instead.
+            self.assertEqual(len(icon), 1)
+            self.assertNotIn(icon, seen_icons)
+            seen_icons.add(icon)
             self.assertEqual(button.cget("text"), icon)
             self.assertNotIn(label, button.cget("text"))
             self.assertEqual(button.accessible_name, label)

@@ -741,40 +741,40 @@ class StudioApp(ctk.CTk):
         )
 
         self.nav_specs = {
-            "start": ("ST", "Start"),
-            "design_start": ("DS", "Text / CAD Design"),
-            "data": ("DP", "Data Prep"),
-            "training": ("MT", "Model Training"),
-            "results": ("TR", "Training Results"),
-            "library": ("ML", "Model Library"),
-            "inference": ("IN", "Inference"),
-            "inverse_design": ("ID", "Inverse Design"),
+            "start": ("⌂", "Start"),
+            "design_start": ("∆", "Text / CAD Design"),
+            "data": ("≋", "Data Prep"),
+            "training": ("◇", "Model Training"),
+            "results": ("◎", "Training Results"),
+            "library": ("▤", "Model Library"),
+            "inference": ("∿", "Inference"),
+            "inverse_design": ("↔", "Inverse Design"),
         }
 
         self.nav_buttons["start"] = self._nav_button(
-            self.sidebar, 2, "ST", "Start", lambda: self.show_page("start")
+            self.sidebar, 2, "⌂", "Start", lambda: self.show_page("start")
         )
         self.nav_buttons["design_start"] = self._nav_button(
             self.sidebar,
             3,
-            "DS",
+            "∆",
             "Text / CAD Design",
             lambda: self.show_page("design_start"),
         )
         self.nav_buttons["data"] = self._nav_button(
-            self.sidebar, 4, "DP", "Data Prep", lambda: self.show_page("data")
+            self.sidebar, 4, "≋", "Data Prep", lambda: self.show_page("data")
         )
         self.nav_buttons["training"] = self._nav_button(
             self.sidebar,
             5,
-            "MT",
+            "◇",
             "Model Training",
             lambda: self.show_page("training"),
         )
         self.nav_buttons["results"] = self._nav_button(
             self.sidebar,
             6,
-            "TR",
+            "◎",
             "Training Results",
             lambda: self.show_page("results"),
         )
@@ -782,21 +782,21 @@ class StudioApp(ctk.CTk):
         self.nav_buttons["library"] = self._nav_button(
             self.sidebar,
             7,
-            "ML",
+            "▤",
             "Model Library",
             lambda: self.show_page("library"),
         )
         self.nav_buttons["inference"] = self._nav_button(
             self.sidebar,
             8,
-            "IN",
+            "∿",
             "Inference",
             lambda: self.show_page("inference"),
         )
         self.nav_buttons["inverse_design"] = self._nav_button(
             self.sidebar,
             9,
-            "ID",
+            "↔",
             "Inverse Design",
             lambda: self.show_page("inverse_design"),
         )

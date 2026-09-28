@@ -34,7 +34,7 @@ from studio.scientific_plot import (
     PLOT_PANE_MIN_WIDTH,
     ScientificPlotWorkbench,
 )
-from studio.theme import COLORS, FONTS
+from studio.theme import COLORS, FONTS, column_safe_width, widest_text_width
 
 if TYPE_CHECKING:
     from studio.ui import StudioApp
@@ -42,14 +42,59 @@ if TYPE_CHECKING:
 
 MAX_CONSTRAINTS = 4
 COORDINATE_ENTRY_MIN_WIDTH = 110
+# Column widths are content-derived, never guessed from character counts.
+# INPUT is measured against the real feature names at runtime and clamped
+# here; ROLE holds the "Variable | Fixed" segmented button; the two numeric
+# columns hold a bounds entry each.
+INPUT_LABEL_MIN_WIDTH = 120
+INPUT_LABEL_MAX_WIDTH = 190
+ROLE_COLUMN_MIN_WIDTH = 150
+NUMERIC_COLUMN_MIN_WIDTH = 88
 INPUT_COLUMN_MIN_WIDTHS = (
-    70,
-    140,
-    66,
-    66,
+    INPUT_LABEL_MIN_WIDTH,
+    ROLE_COLUMN_MIN_WIDTH,
+    NUMERIC_COLUMN_MIN_WIDTH,
+    NUMERIC_COLUMN_MIN_WIDTH,
 )
-CONFIGURATION_MIN_WIDTH = 522
-CONFIGURATION_DEFAULT_WIDTH = 522
+# Per-column grid padding inside one input row, plus the row frame's own
+# corner inset.  Measured against a built row, not estimated.
+INPUT_ROW_HORIZONTAL_PADDING = 30
+# Width the scrollbar itself takes, budgeted so the pane is wide enough to
+# hold a full row beside it.
+INPUT_SCROLLBAR_ALLOWANCE = 24
+# Card padding plus the section's own inset.
+CONFIGURATION_CHROME_WIDTH = 18
+# A little slack so a rounding difference never costs a pixel of content.
+CONFIGURATION_SAFETY_MARGIN = 6
+# Horizontal padding for each input column.  The heading row and every data
+# row use this same tuple so their columns line up exactly.
+INPUT_COLUMN_PADDING = (5, 3, 2, 2)
+# How much of its own width the scrollable host withholds from its rows.  The
+# heading row sits outside that host, so it is inset by the same amount to end
+# up exactly as wide as the rows it labels.  This is smaller than the
+# scrollbar's own width above, which is why the two are separate numbers.
+INPUT_HEADING_SCROLL_INSET = 17
+
+
+def configuration_width_for(label_width: int) -> int:
+    """Pane width that shows an input row with ``label_width`` uncut."""
+
+    return (
+        int(label_width)
+        + ROLE_COLUMN_MIN_WIDTH
+        + NUMERIC_COLUMN_MIN_WIDTH * 2
+        + INPUT_ROW_HORIZONTAL_PADDING
+        + INPUT_SCROLLBAR_ALLOWANCE
+        + CONFIGURATION_CHROME_WIDTH
+        + CONFIGURATION_SAFETY_MARGIN
+    )
+
+
+CONFIGURATION_MIN_WIDTH = configuration_width_for(INPUT_LABEL_MIN_WIDTH)
+CONFIGURATION_DEFAULT_WIDTH = CONFIGURATION_MIN_WIDTH
+# Prose in the card wraps rather than clipping when the pane is at its
+# minimum; card padding is already excluded.
+CONFIGURATION_TEXT_WRAP_WIDTH = CONFIGURATION_MIN_WIDTH - 40
 # Include the workbench's plot/manager minima, its sash, and the result-card
 # padding.  Tk can otherwise satisfy the outer pane while silently compressing
 # both inner panes below their own readable widths.
@@ -128,6 +173,7 @@ class InverseDesignPage(ctk.CTkFrame):
         self.constraint_widgets: list[ConstraintWidgets] = []
         self._coordinate_disclosures: list[str] = []
         self._clamping_workspace_sash = False
+        self._configuration_min_width = CONFIGURATION_MIN_WIDTH
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -344,7 +390,7 @@ class InverseDesignPage(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["caption"],
             anchor="w",
-            wraplength=350,
+            wraplength=CONFIGURATION_TEXT_WRAP_WIDTH,
         )
         self.configuration_intro.grid(
             row=1, column=0, padx=14, pady=(0, 7), sticky="ew"
@@ -409,6 +455,8 @@ class InverseDesignPage(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["caption"],
             anchor="w",
+            justify="left",
+            wraplength=CONFIGURATION_TEXT_WRAP_WIDTH,
         )
         self.input_explanation.grid(
             row=0, column=0, padx=2, pady=(2, 5), sticky="ew"
@@ -421,13 +469,16 @@ class InverseDesignPage(ctk.CTkFrame):
         self.input_headings.grid(
             row=1,
             column=0,
-            padx=(8, 8),
+            padx=(0, INPUT_HEADING_SCROLL_INSET),
             pady=(0, 4),
             sticky="ew",
         )
         self.input_heading_labels: list[ctk.CTkLabel] = []
         for column, (label, weight) in enumerate(
-            (("INPUT", 0), ("ROLE", 0), ("LOW /\nVALUE", 1), ("HIGH", 1))
+            # A Fixed row replaces both bounds with one field whose own
+            # placeholder reads "Value", so the headings stay short enough to
+            # sit inside a numeric column without widening it.
+            (("INPUT", 0), ("ROLE", 0), ("LOW", 1), ("HIGH", 1))
         ):
             self.input_headings.grid_columnconfigure(
                 column,
@@ -445,7 +496,7 @@ class InverseDesignPage(ctk.CTkFrame):
             heading.grid(
                 row=0,
                 column=column,
-                padx=(5, 4) if column < 2 else (7, 7),
+                padx=INPUT_COLUMN_PADDING[column],
                 pady=3,
                 sticky="ew",
             )
@@ -761,20 +812,41 @@ class InverseDesignPage(ctk.CTkFrame):
 
         self._clamp_workspace_sash()
 
+    def _apply_configuration_min_width(self, required: int) -> None:
+        """Widen the configuration pane so the widest input row stays whole.
+
+        Long feature names are rare, so the pane minimum starts small and grows
+        only when the measured label column needs it.  Taking the extra width
+        out of the columns instead is what clipped the table previously.
+        """
+
+        target = max(CONFIGURATION_MIN_WIDTH, int(required))
+        if target == self._configuration_min_width:
+            return
+        self._configuration_min_width = target
+        try:
+            self.workspace_split.paneconfigure(
+                self.configuration_card, minsize=target
+            )
+        except (AttributeError, tk.TclError):
+            return
+        self._clamp_workspace_sash()
+
     def _clamp_workspace_sash(self) -> None:
         if self._clamping_workspace_sash or len(self.workspace_split.panes()) < 2:
             return
         total_width = int(self.workspace_split.winfo_width())
         if total_width <= 1:
             return
+        minimum_configuration = self._configuration_min_width
         sash_width = int(float(self.workspace_split.cget("sashwidth")))
         maximum_configuration = total_width - RESULT_MIN_WIDTH - sash_width
-        if maximum_configuration < CONFIGURATION_MIN_WIDTH:
-            target = CONFIGURATION_MIN_WIDTH
+        if maximum_configuration < minimum_configuration:
+            target = minimum_configuration
         else:
             current = int(self.workspace_split.sash_coord(0)[0])
             target = max(
-                CONFIGURATION_MIN_WIDTH,
+                minimum_configuration,
                 min(current, maximum_configuration),
             )
         current = int(self.workspace_split.sash_coord(0)[0])
@@ -923,21 +995,22 @@ class InverseDesignPage(ctk.CTkFrame):
     def _create_input_rows(self, features: list[str]) -> None:
         saved_inputs = self._saved_input_configuration(features)
         self.input_name_labels.clear()
-        label_width = min(
-            90,
-            max(
-                INPUT_COLUMN_MIN_WIDTHS[0],
-                18 + max((len(name) for name in features), default=0) * 6,
-            ),
+        label_width = widest_text_width(
+            "body_small",
+            features,
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
         )
         aligned_column_widths = (
             label_width,
-            INPUT_COLUMN_MIN_WIDTHS[1] + 6,
-            INPUT_COLUMN_MIN_WIDTHS[2] + 4,
-            INPUT_COLUMN_MIN_WIDTHS[3] + 4,
+            ROLE_COLUMN_MIN_WIDTH,
+            NUMERIC_COLUMN_MIN_WIDTH,
+            NUMERIC_COLUMN_MIN_WIDTH,
         )
         for column, width in enumerate(aligned_column_widths):
             self.input_headings.grid_columnconfigure(column, minsize=width)
+        self._apply_configuration_min_width(configuration_width_for(label_width))
         for index, name in enumerate(features):
             frame = ctk.CTkFrame(
                 self.input_rows_host,
@@ -957,10 +1030,21 @@ class InverseDesignPage(ctk.CTkFrame):
                 font=FONTS["body_small"],
                 anchor="w",
                 justify="left",
-                width=label_width - 10,
-                wraplength=label_width - 12,
+                # Every row asks for the same rendered width, so one long name
+                # cannot widen its own row's first column and stagger the rest.
+                # Both width and wraplength are scaled by CustomTkinter, so
+                # both go through the same conversion; a raw wraplength wraps
+                # late and widens this row's first column on its own.
+                width=column_safe_width(
+                    frame, label_width - INPUT_COLUMN_PADDING[0] * 2
+                ),
+                wraplength=column_safe_width(
+                    frame, label_width - INPUT_COLUMN_PADDING[0] * 2
+                ),
             )
-            name_label.grid(row=0, column=0, padx=5, pady=2, sticky="ew")
+            name_label.grid(
+                row=0, column=0, padx=INPUT_COLUMN_PADDING[0], pady=2, sticky="ew"
+            )
             saved = saved_inputs.get(name, {})
             mode = ctk.StringVar(
                 value=str(saved.get("mode") or ("Variable" if index == 0 else "Fixed"))
@@ -976,23 +1060,40 @@ class InverseDesignPage(ctk.CTkFrame):
                 unselected_hover_color=COLORS["control_hover"],
                 text_color=COLORS["ink"],
                 font=FONTS["caption"],
-                width=INPUT_COLUMN_MIN_WIDTHS[1],
+                width=column_safe_width(
+                    frame, ROLE_COLUMN_MIN_WIDTH - INPUT_COLUMN_PADDING[1] * 2
+                ),
                 variable=mode,
                 command=lambda _value, feature=name: self._input_mode_changed(feature),
             )
-            control.grid(row=0, column=1, padx=3, pady=1, sticky="ew")
+            control.grid(
+                row=0, column=1, padx=INPUT_COLUMN_PADDING[1], pady=1, sticky="ew"
+            )
             lower = self._numeric_entry(frame, "Min")
             upper = self._numeric_entry(frame, "Max")
             fixed = self._numeric_entry(frame, "Value")
+            # Each entry stretches to its column.  The requested width only has
+            # to stay under the column minsize, because CustomTkinter scales it
+            # while the minsize stays raw; a larger request would widen the
+            # column and pull the heading out of line.
             for entry in (lower, upper, fixed):
-                entry.configure(width=INPUT_COLUMN_MIN_WIDTHS[2])
-            lower.grid(row=0, column=2, padx=2, pady=1, sticky="ew")
-            upper.grid(row=0, column=3, padx=2, pady=1, sticky="ew")
+                entry.configure(
+                    width=column_safe_width(
+                        frame,
+                        NUMERIC_COLUMN_MIN_WIDTH - INPUT_COLUMN_PADDING[2] * 2,
+                    )
+                )
+            lower.grid(
+                row=0, column=2, padx=INPUT_COLUMN_PADDING[2], pady=1, sticky="ew"
+            )
+            upper.grid(
+                row=0, column=3, padx=INPUT_COLUMN_PADDING[3], pady=1, sticky="ew"
+            )
             fixed.grid(
                 row=0,
                 column=2,
                 columnspan=2,
-                padx=2,
+                padx=INPUT_COLUMN_PADDING[2],
                 pady=1,
                 sticky="ew",
             )

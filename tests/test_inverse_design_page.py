@@ -12,10 +12,17 @@ from studio.inverse_design import (
     InverseDesignHistory,
     InverseDesignResult,
 )
-from studio.inverse_design_ui import CONFIGURATION_MIN_WIDTH, RESULT_MIN_WIDTH
+from studio.inverse_design_ui import (
+    CONFIGURATION_MIN_WIDTH,
+    INPUT_LABEL_MAX_WIDTH,
+    INPUT_LABEL_MIN_WIDTH,
+    RESULT_MIN_WIDTH,
+    configuration_width_for,
+)
 from studio.output_axis import OutputAxisMetadata
 from studio.project_store import ProjectStore
 from studio.scientific_plot import CURVE_MANAGER_MIN_WIDTH, PLOT_PANE_MIN_WIDTH
+from studio.theme import text_width, widest_text_width
 from studio.ui import StudioApp, responsive_window_layout
 from tests.test_inference_page import create_active_book
 
@@ -177,7 +184,10 @@ class InverseDesignPageTests(unittest.TestCase):
         long_label = self.page.input_name_labels[names[-1]]
         self.assertEqual(long_label.cget("text"), names[-1])
         self.assertGreaterEqual(long_label.winfo_height(), long_label.winfo_reqheight())
-        self.assertEqual(self.page.input_heading_labels[2].cget("text"), "LOW /\nVALUE")
+        # A Fixed row's single field carries its own "Value" placeholder, so the
+        # heading stays short enough to fit inside one numeric column.
+        self.assertEqual(self.page.input_heading_labels[2].cget("text"), "LOW")
+        self.assertEqual(fixed.fixed.cget("placeholder_text"), "Value")
         for column, entry in ((2, variable.lower), (3, variable.upper)):
             heading = self.page.input_heading_labels[column]
             heading_center = heading.winfo_rootx() + heading.winfo_width() / 2
@@ -875,6 +885,97 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertEqual(reopened.manifest["ui"]["last_page"], "inverse_design")
         self.app.set_project(reopened)
         self.assertEqual(self.app.active_page, "inverse_design")
+
+    def test_input_table_gives_every_control_room_for_its_own_text(self):
+        """No control in the inputs table may be narrower than it needs.
+
+        Column widths were twice derived from a characters-times-constant
+        guess, once too wide and once too narrow, and the narrow guess wrapped
+        labels mid-word and clipped entry placeholders.  Widths are measured
+        now, so this asserts the outcome rather than the constants.
+        """
+
+        self.app.geometry("1366x768+0+0")
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(True)
+        self.app.set_snowbuddy_collapsed(True)
+        self.app.show_page("inverse_design")
+        self.page.config_section_control.set("Inputs")
+        self.page._show_config_section("Inputs")
+        self.app.update()
+
+        # Every row must show its whole name on one line.  The regression this
+        # guards against wrapped "SlotRadius" into "SlotRadi" / "us".
+        for name, label in self.page.input_name_labels.items():
+            self.assertEqual(label.cget("text"), name)
+            self.assertGreaterEqual(
+                label.winfo_width(),
+                text_width("body_small", name),
+                msg=f"{name} label is narrower than its own text",
+            )
+            self.assertEqual(label.winfo_height(), label.winfo_reqheight())
+
+        # Headings must fit, so none of them needs a hand-placed line break.
+        for heading in self.page.input_heading_labels:
+            self.assertNotIn("\n", heading.cget("text"))
+            self.assertGreaterEqual(
+                heading.winfo_width(), text_width("mono", heading.cget("text"))
+            )
+
+        # Bounds entries must show their placeholder; "Max" once rendered as
+        # "Ma" plus an overflow mark because the column was 66px wide.
+        for widgets in self.page.input_widgets.values():
+            for entry in (widgets.lower, widgets.upper, widgets.fixed):
+                if not entry.winfo_ismapped():
+                    continue
+                placeholder = str(entry.cget("placeholder_text"))
+                self.assertGreater(
+                    entry.winfo_width(),
+                    text_width("body_small", placeholder) + 12,
+                    msg=f"{placeholder} placeholder does not fit its entry",
+                )
+
+        # The rows must fit the width they were given rather than overflow it.
+        host_width = self.page.input_rows_host.winfo_width()
+        for widgets in self.page.input_widgets.values():
+            self.assertLessEqual(widgets.frame.winfo_width(), host_width)
+
+    def test_long_names_widen_the_pane_rather_than_the_columns(self):
+        """A long feature name grows the pane; it never squeezes a column."""
+
+        narrow = configuration_width_for(INPUT_LABEL_MIN_WIDTH)
+        wide = configuration_width_for(INPUT_LABEL_MAX_WIDTH)
+        self.assertEqual(narrow, CONFIGURATION_MIN_WIDTH)
+        self.assertGreater(wide, narrow)
+
+        # A moderately long name widens the column to fit its measured text.
+        moderate = widest_text_width(
+            "body_small",
+            ["SlotRadiusOuter"],
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
+        )
+        self.assertGreater(moderate, INPUT_LABEL_MIN_WIDTH)
+        self.assertGreaterEqual(
+            moderate, text_width("body_small", "SlotRadiusOuter")
+        )
+        measured = widest_text_width(
+            "body_small",
+            ["ArrayElementSpacing"],
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
+        )
+        # Past the cap the column stops growing and the label wraps instead,
+        # so one absurd name cannot push the whole pane off screen.
+        self.assertEqual(measured, INPUT_LABEL_MAX_WIDTH)
+
+        self.page._apply_configuration_min_width(configuration_width_for(measured))
+        self.assertEqual(
+            self.page._configuration_min_width, configuration_width_for(measured)
+        )
+        self.assertGreater(self.page._configuration_min_width, CONFIGURATION_MIN_WIDTH)
 
     def test_laptop_layout_keeps_configuration_and_actions_reachable(self):
         self.app.geometry("1366x768+0+0")

@@ -1,6 +1,8 @@
 """High-contrast light and dark instrument-lab palettes for the Studio."""
 
-from typing import TypeAlias
+import tkinter as tk
+from tkinter import font as tkfont
+from typing import Iterable, TypeAlias
 
 
 ColorValue: TypeAlias = tuple[str, str]
@@ -103,6 +105,88 @@ FONTS = {
     "button": ("Segoe UI Semibold", 17),
     "mono": ("Cascadia Mono", 16),
 }
+
+
+# Widths are measured once per font and reused.  CustomTkinter leaves tuple
+# fonts unscaled, so a measurement taken at scaling 1.0 stays valid: widget
+# scaling only ever widens the box around text that never grew.
+_MEASUREMENT_FONTS: dict[str, tkfont.Font] = {}
+_FALLBACK_PIXELS_PER_CHARACTER = 13
+
+
+def _measurement_font(font_key: str) -> tkfont.Font | None:
+    """Return a cached measuring font, or None while no Tk root exists."""
+
+    cached = _MEASUREMENT_FONTS.get(font_key)
+    if cached is not None:
+        return cached
+    family, size, *style = FONTS[font_key]
+    try:
+        font = tkfont.Font(
+            family=family,
+            size=size,
+            weight=style[0] if style else "normal",
+        )
+    except (RuntimeError, tk.TclError):
+        return None
+    _MEASUREMENT_FONTS[font_key] = font
+    return font
+
+
+def text_width(font_key: str, text: str) -> int:
+    """Rendered width of ``text`` in unscaled pixels for a named theme font.
+
+    Falls back to a conservative per-character estimate only when Tk cannot
+    measure, so callers never have to guess a character width themselves.
+    """
+
+    for _attempt in range(2):
+        font = _measurement_font(font_key)
+        if font is None:
+            break
+        try:
+            return int(font.measure(text))
+        except (RuntimeError, tk.TclError):
+            # The root this font belonged to is gone; drop it and re-measure.
+            _MEASUREMENT_FONTS.pop(font_key, None)
+    return len(text) * _FALLBACK_PIXELS_PER_CHARACTER
+
+
+def widest_text_width(
+    font_key: str,
+    texts: Iterable[str],
+    *,
+    padding: int = 0,
+    minimum: int = 0,
+    maximum: int | None = None,
+) -> int:
+    """Width that fits every string in ``texts``, clamped to a sane range."""
+
+    widest = max((text_width(font_key, str(text)) for text in texts), default=0)
+    widest = max(widest + padding, minimum)
+    if maximum is not None:
+        widest = min(widest, maximum)
+    return widest
+
+
+def column_safe_width(widget, target: int) -> int:
+    """Width to request so a widget renders no wider than ``target`` pixels.
+
+    CustomTkinter multiplies a widget's ``width`` argument by the current
+    widget scaling, while Tk's grid ``minsize`` stays in raw pixels.  Passing a
+    raw target therefore overflows its own column at any scaling above 1.0,
+    which widens that row alone and pulls the heading out of alignment.
+    """
+
+    from customtkinter import ScalingTracker
+
+    try:
+        scaling = float(ScalingTracker.get_widget_scaling(widget))
+    except Exception:  # pragma: no cover - scaling is unavailable before Tk
+        scaling = 1.0
+    if scaling <= 0:
+        scaling = 1.0
+    return max(1, int(target / scaling))
 
 
 def status_palette(status: str) -> tuple[ColorValue, ColorValue]:

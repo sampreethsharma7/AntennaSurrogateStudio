@@ -2,16 +2,16 @@
 
 Contract version: 3.95
 Studio version: 0.33.2
-UI source SHA-256: e1e2c73d0746d11566a1a04622b7cc6d299438a5058197c81648755fa4585beb
+UI source SHA-256: e2efbd143eb93d415fd1df2e06b3556258c274b945aa98166930768c4b540945
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
-Inference UI source SHA-256: 753390cd7610436f2f0cb296ca2e50281d6b97eb5dee77a5c358ea2bdc88f919
-Inverse Design UI source SHA-256: c3f576d15feda8c2c94c4f687f60a3e968d8f3298bfd90e983e10bad30c3581e
+Inference UI source SHA-256: 465baaa40efa7b89edaec4fcd80053a18e8bd5605828c5ca6631355231038b41
+Inverse Design UI source SHA-256: d23ee1ea3ab90d3e1a071da4082c9d6f70fc981741079742852ec50bbc3cbe14
 Scientific Plot UI source SHA-256: e4d30b547ba62a6161e16de6e800085087dd7cfe2c710d7a5e1999fbc3c93441
-Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
+Theme source SHA-256: 05e6f1b72b45ccd5254689fede586eceb7df5f861be2c4d07305f6ab3beaec40
 
 This file is SnowBuddy’s visual and interaction map. It describes the interface
 without assuming screen vision. The live UI-state snapshot supplied at runtime
@@ -53,11 +53,11 @@ adds the user’s current page, values, selections, and status.
   from 226 pixels to a 76-pixel icon-only rail. The same control expands it.
   Navigation remains active and the chosen state survives page changes for the
   current application session. The Active Project card and footer hide only in
-  compact mode; no project or page state is changed. Compact mode uses the
-  font-safe ASCII monograms ST, DS, DP, MT, TR, ML, IN, and ID, so missing
-  symbol-font glyphs cannot turn destinations into tofu boxes. Each monogram exposes
-  its page name on pointer hover and keyboard focus and has the same accessibility
-  name.
+  compact mode; no project or page state is changed. Compact mode shows one
+  distinct pictorial mark per destination rather than letter pairs, which read
+  as jargon in a machine-learning tool. Each mark exposes its page name on
+  pointer hover and keyboard focus and has the same accessibility name, so the
+  destination is always recoverable without reading the glyph.
 - A fixed two-pixel steel divider separates the workflow rail from the active
   page workspace in expanded and collapsed modes.
 - SnowBuddy is not allocated a permanent workspace column while closed. The
@@ -76,7 +76,7 @@ adds the user’s current page, values, selections, and status.
   is restored from `studio_settings.json` on the next launch.
 - The sidebar contains the AS brand badge, Start, Text / CAD Design, Data Prep, Model Training,
   Training Results, Model Library, Inference, and Inverse Design. Collapsed mode shows those same
-  destinations as two-letter monograms. All project workflow pages are available
+  destinations as single icon marks. All project workflow pages are available
   while a project is active. Selecting one without a project returns to Start
   with an Open project message.
 - The sidebar’s Active Project card shows the open project name and workflow
@@ -1062,7 +1062,9 @@ is disabled and the footer directs the user to select a valid Model Book.
 The page uses an Inference-style persistent split workspace: Search Configuration
 stays on the left and the scientific result workbench remains visible on the
 right. A draggable vertical divider adjusts their widths while enforcing minimum
-usable sizes. Search Configuration cannot be narrowed below 522 pixels. Its
+usable sizes. Search Configuration cannot be narrowed below 524 pixels, and that
+floor rises automatically when measured feature names need a wider name column,
+so a long name widens the pane instead of squeezing the columns. Its
 feature labels, Variable/Fixed controls, numeric fields, objective-range fields,
 and constraint controls resize with the pane; explanatory copy rewraps to the
 actual width. Dragged or restored divider positions are clamped before the
@@ -1078,12 +1080,15 @@ itself never scrolls. **Inputs** lists every saved feature in exact feature orde
 inside its own vertical scrolling viewport; there is no row-count threshold or
 pagination cap, and the scrollbar keeps the final row reachable at every supported
 display scale. Each compact row keeps its feature name, Variable/Fixed selector, and
-contextual numeric fields aligned to shared column widths. The Low/Value heading is
-stacked and centered over its field, separately from the High heading. Each row chooses
-Variable or Fixed. Variable rows show finite Low and High fields. Fixed rows hide
-those irrelevant bounds and show one full-width Value field in the same numeric
-area; there is no permanently allocated fifth column. Long runtime-created names
-wrap inside the shared name column rather than shifting or clipping only one row.
+contextual numeric fields aligned to shared column widths. Column widths are
+measured from the rendered text rather than estimated from character counts, so
+the INPUT, ROLE, LOW, and HIGH headings sit centered over the fields they label
+on every row. Each row chooses Variable or Fixed. Variable rows show finite Low
+and High fields. Fixed rows hide those irrelevant bounds and show one full-width
+Value field, carrying its own "Value" placeholder, in the same numeric area;
+there is no permanently allocated fifth column. Long runtime-created names widen
+the shared name column, and the pane with it, rather than wrapping mid-word,
+clipping, or shifting only one row.
 The
 backend requires at least one variable, lower less than upper, and every saved
 feature assigned exactly once.

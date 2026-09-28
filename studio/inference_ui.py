@@ -24,13 +24,17 @@ from studio.inference import (
 from studio.model_book import ModelBook, ModelBookError, load_model_library
 from studio.project_store import Project, atomic_write_json, utc_now
 from studio.scientific_plot import ScientificCurve, ScientificPlotWorkbench
-from studio.theme import COLORS, FONTS
+from studio.theme import COLORS, FONTS, column_safe_width, widest_text_width
 
 if TYPE_CHECKING:
     from studio.ui import StudioApp
 
 
 INPUTS_PER_PAGE = 8
+# The INPUT column is measured against the real feature names at runtime and
+# clamped to this range, so a long name widens the column instead of wrapping.
+INPUT_LABEL_MIN_WIDTH = 105
+INPUT_LABEL_MAX_WIDTH = 190
 MIN_USABLE_PREDICTION_PLOT_WIDTH = 420
 PREDICTION_EXPORT_SCHEMA_VERSION = 2
 
@@ -922,9 +926,12 @@ class InferencePage(ctk.CTkFrame):
 
     def _create_input_fields(self, feature_columns: list[str]) -> None:
         saved_inputs = self._saved_input_values(feature_columns)
-        label_width = min(
-            190,
-            max(105, 18 + max((len(name) for name in feature_columns), default=0) * 11),
+        label_width = widest_text_width(
+            "body_small",
+            feature_columns,
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
         )
         value_width = 92
         range_width = 118
@@ -969,8 +976,11 @@ class InferencePage(ctk.CTkFrame):
                 font=FONTS["body_small"],
                 anchor="w",
                 justify="left",
-                width=label_width,
-                wraplength=label_width - 12,
+                # CustomTkinter scales width and wraplength while the column's
+                # grid minsize stays raw, so both are converted; otherwise a
+                # long name widens its own row and staggers the columns.
+                width=column_safe_width(shell, label_width - 12),
+                wraplength=column_safe_width(shell, label_width - 12),
             )
             name_label.grid(row=0, column=0, padx=6, sticky="ew")
             entry = ctk.CTkEntry(
@@ -982,7 +992,7 @@ class InferencePage(ctk.CTkFrame):
                 border_color=COLORS["border"],
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
-                width=value_width,
+                width=column_safe_width(shell, value_width - 8),
             )
             entry.grid(row=0, column=1, padx=4, sticky="ew")
             statistics = self.input_statistics.get(name)
@@ -1002,7 +1012,7 @@ class InferencePage(ctk.CTkFrame):
                 text_color=COLORS["subtle"],
                 font=FONTS["caption"],
                 anchor="w",
-                width=range_width,
+                width=column_safe_width(shell, range_width - 12),
             )
             range_label.grid(row=0, column=2, padx=6, sticky="ew")
             self.input_shells[name] = shell
