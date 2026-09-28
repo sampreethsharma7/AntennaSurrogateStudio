@@ -25,6 +25,7 @@ from studio.model_comparison import (
     ModelComparisonResult,
     compare_compatible_model_runs,
 )
+from studio.model_training import TRAINING_COMPLETED
 from studio.output_axis import infer_output_axis
 from studio.project_store import Project
 from studio.scientific_plot import (
@@ -954,6 +955,8 @@ class TrainingResultsPage(ctk.CTkFrame):
         self.comparison_error: str | None = None
         self.comparison_metric_chart: ModelComparisonMetricChart | None = None
         self.comparison_run_buttons: dict[str, ctk.CTkButton] = {}
+        self.run_selector_var = ctk.StringVar(value="No completed runs")
+        self._run_choice_ids: dict[str, str] = {}
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(4, weight=1)
@@ -984,6 +987,7 @@ class TrainingResultsPage(ctk.CTkFrame):
         self.comparison_error = None
         self.comparison_metric_chart = None
         self.comparison_run_buttons = {}
+        self._refresh_run_selector()
         if self.project is not None:
             try:
                 self.result = load_latest_training_results(
@@ -1073,7 +1077,83 @@ class TrainingResultsPage(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["mono"],
         )
-        self.run_badge.grid(row=0, column=1, sticky="e")
+        ctk.CTkLabel(
+            header,
+            text="RUN",
+            text_color=COLORS["muted"],
+            font=FONTS["mono"],
+        ).grid(row=0, column=1, padx=(16, 5), sticky="e")
+        self.run_selector = ctk.CTkOptionMenu(
+            header,
+            variable=self.run_selector_var,
+            values=["No completed runs"],
+            width=220,
+            height=32,
+            font=FONTS["body_small"],
+            command=self._run_selected,
+            state="disabled",
+        )
+        self.run_selector.grid(row=0, column=2, padx=(0, 10), sticky="e")
+        self.run_badge.grid(row=0, column=3, sticky="e")
+
+    def _refresh_run_selector(self) -> None:
+        self._run_choice_ids = {}
+        if self.project is None:
+            self.run_selector.configure(values=["No completed runs"], state="disabled")
+            self.run_selector_var.set("No completed runs")
+            return
+        training = self.project.manifest.get("model_training", {})
+        records = training.get("runs") if isinstance(training, dict) else None
+        completed = [
+            record
+            for record in (records if isinstance(records, list) else [])
+            if isinstance(record, dict)
+            and record.get("status") == TRAINING_COMPLETED
+            and isinstance(record.get("run_number"), int)
+            and isinstance(record.get("run_id"), str)
+        ]
+        for record in sorted(
+            completed,
+            key=lambda item: int(item["run_number"]),
+            reverse=True,
+        ):
+            label = (
+                f"Run {record['run_number']} · "
+                f"{_model_display_name(str(record.get('model_name') or ''))}"
+            )
+            self._run_choice_ids[label] = str(record["run_id"])
+        if not self._run_choice_ids:
+            self.run_selector.configure(values=["No completed runs"], state="disabled")
+            self.run_selector_var.set("No completed runs")
+            return
+        selected_id = self.requested_run_id or str(
+            training.get("latest_run_id") or ""
+        )
+        selected_label = next(
+            (
+                label
+                for label, run_id in self._run_choice_ids.items()
+                if run_id == selected_id
+            ),
+            next(iter(self._run_choice_ids)),
+        )
+        self.run_selector.configure(
+            values=list(self._run_choice_ids),
+            state="normal",
+        )
+        self.run_selector_var.set(selected_label)
+
+    def _run_selected(self, label: str) -> None:
+        run_id = self._run_choice_ids.get(label)
+        if run_id is None or self.project is None:
+            return
+        latest_id = str(
+            self.project.manifest.get("model_training", {}).get("latest_run_id") or ""
+        )
+        self.requested_run_id = None if run_id == latest_id else run_id
+        self.active_section = DEFAULT_RESULTS_SECTION
+        self.failure_state = None
+        self.reload()
 
     def _build_recommendation(self) -> None:
         self.recommendation_card = ctk.CTkFrame(

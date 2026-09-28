@@ -29,7 +29,7 @@ from studio.training_ui import (
     TRAIN_BUTTON_LABEL,
 )
 from studio.theme import COLORS
-from studio.ui import CreateProjectDialog, StudioApp
+from studio.ui import CreateProjectDialog, ProjectCard, StudioApp
 
 
 GUI_MAY_BE_AVAILABLE = (
@@ -107,6 +107,28 @@ class ModelTrainingPageTests(unittest.TestCase):
             time.sleep(0.01)
         self.app.update()
         self.assertFalse(self.page.training_in_progress, "Training did not finish in time")
+
+    def test_recent_model_saved_project_card_keeps_status_badge_visible(self):
+        project = self.store.create_project("Recent Saved Model With Long Name")
+        project = self.store.update_project(
+            project,
+            {"workflow": {"stage": "model_saved"}},
+        )
+        card = ProjectCard(
+            self.app.start_page.recent_frame,
+            project,
+            command=lambda: None,
+        )
+        card.grid(row=9, column=0)
+        self.app.update_idletasks()
+
+        self.assertEqual(card.status_badge.cget("text"), "Model saved")
+        self.assertEqual(card.status_badge.winfo_manager(), "pack")
+        self.assertLessEqual(
+            card.status_badge.winfo_rooty() + card.status_badge.winfo_height(),
+            card.winfo_rooty() + card.winfo_height(),
+        )
+        card.destroy()
 
     @staticmethod
     def _successful_result(

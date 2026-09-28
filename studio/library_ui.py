@@ -962,6 +962,9 @@ class ModelLibraryPage(ctk.CTkFrame):
         entry = self.selected_entry
         if entry is None or entry.book is None:
             return
+        self.footer_status.configure(
+            text=f"Showing all {len(entry.book.feature_columns)} required inputs"
+        )
         messagebox.showinfo(
             "Required model inputs",
             "\n".join(entry.book.feature_columns),

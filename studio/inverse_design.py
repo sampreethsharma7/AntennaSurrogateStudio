@@ -72,6 +72,9 @@ class InverseDesignObjective:
     target_value: float | None = None
     aggregation: str = "single"
     output_names: list[str] | None = None
+    requested_coordinate: float | None = None
+    requested_range_start: float | None = None
+    requested_range_end: float | None = None
 
     def __post_init__(self) -> None:
         self.goal = _name(self.goal, "Objective goal").lower()
@@ -131,6 +134,14 @@ class InverseDesignObjective:
                     "A mean objective requires at least two ordered outputs."
                 )
             self.output_names = normalized_names
+        for attribute, label in (
+            ("requested_coordinate", "Requested objective coordinate"),
+            ("requested_range_start", "Requested objective range start"),
+            ("requested_range_end", "Requested objective range end"),
+        ):
+            value = getattr(self, attribute)
+            if value is not None:
+                setattr(self, attribute, _finite_number(value, label))
 
     @property
     def selected_outputs(self) -> list[str]:
@@ -151,6 +162,9 @@ class InverseDesignObjective:
             "aggregation": self.aggregation,
             "goal": self.goal,
             "target_value": self.target_value,
+            "requested_coordinate": self.requested_coordinate,
+            "requested_range_start": self.requested_range_start,
+            "requested_range_end": self.requested_range_end,
         }
 
 
@@ -165,6 +179,9 @@ class OutputConstraint:
     upper_bound: float | None = None
     aggregation: str = "single"
     output_names: list[str] | None = None
+    requested_coordinate: float | None = None
+    requested_range_start: float | None = None
+    requested_range_end: float | None = None
 
     def __post_init__(self) -> None:
         self.operator = _name(self.operator, "Constraint operator").lower()
@@ -242,6 +259,14 @@ class OutputConstraint:
                     "A mean constraint requires at least two ordered outputs."
                 )
             self.output_names = normalized_names
+        for attribute, label in (
+            ("requested_coordinate", "Requested constraint coordinate"),
+            ("requested_range_start", "Requested constraint range start"),
+            ("requested_range_end", "Requested constraint range end"),
+        ):
+            value = getattr(self, attribute)
+            if value is not None:
+                setattr(self, attribute, _finite_number(value, label))
 
     @property
     def selected_outputs(self) -> list[str]:
@@ -262,6 +287,9 @@ class OutputConstraint:
             "value": self.value,
             "lower_bound": self.lower_bound,
             "upper_bound": self.upper_bound,
+            "requested_coordinate": self.requested_coordinate,
+            "requested_range_start": self.requested_range_start,
+            "requested_range_end": self.requested_range_end,
         }
 
 

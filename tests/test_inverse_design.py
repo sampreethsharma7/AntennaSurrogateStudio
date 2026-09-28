@@ -336,6 +336,8 @@ class InverseDesignBackendTests(unittest.TestCase):
                         value=9.0,
                         aggregation="mean",
                         output_names=["gain", "loss"],
+                        requested_range_start=2.4,
+                        requested_range_end=2.43,
                     )
                 ],
             ),
@@ -356,6 +358,14 @@ class InverseDesignBackendTests(unittest.TestCase):
         self.assertEqual(
             saved_request["constraints"][0]["output_names"],
             ["gain", "loss"],
+        )
+        self.assertEqual(
+            saved_request["constraints"][0]["requested_range_start"],
+            2.4,
+        )
+        self.assertEqual(
+            saved_request["constraints"][0]["requested_range_end"],
+            2.43,
         )
 
     def test_infeasible_constraint_returns_clear_failure_without_artifacts(self):

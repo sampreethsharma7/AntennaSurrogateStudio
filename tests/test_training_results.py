@@ -711,6 +711,16 @@ class TrainingResultsPageTests(unittest.TestCase):
         self.assertEqual(self.page.result.run_id, "run-0002")
         self.assertEqual(self.page.active_section, "fit")
         self.assertIsInstance(self.page.current_chart, ScientificPlotWorkbench)
+        self.assertEqual(len(self.page._run_choice_ids), 2)
+        run_one_label = next(
+            label
+            for label, run_id in self.page._run_choice_ids.items()
+            if run_id == "run-0001"
+        )
+        self.page.run_selector.set(run_one_label)
+        self.page._run_selected(run_one_label)
+        self.assertEqual(self.page.result.run_id, "run-0001")
+        self.assertIn("SELECTED", self.page.run_badge.cget("text"))
 
     def test_results_navigation_reloads_runs_created_after_project_open(self):
         project = self.store.create_project("Results Navigation Refresh")

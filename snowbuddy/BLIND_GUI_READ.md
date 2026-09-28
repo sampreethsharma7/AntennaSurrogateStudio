@@ -1,15 +1,15 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.92
+Contract version: 3.93
 Studio version: 0.33.2
-UI source SHA-256: ae1aeb05e02b1d9b8c173fcf36e1f46ab5a9725e15f2cd1e95e25756fb3c993a
+UI source SHA-256: bbecedb91193182e8fade288db0c29a597cece4b028dee57ae12bf9eeba2cae9
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
-Results UI source SHA-256: 77149f4b7fae377a43f638e3b30ee66e7059b4341b8a9c40ec4332c4f6b64ec2
-Library UI source SHA-256: 7c1ca0dd1aed057426f0d648c444125c84bab7d699059ddd7e68ac7f3de9c58c
+Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
+Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
 Inference UI source SHA-256: 4e080ed89db6b06cd15b0dfbcedbe77814377896a0b69427587f3f86a7417bd0
-Inverse Design UI source SHA-256: 74e8eb07bbfbf9c5896e3bb2a2c81655fc7db5659e6fe63dcc33aae5c4325052
+Inverse Design UI source SHA-256: eb6791d6e4ca5bb46135429c92c06306341b7182bf6ca7aed53bc1810df37f74
 Scientific Plot UI source SHA-256: 419318bce402719348e16fbd864bbdd76821fe7a487f8ad040c522f70903d05b
 Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
 
@@ -113,7 +113,9 @@ build a trusted surrogate model.
 
 - An appearance-aware “Recent projects” instrument panel displays up to five
   project icon cards in latest-opened order.
-- Each card shows project name, relative last-opened time, and status.
+- Each card shows a status badge immediately below its icon, followed by project
+  name and relative last-opened time. The badge remains visible even when a long
+  project name wraps; a completed Model Book appears as **Model saved**.
 - Clicking a project card opens that project.
 - When empty, the card says “Your project shelf is empty” and offers “Create
   project.”
@@ -716,8 +718,9 @@ Results” action. The latter reads saved run artifacts and never starts trainin
 Training Results is a fixed, non-scrolling, artifact-backed page for the latest
 completed run by default. Its visualizations never retrain or modify that run;
 the footer can copy it into a new Model Book. SnowBuddy retains the shared
-floating/drawer behavior. The header shows “Training Results” and a latest-run
-badge. Opening an older family run from Model Comparison changes the badge to
+floating/drawer behavior. The header shows “Training Results,” a visible dropdown
+containing every completed immutable run, and a latest/selected run badge.
+Choosing an older run directly or opening one from Model Comparison changes the badge to
 SELECTED and opens that immutable run's Predictions detail. Before any completed run it displays
 “No completed training run is available yet. Train a model to view performance
 and prediction plots.” A failed attempt can display “Training did not
@@ -916,7 +919,8 @@ multiple outputs show a saved axis label/range only when the Model Book contains
 reliable structured coordinates; otherwise they use a neutral count. RMSE, MAE,
 Pooled R², and available Validation RMSE
 appear as prominent metric cards. Required Inputs lists up to six feature names
-inline and offers View all inputs when the list is longer.
+inline and offers View all inputs when the list is longer. Selecting it opens the
+complete ordered list and leaves a footer acknowledgement with the input count.
 New Model Books persist pooled test R² beside the estimator's mean per-output
 test R². Older books recover pooled R² from their source predictions when that
 run remains available; if it is unavailable, the fallback is labelled explicitly
@@ -1067,6 +1071,9 @@ Low, High, and Fixed fields on one eye-line. Each row chooses Variable or Fixed.
 finite Lower and Upper fields; Fixed rows enable one finite Value field. The
 backend requires at least one variable, lower less than upper, and every saved
 feature assigned exactly once.
+Before a project-specific configuration exists, Variable Low/High fields use the
+active Model Book's immutable training minima/maxima and Fixed values use the
+training median. These are usable in-domain starting values rather than blanks.
 The Variable/Fixed role and its validated numeric bounds or fixed value are saved
 after a successful inverse-design run. They restore only for the same active Model
 Book; a different book starts from safe defaults instead of inheriting an
@@ -1079,6 +1086,9 @@ range**. Typed coordinates snap to the nearest saved coordinate, including a
 rounded endpoint that lies within half of the adjacent grid interval. The result
 summary discloses each snap and the representative saved-grid spacing. Requests
 outside that selectable axis extent are rejected with the actual saved range.
+The immutable inverse-design `request.json` records both the selected saved output
+and the original typed coordinate or range endpoints, preserving the disclosure's
+provenance after reopen.
 Mean over range applies the same endpoint snapping, evaluates the arithmetic mean
 of all ordered saved outputs inside the snapped range as one scalar objective,
 and requires at least two points. Minimize, Maximize, or Target value applies to

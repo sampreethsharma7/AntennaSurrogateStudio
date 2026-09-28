@@ -1649,6 +1649,18 @@ class ProjectCard(ctk.CTkFrame):
             font=("Segoe UI Symbol", 24),
         ).place(relx=0.5, rely=0.5, anchor="center")
 
+        background, foreground = status_palette(project.status_label)
+        self.status_badge = ctk.CTkLabel(
+            self,
+            text=project.status_label,
+            height=24,
+            corner_radius=12,
+            fg_color=background,
+            text_color=foreground,
+            font=FONTS["button"],
+        )
+        self.status_badge.pack(anchor="w", padx=9, pady=(0, 7))
+
         ctk.CTkLabel(
             self,
             text=project.name,
@@ -1667,17 +1679,6 @@ class ProjectCard(ctk.CTkFrame):
             font=FONTS["caption"],
             anchor="w",
         ).pack(fill="x", padx=9, pady=(4, 0))
-
-        background, foreground = status_palette(project.status_label)
-        ctk.CTkLabel(
-            self,
-            text=project.status_label,
-            height=24,
-            corner_radius=12,
-            fg_color=background,
-            text_color=foreground,
-            font=FONTS["button"],
-        ).pack(anchor="w", padx=9, pady=(10, 0))
 
         self._bind_clicks(self)
 

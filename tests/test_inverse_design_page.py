@@ -102,6 +102,10 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertEqual(self.page.objective_goal.get(), "Minimize")
         self.assertIn("Differential Evolution", self.page.footer_status.cget("text"))
         self.assertEqual(self.page.run_button.cget("state"), "normal")
+        self.assertEqual(self.page.input_widgets["P2"].lower.get(), "1")
+        self.assertEqual(self.page.input_widgets["P2"].upper.get(), "24")
+        self.assertEqual(self.page.input_widgets["P3"].fixed.get(), "3")
+        self.assertEqual(self.page.input_widgets["P4"].fixed.get(), "2")
 
     def test_eight_inputs_fit_without_paging(self):
         self.page._clear_form()
@@ -225,6 +229,7 @@ class InverseDesignPageTests(unittest.TestCase):
         request = self.page.build_request()
 
         self.assertEqual(request.objective.output_name, "theta_0")
+        self.assertEqual(request.objective.requested_coordinate, 2.4)
         disclosure = self.page._coordinate_disclosures[0]
         self.assertIn("Optimizing at 2.40026 GHz", disclosure)
         self.assertIn("nearest saved point to 2.4 GHz", disclosure)
@@ -297,6 +302,8 @@ class InverseDesignPageTests(unittest.TestCase):
             self.page.build_request()
 
     def test_invalid_form_does_not_submit_and_shows_friendly_message(self):
+        first = next(iter(self.page.input_widgets.values()))
+        first.lower.delete(0, "end")
         with patch("studio.inverse_design_ui.submit_inverse_design_request") as submit:
             self.page.run_button.invoke()
 

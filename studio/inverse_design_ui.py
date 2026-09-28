@@ -12,6 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 import customtkinter as ctk
 
+from studio.inference import InferenceError
+from studio.inference_ui import (
+    TrainingFeatureStatistics,
+    load_training_feature_statistics,
+)
 from studio.inverse_design import (
     INVERSE_DESIGN_COMPLETED,
     InverseDesignError,
@@ -116,6 +121,7 @@ class InverseDesignPage(ctk.CTkFrame):
         self.project: Project | None = None
         self.active_book: ModelBook | None = None
         self.load_error: str | None = None
+        self.input_statistics: dict[str, TrainingFeatureStatistics] = {}
         self.optimization_in_progress = False
         self.last_result: InverseDesignResult | None = None
         self._pending_request: InverseDesignRequest | None = None
@@ -142,6 +148,7 @@ class InverseDesignPage(ctk.CTkFrame):
     def reload(self) -> None:
         self.active_book = None
         self.load_error = None
+        self.input_statistics = {}
         if self.project is not None:
             try:
                 library = load_model_library(self.project.path)
@@ -172,6 +179,12 @@ class InverseDesignPage(ctk.CTkFrame):
                     )
                 else:
                     self.active_book = entry.book
+                    try:
+                        self.input_statistics = load_training_feature_statistics(
+                            self.active_book
+                        )
+                    except InferenceError:
+                        self.input_statistics = {}
         new_key = (
             (self.project.path.resolve(), self.active_book.book_id)
             if self.project is not None and self.active_book is not None
@@ -957,12 +970,18 @@ class InverseDesignPage(ctk.CTkFrame):
             self.input_widgets[name] = InputWidgets(
                 frame, mode, control, lower, upper, fixed
             )
+            feature_statistics = self.input_statistics.get(name)
+            defaults = {
+                "lower": feature_statistics.minimum if feature_statistics else None,
+                "upper": feature_statistics.maximum if feature_statistics else None,
+                "fixed": feature_statistics.median if feature_statistics else None,
+            }
             for entry, key in (
                 (lower, "lower"),
                 (upper, "upper"),
                 (fixed, "fixed"),
             ):
-                value = saved.get(key)
+                value = saved.get(key, defaults[key])
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     entry.insert(0, _display_numeric_value(float(value)))
             self._input_mode_changed(name)
@@ -1301,7 +1320,9 @@ class InverseDesignPage(ctk.CTkFrame):
             )
         return coordinate, name
 
-    def _objective_outputs(self) -> tuple[str, list[str]]:
+    def _objective_outputs(
+        self,
+    ) -> tuple[str, list[str], dict[str, float | None]]:
         pairs = self._axis_pairs()
         if self.objective_scope.get() == "Single point":
             requested = self._float_entry(
@@ -1312,7 +1333,11 @@ class InverseDesignPage(ctk.CTkFrame):
                 requested,
                 label="Requested objective coordinate",
             )
-            return "single", [match]
+            return "single", [match], {
+                "requested_coordinate": requested,
+                "requested_range_start": None,
+                "requested_range_end": None,
+            }
         start = self._float_entry(self.range_start, "an output-range start")
         end = self._float_entry(self.range_end, "an output-range end")
         if start > end:
@@ -1334,13 +1359,17 @@ class InverseDesignPage(ctk.CTkFrame):
             raise ValueError(
                 "Mean over range requires at least two saved output coordinates."
             )
-        return "mean", names
+        return "mean", names, {
+            "requested_coordinate": None,
+            "requested_range_start": start,
+            "requested_range_end": end,
+        }
 
     def _constraint_outputs(
         self,
         widgets: ConstraintWidgets,
         index: int,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[str, list[str], dict[str, float | None]]:
         pairs = self._axis_pairs()
         if widgets.scope.get() == "Single point":
             requested = self._float_entry(
@@ -1351,7 +1380,11 @@ class InverseDesignPage(ctk.CTkFrame):
                 requested,
                 label=f"Constraint {index} coordinate",
             )
-            return "single", [match]
+            return "single", [match], {
+                "requested_coordinate": requested,
+                "requested_range_start": None,
+                "requested_range_end": None,
+            }
         start = self._float_entry(
             widgets.coordinate_start,
             f"constraint {index} range start",
@@ -1381,7 +1414,11 @@ class InverseDesignPage(ctk.CTkFrame):
             raise ValueError(
                 f"Constraint {index} mean requires at least two saved output coordinates."
             )
-        return "mean", names
+        return "mean", names, {
+            "requested_coordinate": None,
+            "requested_range_start": start,
+            "requested_range_end": end,
+        }
 
     def build_request(self) -> InverseDesignRequest:
         if self.active_book is None:
@@ -1399,7 +1436,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 fixed_inputs[name] = self._float_entry(
                     widgets.fixed, f"a fixed value for {name}"
                 )
-        aggregation, output_names = self._objective_outputs()
+        aggregation, output_names, requested_coordinates = self._objective_outputs()
         goal = GOAL_LABELS[self.objective_goal.get()]
         target = (
             self._float_entry(self.target_value, "an objective target value")
@@ -1412,10 +1449,15 @@ class InverseDesignPage(ctk.CTkFrame):
             target,
             aggregation=aggregation,
             output_names=output_names,
+            **requested_coordinates,
         )
         constraints: list[OutputConstraint] = []
         for index, widgets in enumerate(self.constraint_widgets, start=1):
-            constraint_aggregation, constraint_outputs = self._constraint_outputs(
+            (
+                constraint_aggregation,
+                constraint_outputs,
+                constraint_requested_coordinates,
+            ) = self._constraint_outputs(
                 widgets,
                 index,
             )
@@ -1439,6 +1481,7 @@ class InverseDesignPage(ctk.CTkFrame):
                         ),
                         aggregation=constraint_aggregation,
                         output_names=constraint_outputs,
+                        **constraint_requested_coordinates,
                     )
                 )
             else:
@@ -1453,6 +1496,7 @@ class InverseDesignPage(ctk.CTkFrame):
                         value=first,
                         aggregation=constraint_aggregation,
                         output_names=constraint_outputs,
+                        **constraint_requested_coordinates,
                     )
                 )
         return InverseDesignRequest(
