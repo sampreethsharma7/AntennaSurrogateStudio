@@ -40,14 +40,13 @@ if TYPE_CHECKING:
     from studio.ui import StudioApp
 
 
-INPUTS_PER_PAGE = 8
 MAX_CONSTRAINTS = 4
 COORDINATE_ENTRY_MIN_WIDTH = 110
 INPUT_COLUMN_MIN_WIDTHS = (
+    70,
     140,
-    150,
-    90,
-    90,
+    66,
+    66,
 )
 CONFIGURATION_MIN_WIDTH = 522
 CONFIGURATION_DEFAULT_WIDTH = 522
@@ -124,7 +123,6 @@ class InverseDesignPage(ctk.CTkFrame):
         self.last_result: InverseDesignResult | None = None
         self._pending_request: InverseDesignRequest | None = None
         self._workspace_key: tuple[Path, str] | None = None
-        self.input_page = 0
         self.input_widgets: dict[str, InputWidgets] = {}
         self.input_name_labels: dict[str, ctk.CTkLabel] = {}
         self.constraint_widgets: list[ConstraintWidgets] = []
@@ -194,7 +192,6 @@ class InverseDesignPage(ctk.CTkFrame):
             return
         self._workspace_key = new_key
         self.last_result = None
-        self.input_page = 0
         self._refresh()
         self._restore_saved_results()
 
@@ -421,42 +418,46 @@ class InverseDesignPage(ctk.CTkFrame):
             fg_color=COLORS["surface_alt"],
             corner_radius=8,
         )
-        self.input_headings.grid(row=1, column=0, pady=(0, 4), sticky="ew")
+        self.input_headings.grid(
+            row=1,
+            column=0,
+            padx=(8, 8),
+            pady=(0, 4),
+            sticky="ew",
+        )
+        self.input_heading_labels: list[ctk.CTkLabel] = []
         for column, (label, weight) in enumerate(
-            (("INPUT", 0), ("ROLE", 0), ("LOW / VALUE", 1), ("HIGH", 1))
+            (("INPUT", 0), ("ROLE", 0), ("LOW /\nVALUE", 1), ("HIGH", 1))
         ):
             self.input_headings.grid_columnconfigure(
                 column,
                 weight=weight,
                 minsize=INPUT_COLUMN_MIN_WIDTHS[column],
             )
-            ctk.CTkLabel(
+            heading = ctk.CTkLabel(
                 self.input_headings,
                 text=label,
                 text_color=COLORS["muted"],
                 font=FONTS["mono"],
-            ).grid(row=0, column=column, padx=4, pady=3, sticky="w")
-        self.input_rows_host = ctk.CTkFrame(section, fg_color="transparent")
+                anchor="w" if column < 2 else "center",
+                justify="left" if column < 2 else "center",
+            )
+            heading.grid(
+                row=0,
+                column=column,
+                padx=(5, 4) if column < 2 else (7, 7),
+                pady=3,
+                sticky="ew",
+            )
+            self.input_heading_labels.append(heading)
+        self.input_rows_host = ctk.CTkScrollableFrame(
+            section,
+            fg_color="transparent",
+            corner_radius=0,
+            border_width=0,
+        )
         self.input_rows_host.grid(row=2, column=0, sticky="nsew")
         self.input_rows_host.grid_columnconfigure(0, weight=1)
-        self.input_pager = ctk.CTkFrame(section, fg_color="transparent")
-        self.input_pager.grid(row=3, column=0, pady=(4, 0), sticky="ew")
-        self.input_pager.grid_columnconfigure(1, weight=1)
-        self.input_previous = self._small_button(
-            self.input_pager, "‹", lambda: self._change_input_page(-1)
-        )
-        self.input_previous.grid(row=0, column=0)
-        self.input_page_label = ctk.CTkLabel(
-            self.input_pager,
-            text="Inputs 1–1 of 1",
-            text_color=COLORS["muted"],
-            font=FONTS["caption"],
-        )
-        self.input_page_label.grid(row=0, column=1)
-        self.input_next = self._small_button(
-            self.input_pager, "›", lambda: self._change_input_page(1)
-        )
-        self.input_next.grid(row=0, column=2)
 
     def _build_objective_section(self) -> None:
         section = ctk.CTkFrame(self.section_host, fg_color="transparent")
@@ -880,7 +881,6 @@ class InverseDesignPage(ctk.CTkFrame):
             widgets.frame.destroy()
         self.constraint_widgets.clear()
         self._coordinate_disclosures = []
-        self.input_pager.grid_remove()
         self.constraint_empty.grid()
         self.add_constraint_button.configure(state="normal")
         for entry in (
@@ -924,13 +924,20 @@ class InverseDesignPage(ctk.CTkFrame):
         saved_inputs = self._saved_input_configuration(features)
         self.input_name_labels.clear()
         label_width = min(
-            190,
+            90,
             max(
                 INPUT_COLUMN_MIN_WIDTHS[0],
-                18 + max((len(name) for name in features), default=0) * 11,
+                18 + max((len(name) for name in features), default=0) * 6,
             ),
         )
-        self.input_headings.grid_columnconfigure(0, minsize=label_width)
+        aligned_column_widths = (
+            label_width,
+            INPUT_COLUMN_MIN_WIDTHS[1] + 6,
+            INPUT_COLUMN_MIN_WIDTHS[2] + 4,
+            INPUT_COLUMN_MIN_WIDTHS[3] + 4,
+        )
+        for column, width in enumerate(aligned_column_widths):
+            self.input_headings.grid_columnconfigure(column, minsize=width)
         for index, name in enumerate(features):
             frame = ctk.CTkFrame(
                 self.input_rows_host,
@@ -941,7 +948,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 frame.grid_columnconfigure(
                     column,
                     weight=weight,
-                    minsize=(label_width if column == 0 else INPUT_COLUMN_MIN_WIDTHS[column]),
+                    minsize=aligned_column_widths[column],
                 )
             name_label = ctk.CTkLabel(
                 frame,
@@ -950,7 +957,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 font=FONTS["body_small"],
                 anchor="w",
                 justify="left",
-                width=label_width,
+                width=label_width - 10,
                 wraplength=label_width - 12,
             )
             name_label.grid(row=0, column=0, padx=5, pady=2, sticky="ew")
@@ -1074,33 +1081,11 @@ class InverseDesignPage(ctk.CTkFrame):
             widgets.fixed.grid()
 
     def _render_input_page(self) -> None:
-        names = list(self.input_widgets)
-        page_count = max(1, (len(names) + INPUTS_PER_PAGE - 1) // INPUTS_PER_PAGE)
-        self.input_page = min(self.input_page, page_count - 1)
-        for widgets in self.input_widgets.values():
-            widgets.frame.grid_remove()
-        start = self.input_page * INPUTS_PER_PAGE
-        visible = names[start : start + INPUTS_PER_PAGE]
-        for row, name in enumerate(visible):
+        for row, name in enumerate(self.input_widgets):
             self.input_widgets[name].frame.grid(row=row, column=0, pady=1, sticky="ew")
-        if len(names) > INPUTS_PER_PAGE:
-            self.input_page_label.configure(
-                text=f"Inputs {start + 1}–{start + len(visible)} of {len(names)}"
-            )
-            self.input_previous.configure(
-                state="normal" if self.input_page > 0 else "disabled"
-            )
-            self.input_next.configure(
-                state="normal" if self.input_page + 1 < page_count else "disabled"
-            )
-            self.input_pager.grid()
-        else:
-            self.input_pager.grid_remove()
-
-    def _change_input_page(self, offset: int) -> None:
-        pages = max(1, (len(self.input_widgets) + INPUTS_PER_PAGE - 1) // INPUTS_PER_PAGE)
-        self.input_page = max(0, min(self.input_page + offset, pages - 1))
-        self._render_input_page()
+        canvas = getattr(self.input_rows_host, "_parent_canvas", None)
+        if canvas is not None:
+            canvas.yview_moveto(0.0)
 
     def _show_config_section(self, name: str) -> None:
         for section_name, section in self.config_sections.items():

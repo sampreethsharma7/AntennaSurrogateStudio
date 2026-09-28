@@ -1749,12 +1749,21 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
 
         visible_curves = [curve for curve in self.state.curves if curve.visible]
         if not visible_curves:
+            plot_width = max(1.0, right - left)
+            placeholder = (
+                "Run a prediction to add a scientific response curve."
+                if plot_width >= 390
+                else "Run a prediction to add a response curve."
+            )
             canvas.create_text(
                 (left + right) / 2,
                 (top + bottom) / 2,
-                text="Run a prediction to add a scientific response curve.",
+                text=placeholder,
                 fill=muted,
                 font=FONTS["body_small"],
+                width=max(40, int(plot_width - 28)),
+                justify="center",
+                tags=("empty_plot_message",),
             )
         for curve in visible_curves:
             point_indices = (

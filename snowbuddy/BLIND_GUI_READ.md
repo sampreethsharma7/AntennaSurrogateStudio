@@ -1,16 +1,16 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.94
+Contract version: 3.95
 Studio version: 0.33.2
-UI source SHA-256: bbecedb91193182e8fade288db0c29a597cece4b028dee57ae12bf9eeba2cae9
+UI source SHA-256: e1e2c73d0746d11566a1a04622b7cc6d299438a5058197c81648755fa4585beb
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
 Inference UI source SHA-256: 753390cd7610436f2f0cb296ca2e50281d6b97eb5dee77a5c358ea2bdc88f919
-Inverse Design UI source SHA-256: 01566d74fc24600ad8a39e3ce11b88e2f41c649fea4c0bba07fc0c1610d72a62
-Scientific Plot UI source SHA-256: 614d55eefbe090b57251eafc48b2a774fba828e7cf77c33b124ee261b4b41200
+Inverse Design UI source SHA-256: c3f576d15feda8c2c94c4f687f60a3e968d8f3298bfd90e983e10bad30c3581e
+Scientific Plot UI source SHA-256: e4d30b547ba62a6161e16de6e800085087dd7cfe2c710d7a5e1999fbc3c93441
 Theme source SHA-256: 1306d868155ee919c70d8ccc75e173bf2d421da5a586cafb9a0dfcf789499132
 
 This file is SnowBuddy’s visual and interaction map. It describes the interface
@@ -53,7 +53,9 @@ adds the user’s current page, values, selections, and status.
   from 226 pixels to a 76-pixel icon-only rail. The same control expands it.
   Navigation remains active and the chosen state survives page changes for the
   current application session. The Active Project card and footer hide only in
-  compact mode; no project or page state is changed. Each compact icon exposes
+  compact mode; no project or page state is changed. Compact mode uses the
+  font-safe ASCII monograms ST, DS, DP, MT, TR, ML, IN, and ID, so missing
+  symbol-font glyphs cannot turn destinations into tofu boxes. Each monogram exposes
   its page name on pointer hover and keyboard focus and has the same accessibility
   name.
 - A fixed two-pixel steel divider separates the workflow rail from the active
@@ -74,7 +76,7 @@ adds the user’s current page, values, selections, and status.
   is restored from `studio_settings.json` on the next launch.
 - The sidebar contains the AS brand badge, Start, Text / CAD Design, Data Prep, Model Training,
   Training Results, Model Library, Inference, and Inverse Design. Collapsed mode shows those same
-  destinations as icons. All project workflow pages are available
+  destinations as two-letter monograms. All project workflow pages are available
   while a project is active. Selecting one without a project returns to Start
   with an Open project message.
 - The sidebar’s Active Project card shows the open project name and workflow
@@ -984,6 +986,8 @@ predictions are ordered curves. The plot consumes the structured output-axis
 metadata saved with the active Model Book. Legacy books derive the same
 deterministic metadata from target names; otherwise they use neutral ordered
 output indices without invented meaning or units.
+When no curve exists, the plot instruction wraps to the live axes width and
+stays inside the plot rectangle without touching either axis label.
 
 The plot toolbar offers **Explore**, **Pan**, and **Marker** modes plus zoom in,
 zoom out, **Reset**, **Autoscale**, and **Plot Settings**. Mouse-wheel zoom is centered on
@@ -1070,9 +1074,12 @@ fit these engineering-control minima and a docked SnowBuddy panel at the same
 time, SnowBuddy opens in its temporary focused presentation instead of squeezing
 or clipping the form or plot. Inputs, Objective, and Constraints are mutually exclusive
 configuration subtasks, so one compact section is visible at a time and the page
-never scrolls. **Inputs** lists saved features in exact feature order, up to eight
-per page. Each compact row keeps its feature name, Variable/Fixed selector, and
-contextual numeric fields aligned to shared column widths. Each row chooses
+itself never scrolls. **Inputs** lists every saved feature in exact feature order
+inside its own vertical scrolling viewport; there is no row-count threshold or
+pagination cap, and the scrollbar keeps the final row reachable at every supported
+display scale. Each compact row keeps its feature name, Variable/Fixed selector, and
+contextual numeric fields aligned to shared column widths. The Low/Value heading is
+stacked and centered over its field, separately from the High heading. Each row chooses
 Variable or Fixed. Variable rows show finite Low and High fields. Fixed rows hide
 those irrelevant bounds and show one full-width Value field in the same numeric
 area; there is no permanently allocated fifth column. Long runtime-created names
@@ -1123,7 +1130,9 @@ SciPy Differential Evolution with seed 42. The Model Book predictor alone loads
 the artifact, restores saved feature order, and predicts; the inverse-design
 layer alone evaluates objective and constraint values.
 
-The scientific plot receives most of the right side. A compact summary above it
+The scientific plot receives most of the right side. Its empty-state instruction
+wraps to the live axes width and stays inside the plot rectangle rather than
+overlapping axis labels or clipping at narrow widths. A compact summary above it
 shows achieved objective value, explicit constraint status, evaluation and
 iteration counts, and exact best inputs. Unconstrained Minimize/Maximize results
 are labeled **OPTIMIZED** with Constraints **Not used**. Constrained successes

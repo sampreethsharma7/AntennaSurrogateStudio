@@ -532,6 +532,8 @@ class InferencePageTests(unittest.TestCase):
         self.assertEqual(self.app.sidebar_project_shell.winfo_manager(), "")
         for name, button in self.app.nav_buttons.items():
             icon, label = self.app.nav_specs[name]
+            self.assertTrue(icon.isascii())
+            self.assertTrue(icon.isalpha())
             self.assertEqual(button.cget("text"), icon)
             self.assertNotIn(label, button.cget("text"))
             self.assertEqual(button.accessible_name, label)

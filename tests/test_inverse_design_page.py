@@ -1,3 +1,4 @@
+import copy
 import os
 import tempfile
 import tkinter as tk
@@ -15,7 +16,7 @@ from studio.inverse_design_ui import CONFIGURATION_MIN_WIDTH, RESULT_MIN_WIDTH
 from studio.output_axis import OutputAxisMetadata
 from studio.project_store import ProjectStore
 from studio.scientific_plot import CURVE_MANAGER_MIN_WIDTH, PLOT_PANE_MIN_WIDTH
-from studio.ui import StudioApp
+from studio.ui import StudioApp, responsive_window_layout
 from tests.test_inference_page import create_active_book
 
 
@@ -107,20 +108,48 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertEqual(self.page.input_widgets["P3"].fixed.get(), "3")
         self.assertEqual(self.page.input_widgets["P4"].fixed.get(), "2")
 
-    def test_eight_inputs_fit_without_paging(self):
-        self.page._clear_form()
-        self.page._create_input_rows([f"P{index}" for index in range(1, 9)])
-
-        self.assertEqual(len(self.page.input_widgets), 8)
-        self.assertEqual(self.page.input_pager.winfo_manager(), "")
-        self.assertTrue(
-            all(
-                widgets.frame.winfo_manager() == "grid"
-                for widgets in self.page.input_widgets.values()
+    def test_every_input_row_is_reachable_for_eight_and_twelve_inputs(self):
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(True)
+        self.app.set_snowbuddy_collapsed(True)
+        for dpi_scaling in (1.0, 1.25, 1.5):
+            layout = responsive_window_layout(
+                1366 / dpi_scaling,
+                768 / dpi_scaling,
+                dpi_scaling,
             )
-        )
+            self.app.geometry(f"{layout.width}x{layout.height}+0+0")
+            for count in (8, 12):
+                with self.subTest(dpi_scaling=dpi_scaling, count=count):
+                    self.page._clear_form()
+                    names = [f"P{index}" for index in range(1, count + 1)]
+                    self.page._create_input_rows(names)
+                    self.app.update()
+
+                    self.assertEqual(len(self.page.input_widgets), count)
+                    self.assertTrue(
+                        all(
+                            widgets.frame.winfo_manager() == "grid"
+                            for widgets in self.page.input_widgets.values()
+                        )
+                    )
+                    canvas = self.page.input_rows_host._parent_canvas
+                    canvas.yview_moveto(1.0)
+                    self.app.update()
+                    last_row = self.page.input_widgets[names[-1]].frame
+                    viewport_top = canvas.winfo_rooty()
+                    viewport_bottom = viewport_top + canvas.winfo_height()
+                    self.assertGreaterEqual(last_row.winfo_rooty(), viewport_top - 2)
+                    self.assertLessEqual(
+                        last_row.winfo_rooty() + last_row.winfo_height(),
+                        viewport_bottom + 2,
+                    )
+
+        self.app.withdraw()
 
     def test_columns_align_and_fixed_value_only_appears_for_fixed_rows(self):
+        self.app.geometry("1366x768+0+0")
+        self.app.deiconify()
         names = ["P2", "SlotRadius", "ManufacturingKeepoutDistance"]
         self.page._clear_form()
         self.page._create_input_rows(names)
@@ -148,6 +177,50 @@ class InverseDesignPageTests(unittest.TestCase):
         long_label = self.page.input_name_labels[names[-1]]
         self.assertEqual(long_label.cget("text"), names[-1])
         self.assertGreaterEqual(long_label.winfo_height(), long_label.winfo_reqheight())
+        self.assertEqual(self.page.input_heading_labels[2].cget("text"), "LOW /\nVALUE")
+        for column, entry in ((2, variable.lower), (3, variable.upper)):
+            heading = self.page.input_heading_labels[column]
+            heading_center = heading.winfo_rootx() + heading.winfo_width() / 2
+            entry_center = entry.winfo_rootx() + entry.winfo_width() / 2
+            self.assertAlmostEqual(
+                heading_center,
+                entry_center,
+                delta=10,
+                msg=(
+                    f"column {column}: heading="
+                    f"{heading.winfo_rootx(), heading.winfo_width()} entry="
+                    f"{entry.winfo_rootx(), entry.winfo_width()}"
+                ),
+            )
+        self.app.withdraw()
+
+    def test_empty_plot_message_stays_inside_axes_on_both_prediction_pages(self):
+        for page_name in ("inference", "inverse_design"):
+            with self.subTest(page=page_name):
+                self.app.show_page(page_name)
+                self.app.geometry("1366x768+0+0")
+                self.app.deiconify()
+                self.app.update()
+                page = self.app.pages[page_name]
+                workbench = page.response_plot
+                saved_curves = copy.deepcopy(workbench.state.curves)
+                saved_selected_curve_id = workbench.state.selected_curve_id
+                workbench.state.clear_curves()
+                workbench.redraw()
+                self.app.update()
+                item = workbench.canvas.find_withtag("empty_plot_message")
+                self.assertEqual(len(item), 1)
+                left, top, right, bottom = workbench._plot_bounds
+                x1, y1, x2, y2 = workbench.canvas.bbox(item[0])
+                self.assertGreaterEqual(x1, left)
+                self.assertGreaterEqual(y1, top)
+                self.assertLessEqual(x2, right)
+                self.assertLessEqual(y2, bottom)
+                workbench.state.curves = saved_curves
+                workbench.state.selected_curve_id = saved_selected_curve_id
+                workbench.redraw()
+
+        self.app.withdraw()
 
     def test_form_builds_variable_fixed_target_and_generic_constraint_request(self):
         self._fill_valid_form()
