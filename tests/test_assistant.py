@@ -12,6 +12,7 @@ from studio.assistant import (
     AssistantError,
     OllamaClient,
     SnowBuddyService,
+    _local_reply_conflicts_with_current_product,
     build_project_context,
     build_response_directive,
     classify_project_question,
@@ -492,7 +493,7 @@ class AssistantTests(unittest.TestCase):
         history = self.store.load_chat(self.project)
 
         self.assertFalse(used_local_model)
-        self.assertIn("Design Start", reply)
+        self.assertIn("Antenna Design", reply)
         self.assertEqual(len(history), 2)
 
     def test_live_project_snapshot_rejects_false_welcome_claim(self):
@@ -522,6 +523,34 @@ class AssistantTests(unittest.TestCase):
         self.assertIn(self.project.name, reply)
         self.assertNotIn("no active project", reply.lower())
         self.assertNotIn("visible page is Welcome", reply)
+
+    def test_antenna_design_page_claim_accepts_legacy_design_start_alias(self):
+        live_ui_state = "Visible page: Antenna Design"
+
+        self.assertFalse(
+            _local_reply_conflicts_with_current_product(
+                self.project,
+                "Which page is visible?",
+                "The visible page is Antenna Design.",
+                live_ui_state,
+            )
+        )
+        self.assertFalse(
+            _local_reply_conflicts_with_current_product(
+                self.project,
+                "Which page is visible?",
+                "The visible page is Design Start.",
+                live_ui_state,
+            )
+        )
+        self.assertTrue(
+            _local_reply_conflicts_with_current_product(
+                self.project,
+                "Which page is visible?",
+                "The visible page is Data Prep.",
+                live_ui_state,
+            )
+        )
 
     def test_unreachable_local_model_reports_it_before_grounded_project_fallback(self):
         with patch.object(

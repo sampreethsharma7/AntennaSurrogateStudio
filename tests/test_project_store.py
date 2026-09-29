@@ -266,7 +266,7 @@ class ProjectStoreTests(unittest.TestCase):
     def test_resume_destination_follows_the_completed_workflow_stage(self):
         project = self.store.create_project("Stage Aware Resume")
         expected = {
-            "project_created": ("design_start", "Choose a Design Start"),
+            "project_created": ("design_start", "Begin Antenna Design"),
             "data_prepared": ("data", "Validate & Register Data"),
             "dataset_registered": ("training", "Continue Model Training"),
             "model_trained": ("results", "Review Training Results"),

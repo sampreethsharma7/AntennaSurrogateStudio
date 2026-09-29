@@ -28,7 +28,7 @@ in that project.
 The left workflow bar follows this order:
 
 1. Start
-2. Design Start
+2. Antenna Design
 3. Data Prep
 4. Model Training
 5. Training Results
@@ -49,7 +49,7 @@ project data.
 3. Add a description if useful.
 4. Confirm the project.
 
-The Studio creates the project and opens Design Start.
+The Studio creates the project and opens Antenna Design.
 
 ### Open a project
 
@@ -60,7 +60,7 @@ runs, inverse-design runs, and project-specific SnowBuddy history.
 Use **File > Return to Welcome** when you want to close the active project
 without closing the Studio.
 
-## 4. Choosing a design start
+## 4. Choosing an antenna design path
 
 Choose **I already have a design** to continue directly to Data Prep with
 existing simulation inputs or results.

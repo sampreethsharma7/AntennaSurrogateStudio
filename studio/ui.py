@@ -116,7 +116,7 @@ RESUME_ACTION_LABELS = (
     "Run Inference  →",
     "Open Model Library  →",
     "Continue Antenna Builder  →",
-    "Choose a Design Start  →",
+    "Begin Antenna Design  →",
     "Continue Data Prep  →",
     "Validate & Register Data  →",
     "Continue Model Training  →",
@@ -316,7 +316,7 @@ class HoverTooltip:
 # What the resumed page actually asks the user to do.  The hero subtitle used
 # to show manifest["workflow"]["next_action"], which is written once at project
 # creation and then goes stale, so the card could advise "Load and prepare
-# antenna data." beside a button reading "Choose a Design Start".  Both now
+# antenna data." beside a button reading "Begin Antenna Design".  Both now
 # come from the resolved destination.
 RESUME_DESCRIPTIONS = {
     "design_start": "Choose how this project starts: describe an antenna, or bring an existing design.",
@@ -356,7 +356,7 @@ def project_resume_destination(project: Project) -> tuple[str, str]:
             if choice == "generated_template":
                 return "antenna_builder", "Continue Antenna Builder  →"
             if choice != "existing_design":
-                return "design_start", "Choose a Design Start  →"
+                return "design_start", "Begin Antenna Design  →"
     return {
         "project_created": ("data", "Continue Data Prep  →"),
         "data_discovered": ("data", "Continue Data Prep  →"),
@@ -832,7 +832,7 @@ class StudioApp(ctk.CTk):
 
         self.nav_specs = {
             "start": ("⌂", "Start"),
-            "design_start": ("∆", "Text / CAD Design"),
+            "design_start": ("∆", "Antenna Design"),
             "data": ("≋", "Data Prep"),
             "training": ("◇", "Model Training"),
             "results": ("◎", "Training Results"),
@@ -848,7 +848,7 @@ class StudioApp(ctk.CTk):
             self.sidebar,
             3,
             "∆",
-            "Text / CAD Design",
+            "Antenna Design",
             lambda: self.show_page("design_start"),
         )
         self.nav_buttons["data"] = self._nav_button(
@@ -1247,7 +1247,7 @@ class StudioApp(ctk.CTk):
 
     def snowbuddy_ui_state(self) -> str:
         page_label = {
-            "design_start": "Design Start",
+            "design_start": "Antenna Design",
             "antenna_builder": "Experimental Antenna Builder",
             "data": "Data Prep",
             "training": "Model Training",
@@ -1294,9 +1294,9 @@ class StudioApp(ctk.CTk):
             design_visibility = (
                 "visible now"
                 if self.active_page in {"design_start", "antenna_builder"}
-                else "retained state; Design Start is not currently visible"
+                else "retained state; Antenna Design is not currently visible"
             )
-            lines.append(f"Design Start UI ({design_visibility}):")
+            lines.append(f"Antenna Design UI ({design_visibility}):")
             lines.extend(
                 f"- {item}"
                 for item in (

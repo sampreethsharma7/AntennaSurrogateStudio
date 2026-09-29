@@ -931,7 +931,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
         footer.grid_columnconfigure(1, weight=1)
         ctk.CTkButton(
             footer,
-            text="←  Design Start",
+            text="←  Antenna Design",
             width=150,
             height=38,
             fg_color=COLORS["surface_alt"],

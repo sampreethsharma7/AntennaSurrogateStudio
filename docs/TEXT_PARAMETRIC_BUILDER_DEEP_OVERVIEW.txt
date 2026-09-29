@@ -71,7 +71,7 @@ manufacturing-ready antenna.
 2. WHAT THE FEATURE FEELS LIKE TO THE USER
 ======================================================================
 
-After a project is created, ASS opens Design Start and presents two paths:
+After a project is created, ASS opens Antenna Design and presents two paths:
 
     I already have a design
     Design with antenna agent
@@ -111,7 +111,7 @@ The right pane contains:
 
 The footer provides:
 
-    - return to Design Start;
+    - return to Antenna Design;
     - Export CST script;
     - Create CST project;
     - Send selected to LHS.
@@ -1078,7 +1078,7 @@ Builder data is project-local:
 The state file preserves schema version, experimental status, and the complete
 solver-neutral design. The conversation file preserves user/builder messages.
 
-The project manifest records the Design Start choice, current page, builder
+The project manifest records the Antenna Design choice, current page, builder
 state path, conversation path, planner backend, audit path, acceptance/export
 status, and latest generated artifact paths. Reopening a project restores the
 design, conversation, and planner selection.
@@ -1308,7 +1308,7 @@ studio/planner_model_discovery.py
     OpenRouter Free-only filtering.
 
 studio/antenna_builder_ui.py
-    Design Start page, adaptive composer, dynamic parameter UI, conversation,
+    Antenna Design page, adaptive composer, dynamic parameter UI, conversation,
     interactive preview, exports, background CST work, and workflow navigation.
 
 studio/antenna_capabilities/builtin.py
@@ -1319,7 +1319,7 @@ studio/ui.py
     context integration.
 
 studio/project_store.py
-    New-project manifest defaults and Design Start/builder workflow state.
+    New-project manifest defaults and Antenna Design/builder workflow state.
 
 studio/sample_generator_ui.py
     Accepts preloaded template parameters from the builder.
@@ -1563,7 +1563,7 @@ Before merging the worktree:
     [ ] Review the entire worktree diff.
     [x] Run the full 481-test repository suite after the Nemotron integration.
     [ ] Confirm SnowBuddy GUI hashes remain current.
-    [ ] Start a new project and exercise both Design Start paths.
+    [ ] Start a new project and exercise both Antenna Design paths.
     [ ] Run the four hands-on examples in this document.
     [ ] Reopen the project and verify state/conversation restoration.
     [ ] Export .bas and inspect the paired design JSON.

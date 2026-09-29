@@ -194,7 +194,7 @@ KNOWLEDGE_BASE = (
     KnowledgeChunk(
         "Project workflow",
         (
-            "The Studio workflow is: create or open a project; choose Design Start; "
+            "The Studio workflow is: create or open a project; choose Antenna Design; "
             "either continue with an existing design or use the experimental antenna "
             "design agent; discover and prepare "
             "simulation data; validate and register the prepared dataset; configure "
@@ -207,7 +207,7 @@ KNOWLEDGE_BASE = (
     KnowledgeChunk(
         "Experimental parametric antenna builder",
         (
-            "Design Start offers I already have a design or Design with antenna agent. "
+            "Antenna Design offers I already have a design or Design with antenna agent. "
             "The agent opens with no assumed antenna and has validated recipes for an inset-fed "
             "rectangular patch, probe-fed circular patch, and center-fed dipole, with "
             "linear or planar replication where valid. Recipes compose registered "
@@ -236,6 +236,7 @@ KNOWLEDGE_BASE = (
             "array",
             "geometry",
             "cst",
+            "antenna design",
             "design start",
         ),
     ),
@@ -627,7 +628,7 @@ def _workflow_next_action(project: Project, live_ui_state: str = "") -> str:
     prep = project.manifest.get("data_prep", {})
     library = project.manifest.get("model_library", {})
 
-    if page == "design start":
+    if page in {"antenna design", "design start"}:
         return (
             "Choose **I already have a design** to continue into Data Prep, or choose "
             "**Design with antenna agent** to open a blank conversational antenna workspace."
@@ -684,7 +685,7 @@ def _workflow_next_action(project: Project, live_ui_state: str = "") -> str:
         design_start = project.manifest.get("design_start")
         if isinstance(design_start, dict) and not design_start.get("choice"):
             return (
-                "Open **Design Start**. Choose **I already have a design** for the "
+                "Open **Antenna Design**. Choose **I already have a design** for the "
                 "existing data workflow, or **Design with antenna agent** for the blank "
                 "conversational antenna workspace."
             )
@@ -2359,12 +2360,18 @@ def _local_reply_conflicts_with_current_product(
     visible_page = _visible_page(live_ui_state).casefold()
     claimed_page = re.search(
         r"(?:visible|current) page\s*(?:is|:)\s*"
-        r"(welcome|start|design start|experimental antenna builder|data prep|"
+        r"(welcome|start|antenna design|design start|experimental antenna builder|data prep|"
         r"model training|training results|model library|inference|inverse design)\b",
         lowered,
     )
-    if claimed_page and visible_page and claimed_page.group(1) != visible_page:
-        return True
+    if claimed_page and visible_page:
+        claimed_page_name = claimed_page.group(1)
+        if claimed_page_name == "design start":
+            claimed_page_name = "antenna design"
+        if visible_page == "design start":
+            visible_page = "antenna design"
+        if claimed_page_name != visible_page:
+            return True
     if project is not None:
         if any(
             re.search(pattern, lowered)

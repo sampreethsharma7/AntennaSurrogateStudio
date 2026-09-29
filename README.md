@@ -87,7 +87,7 @@ For command-line setup, troubleshooting, and system requirements, see
 ## Start your first project
 
 1. Select **Create Project**.
-2. On **Design Start**, continue with an existing design or open the experimental antenna design agent.
+2. In **Antenna Design**, continue with an existing design or open the experimental antenna design agent.
 3. In **Data Prep**, load an input/output CSV pair, parse a supported parameter-sweep export, or receive selected builder parameters in the LHS generator.
 4. Select **Validate and register**.
 5. Open **Model Training**, choose a model and training mode, then select **Train Model**.

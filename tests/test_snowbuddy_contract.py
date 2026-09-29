@@ -21,7 +21,7 @@ class SnowBuddyContractTests(unittest.TestCase):
 
         self.assertIn("Grounding hierarchy", character)
         self.assertIn("Start page", blind_gui)
-        self.assertIn("Design Start page", blind_gui)
+        self.assertIn("Antenna Design page", blind_gui)
         self.assertIn("Experimental Parametric Antenna Builder page", blind_gui)
         self.assertIn("Data Prep page", blind_gui)
         self.assertIn("Model Training page", blind_gui)

@@ -1,10 +1,10 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.96
+Contract version: 3.97
 Studio version: 0.33.2
-UI source SHA-256: cf3ff253287b254b660ca152b3465980fab28769e78d80819386805db417c3cd
+UI source SHA-256: 90a21e271f3623095cf7fa76f2238d3ff729faa14dfe8e7b0de9d5857c98fcb2
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
-Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
+Antenna Builder UI source SHA-256: cabc9f361b05272e02dc1c2e394310351a1d9468d84f4c1994434f3738ab2c94
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
@@ -78,7 +78,7 @@ adds the user’s current page, values, selections, and status.
   active page, project,
   form values, or chat. The choice is global for this local Studio library and
   is restored from `studio_settings.json` on the next launch.
-- The sidebar contains the AS brand badge, Start, Text / CAD Design, Data Prep, Model Training,
+- The sidebar contains the AS brand badge, Start, Antenna Design, Data Prep, Model Training,
   Training Results, Model Library, Inference, and Inverse Design, evenly spaced
   as one group with no gap before the last destination. Collapsed mode shows those same
   destinations as single icon marks. All project workflow pages are available
@@ -88,7 +88,7 @@ adds the user’s current page, values, selections, and status.
   status, or “No project open.” With a project active it also shows “Return to
   Welcome.”
 - A fresh application launch stays in Welcome mode with no project silently
-  preloaded. Creating a project opens Design Start immediately. Opening an
+  preloaded. Creating a project opens Antenna Design immediately. Opening an
   existing project restores that project’s last active page.
 
 ## Start page
@@ -143,7 +143,7 @@ build a trusted surrogate model.
   page's single next-step control; it previously appeared a second time at the
   page foot under a caption placed at the opposite edge.
 
-## Design Start page
+## Antenna Design page
 
 - A new project opens this dedicated choice page before Data Prep.
 - **I already have a design** records the existing-design path and opens the
@@ -151,7 +151,7 @@ build a trusted surrogate model.
 - **Design with antenna agent** records the experimental-builder path and opens
   a blank conversational antenna workspace with no selected family, frequency,
   material, parameters, or geometry.
-- Returning to Design Start does not discard a saved generated design. Project
+- Returning to Antenna Design does not discard a saved generated design. Project
   reopen restores the last selected page and saved builder state.
 
 ## Experimental Parametric Antenna Builder page
@@ -1290,7 +1290,7 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
   Training redirect to Start with an “Open a project” message. Welcome chat can discuss Create
   project, Open project, recent projects, workflow, and local-model settings
   without fabricating project state.
-- Project created: Design Start opens immediately and asks whether the user has
+- Project created: Antenna Design opens immediately and asks whether the user has
   an existing design or wants the experimental conversational-agent path.
   SnowBuddy switches to Focus mode automatically.
 - Existing-design start selected: Data Prep opens and the original data,
@@ -1381,7 +1381,7 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
 
 At question time SnowBuddy may receive:
 
-- Visible page: Start, Design Start, Experimental Antenna Builder, Data Prep,
+- Visible page: Start, Antenna Design, Experimental Antenna Builder, Data Prep,
   Model Training, Training Results, Model Library, Inference, or Inverse Design.
 - Appearance mode: Light or Dark.
 - Top application menu: File, Edit, Help.
@@ -1389,7 +1389,7 @@ At question time SnowBuddy may receive:
 - On every page: SnowBuddy companion visibility, chat enabled state, and
   SnowBuddy mode (Welcome or Focus).
 - On Start: recent-project count.
-- On Design Start: current path choice and both existing-design and blank
+- On Antenna Design: current path choice and both existing-design and blank
   conversational-agent actions.
 - On Experimental Antenna Builder with no canonical design: explicit
   `awaiting_design` status, `Design: null`, no geometry or invented antenna

@@ -197,7 +197,7 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertIn("Describe a supported antenna", self.app.start_page.workspace_subtitle.cget("text"))
         self.assertEqual(
             self.app.nav_buttons["design_start"].accessible_name,
-            "Text / CAD Design",
+            "Antenna Design",
         )
         current_project = self.app.current_project
         try:

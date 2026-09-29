@@ -157,7 +157,7 @@ class SnowBuddyWorkflowNavigationTests(unittest.TestCase):
         reply = self.ask_offline(
             project,
             "What should I do next from here?",
-            "Visible page: Design Start",
+            "Visible page: Antenna Design",
         )
         self.assertIn("I already have a design", reply)
         self.assertIn("Design with antenna agent", reply)
