@@ -148,7 +148,7 @@ def expanded_sidebar_width() -> int:
         # Brand badge, gap, wordmark, gap, collapse chevron, frame padding.
         SIDEBAR_BRAND_BADGE_WIDTH
         + 9
-        + widest_text_width("caption", ("RF SURROGATE LAB",))
+        + widest_text_width("caption", ("SURROGATE STUDIO",))
         + 18
         + SIDEBAR_TOGGLE_WIDTH
         + 32,
@@ -793,7 +793,7 @@ class StudioApp(ctk.CTk):
         ).pack(anchor="w")
         ctk.CTkLabel(
             self.sidebar_brand_text,
-            text="RF SURROGATE LAB",
+            text="SURROGATE STUDIO",
             text_color=COLORS["subtle"],
             font=FONTS["caption"],
             anchor="w",

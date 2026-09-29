@@ -1,8 +1,8 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.95
+Contract version: 3.96
 Studio version: 0.33.2
-UI source SHA-256: 01999eadc0d2d83a84b1e1e3bd005fc520afe08b09bba663546513c7014e9d34
+UI source SHA-256: cf3ff253287b254b660ca152b3465980fab28769e78d80819386805db417c3cd
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: c965c10db1c4c8174a90104de4cf1122182b83d3240dd2d1bcff8c1d5da4ea3b
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
@@ -48,7 +48,8 @@ adds the user’s current page, values, selections, and status.
   settings or the About dialog. About shows the Studio version, local-first
   product line, and creator contact for Sai Sampreeth Indharapu.
 - A light-steel or graphite workflow sidebar sits on the left. Expanded, its
-  brand subtitle is “RF SURROGATE LAB,” its navigation label is “LAB WORKFLOW,”
+  brand subtitle is “SURROGATE STUDIO,” so the two-line wordmark reads as the
+  full product name. Its navigation label is “LAB WORKFLOW,”
   and its footer reads “LOCAL COMPUTE · PRIVATE.” A clear chevron collapses it
   from its expanded width to a 76-pixel icon-only rail, and the same control
   expands it. The expanded width is measured from the strings the rail renders
