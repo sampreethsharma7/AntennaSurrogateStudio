@@ -25,7 +25,9 @@ from studio.model_training import (
 from studio.parser_engine import TrainingRequest
 from studio.project_store import ProjectStore
 from studio.scientific_plot import MAX_SCATTER_MARKERS
+from laptop_viewport import pin_laptop_ui_scale
 from studio.ui import (
+    DESIGN_MIN_WIDTH,
     SIDEBAR_COLLAPSED_WIDTH,
     StudioApp,
     _content_sized_dialog_dimensions,
@@ -59,6 +61,21 @@ class ResponsiveWindowLayoutTests(unittest.TestCase):
                     1.0,
                 )
                 self.assertTrue(layout.compact)
+
+    def test_a_screen_narrower_than_the_design_minimum_shrinks_the_ui(self):
+        # Below DESIGN_MIN_WIDTH the bounded scale shrinks the interface to fit
+        # instead of clipping it, and fonts shrink with the boxes. A hosted CI
+        # session reports 1024x768 and lands here, which is why the laptop
+        # layout tests pin their own scale: this path is asserted directly.
+        layout = responsive_window_layout(1024, 768, 1.0)
+        self.assertAlmostEqual(layout.ui_scaling, 1024 / DESIGN_MIN_WIDTH)
+        self.assertLess(layout.ui_scaling, 1.0)
+        self.assertTrue(layout.compact)
+        self.assertEqual((layout.width, layout.height), (1024, 768))
+        # The floor stops an absurdly small screen from shrinking it further.
+        self.assertAlmostEqual(
+            responsive_window_layout(600, 400, 1.0).ui_scaling, 0.8
+        )
 
     def test_content_sized_dialogs_keep_actions_visible_at_common_scaling(self):
         for dpi_scaling in (1.0, 1.25, 1.5):
@@ -166,6 +183,9 @@ def create_active_book(project, *, output_count=1, name="Page Model"):
 class InferencePageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # The laptop layout test below asserts design-pixel geometry, so the UI
+        # scale must come from a 1366x768 viewport, not from the host screen.
+        pin_laptop_ui_scale(cls)
         test_root = Path(__file__).resolve().parents[1] / ".test_runs"
         test_root.mkdir(exist_ok=True)
         cls.temp_dir = tempfile.TemporaryDirectory(dir=test_root)

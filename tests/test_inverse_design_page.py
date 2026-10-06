@@ -23,6 +23,7 @@ from studio.output_axis import OutputAxisMetadata
 from studio.project_store import ProjectStore
 from studio.scientific_plot import CURVE_MANAGER_MIN_WIDTH, PLOT_PANE_MIN_WIDTH
 from studio.theme import text_width, widest_text_width
+from laptop_viewport import pin_laptop_ui_scale
 from studio.ui import StudioApp, responsive_window_layout
 from tests.test_inference_page import create_active_book
 
@@ -47,6 +48,9 @@ class _ImmediateThread:
 class InverseDesignPageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # The design-pixel minima below describe a 1366x768 laptop, so the UI
+        # scale must come from that viewport rather than from the host screen.
+        pin_laptop_ui_scale(cls)
         test_root = Path(__file__).resolve().parents[1] / ".test_runs"
         test_root.mkdir(exist_ok=True)
         cls.temp_dir = tempfile.TemporaryDirectory(dir=test_root)
@@ -987,6 +991,21 @@ class InverseDesignPageTests(unittest.TestCase):
         self.page._show_config_section("Constraints")
         for _ in range(4):
             self.page._add_constraint()
+        self.app.update()
+
+        # Both dividers are deliberately persistent user state: the clamp keeps
+        # whatever position it finds inside the allowed range rather than yanking
+        # it back when a project needs less room. Earlier tests in this class
+        # therefore leave the form wide and the plot at its floor, which made the
+        # widths below depend on execution order. State the starting point this
+        # test means instead: the form and the curve manager each at their own
+        # minimum, so the remaining laptop width belongs to the plot.
+        self.page.workspace_split.sash_place(
+            0, self.page._configuration_min_width, 1
+        )
+        self.app.update()
+        plot_split = self.page.response_plot.plot_split
+        plot_split.sash_place(0, plot_split.winfo_width() - 1, 1)
         self.app.update()
 
         footer_top = self.page.run_button.winfo_rooty()
