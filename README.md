@@ -1,8 +1,22 @@
 # Antenna Surrogate Studio
 
-Antenna Surrogate Studio is a local desktop application for turning simulation
-data into reusable surrogate models, exploring predictions, and running inverse
-design studies.
+**Studio Preview v0.34.0-beta.** Source-available for noncommercial use; see
+[License](#license).
+
+Antenna Surrogate Studio is a local desktop application for antenna engineers
+and researchers who want to turn electromagnetic simulation data into reusable
+machine-learning surrogate models. You prepare a dataset from a parameter sweep,
+train and compare surrogates, use them for fast prediction, and run inverse
+design to search for the inputs that meet a target response — all on your own
+computer, against your own data. Alongside that pipeline it ships an
+**experimental** text-driven antenna geometry builder, which turns plain-language
+requests into a parameterised CST model seeded from one of three validated
+antenna recipes.
+
+The two halves are at very different maturity levels, and this README keeps them
+apart deliberately. The surrogate-modelling pipeline is the stable part. The
+antenna agent is a beta feature whose output you are expected to inspect and
+simulate before trusting it.
 
 ## Data → Surrogate Training → Inverse Design
 
@@ -38,17 +52,31 @@ conversations remain in your local project folders.
 
 ## What it does
 
-- Experimental tool-using antenna design agent with patch, circular-patch, dipole, array recipes, and composable rectangular-patch corner cutouts
-- Interactive in-app 3D geometry preview and parameterized CST export
-- Latin Hypercube sample generation
-- Dataset preparation and validation
-- Linear Regression, XGBoost, and Neural Network models
-- Auto and Custom training
-- Ensemble AI Engine
-- Model comparison
-- Reusable Model Books
-- Multi-output inference and scientific plotting
+### Surrogate modelling — the stable half
+
+- Dataset preparation and validation from input/output CSV pairs or a supported
+  parameter-sweep export
+- Latin Hypercube sample generation, to produce the simulation inputs in the
+  first place
+- Linear Regression, XGBoost and Neural Network models, with Auto and Custom
+  training modes
+- Ensemble AI Engine and side-by-side model comparison
+- Reusable **Model Books**, so a trained surrogate can be reloaded and shared
+  between projects
+- Multi-output inference with scientific plotting
 - Surrogate-driven inverse design with constraints
+
+### Experimental antenna geometry builder — beta
+
+- Text-driven construction seeded from three validated antenna recipes, with
+  compositional editing of the resulting geometry
+- Interactive in-app 3D preview of the evaluated geometry
+- Parameterised CST export, and direct native `.cst` project creation on Windows
+- Read-only analytical checks (patch and dipole baselines, array spacing)
+- One-click transfer of chosen parameters into the LHS sample generator
+
+See [The experimental antenna agent](#the-experimental-antenna-agent-beta) for
+what it can and cannot do today.
 
 ![Antenna Surrogate Studio workflow](docs/antenna-surrogate-studio-workflow.svg)
 
@@ -96,37 +124,6 @@ For command-line setup, troubleshooting, and system requirements, see
 8. Make the Model Book active in **Model Library**.
 9. Use **Inference** for new predictions or **Inverse Design** to search for suitable inputs.
 
-The experimental agent supports three controlled recipes: an inset-fed
-rectangular microstrip patch, a probe-fed circular patch, and a center-fed
-dipole. Where valid, each can be replicated into linear or planar arrays. The
-rectangular patch also supports four subtractive circular corner cutouts with
-their centers on the patch corners and a parametric radius ratio. The
-recipes compose a discoverable registry of small geometry and EM tools into one
-solver-neutral design graph. The parameter table, interactive preview, CST
-adapter, and LHS transfer all read that same validated graph. Every text request
-goes to the selected provider/model with the current design and runtime tool
-schemas. Local Ollama, Gemini, Groq, and OpenRouter models receive the same planner instructions,
-state, tool manifest, and output schema. The model may return only an explicit
-sequence of registered planning-tool calls, a clarification, or a refusal. The deterministic executor
-still owns recipes, geometry, validation, and CST generation; the model cannot
-add tools, geometry types, antenna families, or solver commands. A small
-planner-exposed primitive subset can compose validated rectangular and circular
-slots from named parameters, cutting geometry, and Boolean operations without a
-slot-specific modifier. Validated compositions persist with the project and are
-replayed after later recipe-parameter rebuilds using semantic antenna-element
-targets. Array elements use independent ports, while feed-network synthesis and
-EM verification remain in CST.
-
-For detailed, page-by-page operating instructions, see the
-[Antenna Surrogate Studio User Manual](USER_MANUAL.md).
-The extension boundary and validation ladder are documented in
-[Experimental Antenna Design Agent Architecture](docs/ANTENNA_AGENT_ARCHITECTURE.md).
-The controlled four-backend comparison is recorded in the
-[Antenna Planner A/B Report](docs/ANTENNA_PLANNER_AB_REPORT.md).
-For the complete implementation, antenna-engineering assessment, limitations,
-and roadmap, see
-[Text-Parametric Builder: Deep Technical and Design Overview](docs/TEXT_PARAMETRIC_BUILDER_DEEP_OVERVIEW.txt).
-
 ## Try the included sample
 
 The repository includes a ready-to-use
@@ -141,10 +138,125 @@ Browse to the sample's `data` folder, select **Parse**, then choose `P2`, `P3`,
 and `P4` as the model inputs and `Gain,Phi=0.0 []` as the output. Select
 **Save selection**, **Prepare input + output**, and **Validate and register**.
 
+That one output is a radiation pattern, so preparation expands it into 361
+columns — one per theta point — and the surrogate you train predicts the whole
+pattern at once rather than a single number.
+
 For exact steps and a suggested first training run, open the
 [sample guide](sample_data/four_element_patch_array_phase_sweep/README.md).
 
-## Antenna planner backends
+## The experimental antenna agent (beta)
+
+<div align="center">
+
+<img src="docs/media/text-to-cad/walkthrough.gif" alt="Three plain-language requests build an inset-fed patch, cut a circular slot into it, and replicate it into a 1x3 array, which is then exported to CST Studio Suite" width="760">
+
+<sub>Patch → slot → array → CST, from three sentences.</sub>
+
+**[See the full Text-to-CAD showcase →](TEXT_TO_CAD.md)**
+
+</div>
+
+### What it is
+
+The agent is **recipe-seeded, not free-form**. It is not a general text-to-CAD
+system, and it will not invent an antenna topology from a description. Every
+design begins by selecting one of three validated recipes, after which you edit
+the result — in language or directly in the parameter table:
+
+| Recipe | Notes |
+| --- | --- |
+| Inset-fed rectangular microstrip patch | Also accepts four subtractive circular corner cutouts, centred on the patch corners, with a parametric radius ratio defaulting to one quarter of the patch width |
+| Probe-fed circular patch | |
+| Centre-fed dipole | |
+
+Where geometrically valid, each element can be replicated into a 1×N linear or
+M×N planar array. Array elements receive independent ports; **the builder does
+not synthesise an array feed network.**
+
+On top of that seed sits genuine compositional editing. A small set of
+planner-exposed primitives can create named parameters, build rectangular and
+circular cutting geometry, translate, rotate and duplicate the shapes it just
+made, and apply validated union and subtraction operations. That is how a
+slot ends up in a patch without a slot-specific feature existing. Successful
+compositions are stored with the project and **replayed** against semantic
+antenna-element targets after later recipe or table edits, so changing the
+frequency does not discard your slot. If a replay is no longer geometrically
+compatible, the edit is rejected and the last valid design stays open.
+
+### The capability boundary
+
+With a design open, the planner may call **19 registered tools** and nothing
+else:
+
+- **6 recipe and modifier actions** — `design.reset`, `recipe.select`,
+  `parameter.set`, `excitation.set_strategy`, `modifier.apply`,
+  `modifier.remove`
+- **9 composition primitives** — `parameter.create`,
+  `geometry.rectangle_sheet`, `geometry.cylinder`, `geometry.circle_sheet`,
+  `geometry.translate`, `geometry.rotate`, `geometry.duplicate`,
+  `boolean.subtract`, `boolean.union`
+- **4 read-only analysis tools** — `engineering.design_summary`,
+  `engineering.array_spacing`, `engineering.rectangular_patch_baseline`,
+  `engineering.dipole_baseline`
+
+The model's only permitted replies are an ordered sequence of those registered
+calls, one clarification question, or a refusal. It cannot add tools, geometry
+types, antenna families, materials or solver commands, and it never emits CST
+code. A deterministic executor validates schemas, object references, bounds,
+dependencies and the complete resulting design before anything is published; the
+parameter table, 3D preview, CST adapter and LHS transfer all read that one
+validated design graph. Unsupported antenna families, cross-family parameters,
+invented geometry targets and arbitrary CST operations are rejected without
+altering the design you already have.
+
+### What you are responsible for
+
+> **This is a starting-geometry generator, not an antenna synthesis or
+> optimisation system.** The analytical dimensions and the 3D preview are design
+> aids. Nothing here solves Maxwell's equations.
+>
+> Before you trust a generated model, open it and check the materials, feeds,
+> ports, boundaries and mesh, then simulate it. Agreement with an analytical
+> baseline does not establish resonance, impedance match, gain, bandwidth,
+> efficiency or pattern validity.
+
+Read [Current limitations](docs/LIMITATIONS.md) before your first export — in
+particular the note on element spacing, which decides whether sweeping frequency
+also moves your array.
+
+## CST integration and requirements
+
+The Studio does not simulate. It produces CST Studio Suite input, and you solve
+it in CST.
+
+**Exporting a macro needs no CST installation.** *Export CST script* writes a
+parameterised VBA construction macro (`.bas`) that rebuilds the design from
+named parameters. You can generate it on any platform and move it to a machine
+that has CST.
+
+**Creating a native project needs CST on Windows.** *Create CST project* writes
+an unsolved `.cst` Microwave Studio project directly. It requires Windows, the
+`pywin32` dependency that `setup_windows.bat` installs, and an installed CST
+Studio Suite registered as the `CSTStudio.Application` COM server. The Studio
+uses an isolated automation server, so it never closes a CST session you opened
+yourself, and it will not overwrite an existing `.cst` file.
+
+Points worth knowing before you solve:
+
+- **No solver is ever started.** The export selects the HF Time Domain solver
+  and stops there.
+- **No field or farfield monitors are exported.** Add the monitors you need in
+  CST, or an array model will produce no radiation pattern.
+- **On CST Learning Edition, prefer *Create CST project*.** Macro import is
+  greyed out in that edition, so the `.bas` route is unavailable to you.
+- Array row and column counts are structural. They appear in the CST parameter
+  list, but element positions are baked into the construction history —
+  regenerate from the Studio rather than editing them in CST.
+- Conductors export as PEC, and ports are simplified discrete excitations with
+  no de-embedding.
+
+## Antenna planner options
 
 SnowBuddy's built-in workflow guidance works without any additional service.
 The antenna builder defaults to the **Local Ollama** provider, which requires a
@@ -170,27 +282,62 @@ providers list them. Never commit
 `.env`; it is excluded by `.gitignore`. If a cloud key is missing, the builder
 reports the setup requirement and Local Ollama remains usable.
 
-Provider/model/filter choice persists with the project. A failed catalog request
-retains the last valid model and reports the failure. The selector states when
-design context will leave the computer. All models receive the same ToolPlan schema and use the same strict parser,
-deterministic executor, repair limits, and validators. Local Ollama also uses that
-schema for provider-constrained decoding. Gemini uses JSON response mode because
-its API rejects the current exact thirteen-branch ToolPlan union as a response
-schema; its output is then parsed and validated against the unchanged schema
-before any tool can run. Groq first requests strict JSON Schema output with the
-unchanged ToolPlan schema. If the provider rejects that exact strict request,
-it retries in JSON-object mode and uses the same local strict parser without
-simplifying the schema. The OpenRouter transport does not require provider
-`response_format` enforcement, so its selected model receives the same JSON
-instruction and schema in the shared context and relies on the same strict
-post-generation parser. Each project logs the backend, decoding mode, request,
-returned plan, validation, repair, and final executed tool sequence to
-`design/planner_ab.jsonl`; credentials are never logged. The parameter table,
-preview, validation, and exports remain deterministic. The preview evaluates
-the canonical primitive/transform/Boolean graph: inset unions, arbitrary circle
-or rectangle slots, edge unions, and arrays change the displayed mesh itself.
-It preserves true Z dimensions, draws canonical port endpoints, and explicitly
-warns and suppresses inputs if a Boolean cannot be rendered faithfully.
+Provider, model and filter choice persist with the project. A failed catalog
+request keeps the last valid model and reports the failure. A provider listing
+is availability metadata, not proof that an untested model can satisfy the
+planning contract.
+
+Every provider receives the same system instruction, design state, tool manifest
+and ToolPlan schema, and every reply goes through the same strict parser,
+deterministic executor, repair limit and validators. Only the decoding mechanism
+differs per provider, because their APIs accept different schema constraints;
+no schema is ever simplified to make a provider accept it. The per-provider
+details are in
+[Experimental Antenna Design Agent Architecture](docs/ANTENNA_AGENT_ARCHITECTURE.md).
+
+Each project records the backend, decoding mode, request, returned plan,
+validation result, repair attempt and final executed tool sequence to
+`design/planner_ab.jsonl`. **Credentials are never logged.** That file grows by
+roughly 100 KB per text turn and is not rotated; delete it freely, nothing
+depends on its history.
+
+### What leaves your computer
+
+**Local Ollama and SnowBuddy send nothing.** Their design and chat context stays
+on this machine.
+
+**Choosing a cloud planner sends design context to that provider.** When you
+explicitly select Gemini, Groq or OpenRouter in the antenna builder, each
+request transmits your typed instruction, the current solver-neutral antenna
+design state, and the runtime tool manifest to Google, Groq or OpenRouter
+respectively. The notice under the provider selector always states which
+behaviour is active before you send anything.
+
+Your project files, datasets, trained models and CST outputs are never
+transmitted. Treat a cloud planner as you would any third-party API: the
+instruction text and design geometry are subject to that provider's retention
+and training policies, not the Studio's. If your geometry is confidential, use
+Local Ollama.
+
+Never paste an API key into an antenna prompt.
+
+## Documentation
+
+Start with the manual; the rest is reference material you can reach for when you
+need it.
+
+| Document | What it covers |
+| --- | --- |
+| [User Manual](USER_MANUAL.md) | Page-by-page operating instructions for every stage of the workflow |
+| [Installation Guide](INSTALL.md) | Command-line setup, system requirements, troubleshooting |
+| [Current limitations](docs/LIMITATIONS.md) | What the tool does not do today, and the caveats that affect exported models |
+| [Engineering Analysis Reference](docs/ENGINEERING_ANALYSIS_REFERENCE.md) | The analytical patch and dipole baselines in full, plus the evaluated geometry query |
+| [Antenna Design Agent Architecture](docs/ANTENNA_AGENT_ARCHITECTURE.md) | The extension boundary, validation ladder and per-provider decoding |
+| [Agent Benchmark v1](docs/ANTENNA_AGENT_BENCHMARK_V1.md) | The frozen, provider-neutral 30-case evaluation set used to test planner behaviour |
+| [Deep Technical Overview](docs/TEXT_PARAMETRIC_BUILDER_DEEP_OVERVIEW.txt) | Full implementation detail and an antenna-engineering assessment |
+| [Text to Antenna CAD](TEXT_TO_CAD.md) | Showcase of the experimental builder: what it does, in pictures |
+| [Changelog](CHANGELOG.md) | What changed in each release |
+| [Future direction](docs/FUTURE_DIRECTION.md) | Where the builder is intended to go, and what is deliberately not built yet |
 
 ## Projects and privacy
 
@@ -204,11 +351,8 @@ To move a project to another computer, copy the complete project folder. Do not
 copy only the model file; the folder also contains the project state, Model
 Books, prediction and inverse-design histories, and local SnowBuddy history.
 
-Local Ollama and SnowBuddy keep their design/chat context on this computer. When
-the user explicitly selects a cloud planner in the antenna builder, that
-instruction, the current antenna design state, and the runtime tool manifest
-are sent to Google Gemini, Groq, or OpenRouter for planning. Project files and
-CST outputs remain local.
+What does and does not leave your computer is described under
+[What leaves your computer](#what-leaves-your-computer).
 
 ## Help and contact
 
@@ -222,11 +366,23 @@ CST outputs remain local.
 
 This repository is an author-maintained software release. External pull
 requests and code contributions are not accepted. For installation help or
-tester feedback, contact the author directly.
+tester feedback, contact the author directly. Working rules for the code itself
+are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Antenna Surrogate Studio is licensed under the
-[PolyForm Noncommercial License 1.0.0](LICENSE). Noncommercial research,
-educational, and personal use are permitted. Commercial use requires separate
-permission from the author.
+Antenna Surrogate Studio is **source-available software, not open source.** The
+full source is published so you can read, audit, run and modify it, but it is
+licensed under the
+[PolyForm Noncommercial License 1.0.0](LICENSE), which does not meet the Open
+Source Definition — it restricts the field of use.
+
+- **Permitted:** noncommercial research, teaching, study and personal use,
+  including modifying the code and publishing academic work based on it.
+- **Requires separate permission from the author:** any commercial use,
+  including use inside a for-profit organisation's product development or
+  paid services.
+
+If you are unsure which side of that line your work falls on, ask before you
+rely on it. Read the [LICENSE](LICENSE) for the controlling terms; this summary
+is not a substitute for it.

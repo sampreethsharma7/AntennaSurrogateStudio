@@ -4,6 +4,11 @@ This manual explains how to operate Antenna Surrogate Studio from project setup
 through prediction and inverse design. It focuses on the controls you use and
 the results you see. It does not describe the Studio's internal implementation.
 
+Before relying on the experimental antenna builder, read
+[Current limitations](docs/LIMITATIONS.md). For installation and troubleshooting,
+see [INSTALL.md](INSTALL.md); for an overview of the whole tool, see the
+[README](README.md).
+
 ## 1. Launching the Studio
 
 On Windows, double-click **Start Antenna Surrogate Studio.bat**. On macOS or
@@ -65,7 +70,15 @@ without closing the Studio.
 Choose **I already have a design** to continue directly to Data Prep with
 existing simulation inputs or results.
 
-Choose **Design with antenna agent** to open the experimental builder. It opens
+Choose **Design with antenna agent** to open the experimental builder.
+
+> **This feature is beta.** It generates starting geometry for you to inspect and
+> simulate, not a validated antenna. It is also **recipe-seeded, not free-form**:
+> it will not invent an antenna topology from a description. Every design begins
+> from one of the three recipes below, which you then edit in language or in the
+> parameter table.
+
+It opens
 with no assumed antenna, frequency, material, parameters, or geometry. Its
 installed validated recipes support an inset-fed rectangular microstrip patch,
 a probe-fed circular patch, and a center-fed dipole. Where geometrically valid,
@@ -76,6 +89,29 @@ quarter of patch width. The radius ratio appears in the parameter table and can
 be sent to LHS.
 Array elements receive independent CST ports; the builder does not synthesize
 an array feed network.
+
+For arrays, the parameter table carries a **SpacingMode** row with two settings,
+and the choice decides which parameters you are allowed to sweep:
+
+- `lambda` (the default) holds element spacing electrically, as a multiple of
+  the free-space wavelength. Changing the frequency re-derives the spacing and
+  resizes the board. Because geometry depends on frequency here, **Frequency is
+  read-only for sampling and its Vary box is disabled**; you vary
+  `SpacingLambda` instead.
+- `fixed_mm` holds the physical spacing in millimetres. Changing the frequency
+  then changes the operating point only, so **Frequency becomes sweepable** and
+  `ElementSpacing` can be varied directly in mm. `SpacingLambda` becomes the
+  derived, read-only row.
+
+In both modes the derived row is shown read-only with its Vary box disabled, so
+you cannot build an LHS table in which frequency and geometry move together
+without meaning to.
+
+One thing the Studio cannot police for you: `FreqGHz` is always written into the
+exported CST parameter list, so **sweeping it inside CST** in `lambda` mode will
+still move every element and resize the board. The generated macro carries a
+comment stating which behaviour applies. Switch to `fixed_mm` before building a
+frequency sweep in CST.
 
 In the builder:
 
@@ -96,8 +132,13 @@ In the builder:
    circular and rectangular Boolean holes remain open. Red arrows show
    canonical port endpoints.
 5. Use the **Vary** boxes to select CST parameters for sampling.
-6. Select **Export CST script** for the reliable parameterized construction
-   macro, or **Create CST project** on Windows for a named native unsolved model.
+6. Select **Export CST script** for the parameterized construction macro
+   (`.bas`), which needs no CST installation to produce, or **Create CST
+   project** on Windows for a named native unsolved `.cst` model, which does
+   require an installed CST Studio Suite. On CST Learning Edition prefer
+   **Create CST project**, because macro import is greyed out in that edition.
+   No solver is ever started, and no field or farfield monitors are exported —
+   add the monitors you need in CST.
 7. Select **Send selected to LHS** to open the existing sample generator with
    those parameter names and suggested bounds.
 
@@ -128,11 +169,12 @@ builder reports the failure. A provider listing is availability metadata, not
 proof that an untested model can satisfy the antenna ToolPlan contract.
 
 The selected planner backend receives the current solver-neutral design and a
-runtime manifest of installed recipes, modifiers, primitive tools, and the
-exact schemas of the thirteen planning tools it may call. Alongside five
-recipe/modifier actions, the safe primitive subset can create named parameters,
-rectangular or circular cutting geometry, translate or duplicate newly created
-tools, and apply validated union/subtraction operations. It must return an
+runtime manifest of installed recipes, modifiers and primitive tools, with the
+exact schema of every tool it may call. With a design open that is 19 tools: six
+recipe and modifier actions, nine composition primitives that can create named
+parameters, build rectangular or circular cutting geometry, translate, rotate or
+duplicate the shapes just created and apply validated union and subtraction
+operations, and four read-only analysis tools. It must return an
 ordered registered-tool plan, one clarification question, or a refusal. The
 executor validates schemas, semantic object references, bounds, dependencies,
 and the complete resulting design before publishing it. Geometry creation and
@@ -145,20 +187,17 @@ against semantic element targets. If replay is no longer compatible, the edit
 is rejected and the previous valid design remains open.
 
 All selected models receive the same planner system instruction, design state,
-tool definitions, and exact ToolPlan schema. Local Ollama also supplies that schema
-to Ollama for constrained decoding. Gemini requests JSON output and relies on
-the shared strict parser and validators after generation because the Gemini API
-rejects this exact thirteen-tool union when used as an API response schema. No
-schema was simplified for Gemini. Groq first requests strict JSON Schema output
-with the same schema. If Groq rejects that exact strict request, it uses JSON
-object output followed by the same local parser and validator; the audit records
-which decoding mode was used. Nemotron's free endpoint does not enforce
-`response_format`; its generated text therefore goes directly through the same
-strict local ToolPlan parser and validators. All selected models pass through the same executor, repair
-limit, and validation gates. For comparison, the project-local
-`design/planner_ab.jsonl` file records the backend, decoding mode, request,
-returned plan, validation result, repair attempt, and final executed
-deterministic tool sequence. It never records the API key.
+tool definitions and exact ToolPlan schema, and all pass through the same strict
+parser, executor, repair limit and validation gates. Only the decoding mechanism
+differs between providers, because their APIs accept different schema
+constraints; no schema is ever simplified to make a provider accept it. The
+per-provider details are in `docs/ANTENNA_AGENT_ARCHITECTURE.md`.
+
+For comparison, the project-local `design/planner_ab.jsonl` file records the
+backend, decoding mode, request, returned plan, validation result, repair
+attempt, and final executed deterministic tool sequence. It never records the
+API key. The file grows by roughly 100 KB per text turn and is not rotated; you
+can delete it at any time without affecting the project.
 
 The preview and analytical starting dimensions are design aids, not EM results.
 The preview is generated by evaluating the canonical primitives, transforms,

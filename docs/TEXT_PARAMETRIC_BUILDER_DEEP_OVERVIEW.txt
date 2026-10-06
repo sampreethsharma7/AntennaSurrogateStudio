@@ -3,10 +3,9 @@ TEXT-PARAMETRIC BUILDER: DEEP TECHNICAL AND DESIGN OVERVIEW
 ======================================================================
 
 Document status: Implementation snapshot
-Worktree: .development/text-parametric-builder
-Branch: experiment/text-parametric-builder
 Prepared: September 2026
-Current verification: 481 repository tests passing
+Current verification: the full repository suite passes
+                     (python -m unittest discover -s tests)
 
 
 1. EXECUTIVE OVERVIEW
@@ -1205,7 +1204,8 @@ LLM to emit unrestricted VBA or manipulate CST directly.
 18. TEST AND VERIFICATION COVERAGE
 ======================================================================
 
-At this snapshot, the complete repository suite passes 481 tests.
+The complete repository suite passes; run it with
+`python -m unittest discover -s tests`.
 
 Focused builder coverage includes:
 
@@ -1433,7 +1433,8 @@ implementation details.
        generic slot holes are present in canonical/CST output but are not yet
        carved into the preview mesh.
 
-    9. The CST adapter rejects rotated geometry transforms.
+    9. The CST adapter emits rotation and translation transforms, but it
+       rejects any canonical primitive outside its supported set.
 
    10. Array topology cannot be changed by editing ArrayRows/ArrayCols inside
        an already generated CST history; regeneration is required.
@@ -1555,25 +1556,23 @@ CAD object. It is a named parametric model already connected to the data and
 surrogate workflow.
 
 
-24. RELEASE AND REVIEW CHECKLIST
+24. VERIFYING A BUILD YOURSELF
 ======================================================================
 
-Before merging the worktree:
+Nothing here needs a CST licence except the last four items. Treat it as the
+acceptance pass to run before trusting a generated model.
 
-    [ ] Review the entire worktree diff.
-    [x] Run the full 481-test repository suite after the Nemotron integration.
-    [ ] Confirm SnowBuddy GUI hashes remain current.
+    [ ] Run the repository suite: python -m unittest discover -s tests
     [ ] Start a new project and exercise both Antenna Design paths.
-    [ ] Run the four hands-on examples in this document.
-    [ ] Reopen the project and verify state/conversation restoration.
+    [ ] Run the four hands-on examples in section 3.
+    [ ] Reopen the project and verify state and conversation restoration.
     [ ] Export .bas and inspect the paired design JSON.
-    [ ] Create a named .cst project on the intended CST educational install.
-    [ ] Confirm CST shows meaningful parameter names.
+    [ ] Transfer selected variables to LHS and inspect the bounds.
+    [ ] Create a named .cst project and confirm CST shows meaningful
+        parameter names.
     [ ] Inspect every port and conductor Boolean.
     [ ] Confirm no solver begins automatically.
-    [ ] Transfer selected variables to LHS and inspect bounds.
-    [ ] Keep public documentation explicit about experimental status and
-        unsupported arbitrary antenna generation.
+    [ ] Add the field or farfield monitors you need; the export has none.
 
 
 25. FINAL ASSESSMENT

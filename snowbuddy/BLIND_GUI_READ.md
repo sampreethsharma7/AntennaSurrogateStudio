@@ -1,7 +1,7 @@
 # SnowBuddy Blind GUI Read
 
 Contract version: 3.97
-Studio version: 0.33.2
+Studio version: 0.34.0-beta
 UI source SHA-256: df816406dfcbcdf0360fe780703cd3af0ea7aed716367966c11c8e00218b3f77
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: cabc9f361b05272e02dc1c2e394310351a1d9468d84f4c1994434f3738ab2c94
