@@ -223,7 +223,13 @@ class LHSSampleGeneratorTests(unittest.TestCase):
 
     def test_cst_txt_failed_atomic_replace_removes_temporary_file(self):
         destination = self.root / "inputs.txt"
-        with patch("studio.sample_generator.os.replace", side_effect=OSError("replace failed")):
+        with (
+            patch(
+                "studio.atomic_replace.os.replace",
+                side_effect=OSError("replace failed"),
+            ),
+            patch("studio.atomic_replace.time.sleep"),
+        ):
             with self.assertRaisesRegex(OSError, "replace failed"):
                 write_lhs_inputs_cst_txt(destination, generate_lhs_samples(self.request))
 

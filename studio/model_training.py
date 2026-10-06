@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import os
 import shutil
 import tempfile
 import warnings
@@ -13,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+from studio.atomic_replace import replace_with_retry
 from studio.dataset_registry import (
     DatasetRegistrationError,
     RegisteredDataset,
@@ -2315,7 +2315,7 @@ def _save_training_artifacts(
             raise ModelTrainingError(
                 f"Training run folder already exists: {final_run_directory}"
             )
-        os.replace(staging, final_run_directory)
+        replace_with_retry(staging, final_run_directory)
     finally:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
@@ -2512,7 +2512,7 @@ def _preserve_legacy_training_result(
             },
         )
         atomic_write_json(staging / RUN_MANIFEST_NAME, legacy_record)
-        os.replace(staging, final_directory)
+        replace_with_retry(staging, final_directory)
     finally:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)

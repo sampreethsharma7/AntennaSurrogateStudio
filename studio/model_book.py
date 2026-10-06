@@ -6,13 +6,13 @@ import csv
 import hashlib
 import json
 import math
-import os
 import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from studio.atomic_replace import replace_with_retry
 from studio.dataset_registry import (
     DatasetRegistrationError,
     get_registered_dataset,
@@ -279,7 +279,7 @@ def save_model_book(
                     "An Ensemble component changed while the Model Book was being saved."
                 )
         atomic_write_json(staging / MODEL_BOOK_MANIFEST_NAME, payload)
-        os.replace(staging, destination)
+        replace_with_retry(staging, destination)
     except OSError as exc:
         raise ModelBookError(f"The Model Book could not be saved: {exc}") from exc
     finally:

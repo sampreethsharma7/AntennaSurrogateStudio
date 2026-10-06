@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from studio.atomic_replace import ATOMIC_REPLACE_ATTEMPTS
 from studio.project_store import (
-    ATOMIC_REPLACE_ATTEMPTS,
     ProjectError,
     ProjectStore,
     atomic_write_json,
@@ -45,8 +45,8 @@ class ProjectStoreTests(unittest.TestCase):
         replace = self._replace_that_fails(1)
 
         with (
-            patch("studio.project_store.os.replace", side_effect=replace) as mocked_replace,
-            patch("studio.project_store.time.sleep") as sleep,
+            patch("studio.atomic_replace.os.replace", side_effect=replace) as mocked_replace,
+            patch("studio.atomic_replace.time.sleep") as sleep,
         ):
             atomic_write_json(destination, {"status": "saved"})
 
@@ -60,8 +60,8 @@ class ProjectStoreTests(unittest.TestCase):
         replace = self._replace_that_fails(2)
 
         with (
-            patch("studio.project_store.os.replace", side_effect=replace) as mocked_replace,
-            patch("studio.project_store.time.sleep") as sleep,
+            patch("studio.atomic_replace.os.replace", side_effect=replace) as mocked_replace,
+            patch("studio.atomic_replace.time.sleep") as sleep,
         ):
             atomic_write_json(destination, {"status": "saved"})
 
@@ -76,10 +76,10 @@ class ProjectStoreTests(unittest.TestCase):
 
         with (
             patch(
-                "studio.project_store.os.replace",
+                "studio.atomic_replace.os.replace",
                 side_effect=PermissionError(5, "simulated persistent file lock"),
             ) as mocked_replace,
-            patch("studio.project_store.time.sleep") as sleep,
+            patch("studio.atomic_replace.time.sleep") as sleep,
         ):
             with self.assertRaisesRegex(PermissionError, "persistent file lock"):
                 atomic_write_json(destination, {"status": "not saved"})

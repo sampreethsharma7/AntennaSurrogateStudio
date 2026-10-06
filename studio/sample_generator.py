@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import csv
 import math
-import os
 import tempfile
 from dataclasses import dataclass
 from numbers import Real
 from pathlib import Path
+
+from studio.atomic_replace import replace_with_retry
 
 
 MAX_LHS_SAMPLES = 100_000
@@ -175,7 +176,7 @@ def write_lhs_inputs_csv(
             writer.writerow(sample_set.variable_names)
             for row in sample_set.rows:
                 writer.writerow(format(float(value), ".15g") for value in row)
-        os.replace(temporary, path)
+        replace_with_retry(temporary, path)
     except Exception:
         temporary.unlink(missing_ok=True)
         raise
@@ -215,7 +216,7 @@ def write_lhs_inputs_cst_txt(
             writer.writerow(sample_set.variable_names)
             for row in sample_set.rows:
                 writer.writerow(format(float(value), ".15g") for value in row)
-        os.replace(temporary, path)
+        replace_with_retry(temporary, path)
     except Exception:
         temporary.unlink(missing_ok=True)
         raise

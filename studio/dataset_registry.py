@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from studio.atomic_replace import replace_with_retry
 from studio.dataset_validation import (
     DatasetValidationResult,
     validate_dataset,
@@ -275,7 +275,7 @@ def _create_snapshot(
         }
         atomic_write_json(staging / "dataset.json", record)
         try:
-            os.replace(staging, destination)
+            replace_with_retry(staging, destination)
         except OSError as exc:
             if not destination.exists():
                 raise DatasetRegistrationError(

@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import os
 import shutil
 import tempfile
 import warnings
@@ -19,6 +18,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 
+from studio.atomic_replace import replace_with_retry
 from studio.ensemble import WeightedEnsembleRegressor
 from studio.model_book import (
     ModelBook,
@@ -395,7 +395,7 @@ def _save_completed_inference(
             writer.writerow(["Output coordinate", "Output variable", "Predicted value"])
             for coordinate, target in zip(axis_values, result.target_order, strict=True):
                 writer.writerow([coordinate, target, result.predictions[target]])
-        os.replace(staging, destination)
+        replace_with_retry(staging, destination)
     except OSError as exc:
         raise InferenceError(
             f"The prediction was calculated but could not be saved: {exc}"

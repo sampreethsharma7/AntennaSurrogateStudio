@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import os
 import shutil
 import tempfile
 import warnings
@@ -16,6 +15,7 @@ from typing import Any, Callable
 
 import numpy as np
 
+from studio.atomic_replace import replace_with_retry
 from studio.inference import InferenceError, ModelBookPredictor
 from studio.model_book import ModelBookError
 from studio.project_store import atomic_write_json, utc_now
@@ -1024,7 +1024,7 @@ def _save_completed_run(
                         ),
                     ]
                 )
-        os.replace(staging, destination)
+        replace_with_retry(staging, destination)
     except OSError as exc:
         raise InverseDesignError(
             f"The inverse-design result could not be saved: {exc}"
