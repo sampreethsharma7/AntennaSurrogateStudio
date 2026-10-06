@@ -5,7 +5,7 @@ Studio version: 0.34.1-beta
 UI source SHA-256: df816406dfcbcdf0360fe780703cd3af0ea7aed716367966c11c8e00218b3f77
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: 96a07c78fa6b302755e2bb7832a59bfae9bc4f68b87e41de1712df65f3b918b6
-Planner Onboarding UI source SHA-256: e3b56af47b320588200ecea4399cdcff303fe829cd295e4e2abf167e6e114835
+Planner Onboarding UI source SHA-256: 9cef6a16bef45d139a029072211c6dfb21283f5c2acb1181ee0b3ea0f47244bd
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
@@ -248,14 +248,18 @@ build a trusted surrogate model.
   the builder. A rejected key leaves the dialog open, is not saved, and is
   explained in one sentence such as **We couldn't verify this API key.** or
   **Gemini could not be reached. Check your internet connection and try again.**
-  No raw status codes, payloads, tracebacks or key characters appear. A
-  question-mark panel, **? API usage, privacy, and other providers**, holds the
-  storage, egress, cost and offline notes, and **Other providers and offline
-  use** exposes Groq, OpenRouter, **Use Local Ollama instead** with its lower
+  No raw status codes, payloads, tracebacks or key characters appear. Editing
+  the key field after a rejection clears the red sentence and returns the dialog
+  to its neutral state. **? API usage, privacy, and other providers** opens a
+  separate scrollable window, **About Text-to-CAD and your API key**, holding the
+  storage, egress, cost and offline notes with its own **Close**; the setup
+  dialog itself does not grow. **Other providers and offline use** expands in
+  place to expose Groq, OpenRouter, **Use Local Ollama instead** with its lower
   local-capability note, the configured source of each provider's key, and
-  **Remove saved key**. The two panels never open together, so the dialog always
-  fits a 1366x768 viewport. **Not now** closes without choosing and leaves the
-  Design Start page in place. Reopened from the builder's **API keys** button
+  **Remove saved key**. Every paragraph wraps to the width it is actually given,
+  so no message is cut off at the window edge, and both windows fit a 1366x768
+  viewport with room for a taskbar. **Not now** closes without choosing and
+  leaves the Design Start page in place. Reopened from the builder's **API keys** button
   the same dialog manages saved keys and never displays a stored secret. Each
   project records credential-free comparison metadata in
   `design/planner_ab.jsonl`: backend, request, returned plan, validation,

@@ -16,14 +16,22 @@ from studio.planner_credentials import (
     KEYRING_SERVICE,
     LOCAL_OLLAMA,
 )
-from studio.planner_model_discovery import PlannerModelDiscovery
+from studio.planner_model_discovery import (
+    ModelDiscoveryError,
+    PlannerModelDiscovery,
+    friendly_discovery_message,
+)
 from studio.planner_onboarding_ui import (
+    HELP_SECTIONS,
     SETUP_INTRO,
     SETUP_TITLE,
+    VERIFIED_DETAIL,
     VERIFIED_HEADLINE,
     SetupOutcome,
+    TextToCadHelpDialog,
     TextToCadSetupDialog,
 )
+from studio.theme import COLORS
 from studio.project_store import ProjectStore
 from studio.ui import StudioApp
 
@@ -35,6 +43,29 @@ GUI_MAY_BE_AVAILABLE = (
 )
 
 SECRET = "AIzaPretendGeminiKey1234567890"
+
+# A 1366x768 laptop does not give a window all 768 rows: the taskbar and this
+# window's own title bar come out of the budget first, and reqheight counts
+# neither of them.
+LAPTOP_CHROME = 80
+
+
+def rendered_width(label):
+    """Width Tk needs for the widest wrapped line this label will draw.
+
+    A CTkLabel is a frame around a real Tk label, and only that inner widget
+    knows how wide the text came out once it was wrapped. Asking it is what
+    distinguishes a paragraph that fits from one that is about to be cut off
+    by the window edge -- which is the defect this measures.
+    """
+
+    return label._label.winfo_reqwidth()
+
+
+def allotted_width(label):
+    """Width the layout actually gave this label on screen."""
+
+    return label.winfo_width()
 
 
 class FakeCredentialStore:
@@ -251,28 +282,32 @@ class SetupDialogTests(unittest.TestCase):
         self.assertEqual(dialog.key_entry.cget("show"), "•")
         self.assertEqual(dialog.verify_button.cget("text"), "Verify & Continue")
         self.assertEqual(dialog.get_key_button.cget("text"), "Get an API key")
-        # The secondary material starts collapsed so the dialog stays small.
-        # A scrollable frame always reports a canvas manager, so measure the
-        # consequence the user actually sees instead.
+        # The secondary material starts put away so the dialog stays small.
         self.assertFalse(dialog._help_visible)
         self.assertFalse(dialog._advanced_visible)
         self.app.update_idletasks()
         collapsed_height = dialog.winfo_reqheight()
-        dialog._toggle_help()
-        self.app.update_idletasks()
-        self.assertGreater(dialog.winfo_reqheight(), collapsed_height)
-        dialog._toggle_help()
-        self.app.update_idletasks()
+        # Help opens a window of its own. The primary dialog must not grow,
+        # because unfolding this material in place pushed the primary action
+        # off the bottom of a laptop screen.
+        help_window = dialog.open_help()
+        self.app.update()
+        self.assertTrue(dialog._help_visible)
+        self.assertEqual(dialog.winfo_reqheight(), collapsed_height)
+        help_window.close()
+        self.app.update()
+        self.assertFalse(dialog._help_visible)
         self.assertEqual(dialog.winfo_reqheight(), collapsed_height)
 
-    def test_the_help_panel_explains_storage_privacy_and_cost_without_promises(self):
+    def test_the_help_window_explains_storage_privacy_and_cost_without_promises(self):
         dialog = self._dialog()
         self.app.update_idletasks()
         collapsed = dialog.winfo_reqheight()
-        dialog._toggle_help()
-        self.app.update_idletasks()
+        help_window = dialog.open_help()
+        self.app.update()
         self.assertTrue(dialog._help_visible)
-        self.assertGreater(dialog.winfo_reqheight(), collapsed)
+        self.assertEqual(dialog.winfo_reqheight(), collapsed)
+        self.addCleanup(help_window.close)
 
         from studio.planner_onboarding_ui import HELP_SECTIONS
 
@@ -417,20 +452,140 @@ class SetupDialogTests(unittest.TestCase):
         dialog = self._dialog()
         scale = max(1.0, float(self.app.ui_scaling))
         width_budget = round(1366 * scale)
-        height_budget = round(768 * scale)
-        # Every disclosure state has to fit, including the tallest one. The two
-        # secondary panels are mutually exclusive precisely because together
-        # they pushed the primary action off the bottom of a laptop screen.
+        # A real laptop also spends part of its screen on a taskbar and on this
+        # window's own title bar, neither of which reqheight counts.
+        height_budget = round((768 - LAPTOP_CHROME) * scale)
+        longest = friendly_discovery_message(
+            GEMINI, ModelDiscoveryError("rejected", kind="http", status=401)
+        )
         for label, prepare in (
             ("collapsed", lambda: None),
-            ("help open", dialog._toggle_help),
+            ("rejected key shown", lambda: dialog._set_status(longest, tone="error")),
             ("other providers open", dialog._toggle_advanced),
+            ("other providers open with a rejection", lambda: None),
         ):
             with self.subTest(state=label):
                 prepare()
                 self.app.update_idletasks()
                 self.assertLessEqual(dialog.winfo_reqwidth(), width_budget)
                 self.assertLessEqual(dialog.winfo_reqheight(), height_budget)
+
+    def test_every_verification_message_fits_the_width_it_is_given(self):
+        """No status sentence may run past the edge of a fixed-width dialog.
+
+        The dialog is sized once, while the status line is still empty, and is
+        not resizable. A message that wraps to a width nobody checked against
+        the window loses its last characters, which is what a first-time user
+        saw: "It looks incomplete or i" / "not in the format Gemini expects."
+        """
+
+        dialog = self._dialog()
+        self.app.update()
+        messages = {
+            "incomplete key": ("http", 400),
+            "authentication rejected": ("http", 401),
+            "access forbidden": ("http", 403),
+            "model missing": ("http", 404),
+            "rate limited": ("http", 429),
+            "provider unavailable": ("http", 503),
+            "network failure": ("network", None),
+            "empty catalog": ("no_models", None),
+        }
+        rendered = {
+            name: friendly_discovery_message(
+                GEMINI, ModelDiscoveryError(name, kind=kind, status=status)
+            )
+            for name, (kind, status) in messages.items()
+        }
+        rendered["verified"] = VERIFIED_HEADLINE + "\n" + VERIFIED_DETAIL
+        rendered["checking"] = "Checking the key with Gemini…"
+        rendered["console opened"] = (
+            "Open this address to create a key: https://aistudio.google.com/apikey"
+        )
+
+        for name, message in rendered.items():
+            with self.subTest(message=name):
+                dialog._set_status(message)
+                self.app.update()
+                self.assertLessEqual(
+                    rendered_width(dialog.status_label),
+                    allotted_width(dialog.status_label),
+                    f"{name!r} is wider than the dialog can show: {message!r}",
+                )
+
+    def test_the_help_window_text_fits_the_width_it_is_given(self):
+        """The privacy explanation has to be readable, not cut off mid-word."""
+
+        dialog = self._dialog()
+        help_window = dialog.open_help()
+        self.addCleanup(help_window.close)
+        self.app.update()
+        self.assertTrue(help_window._wrapping, "no wrapped help paragraphs found")
+        for index, (label, _declared) in enumerate(help_window._wrapping):
+            with self.subTest(section=HELP_SECTIONS[index][0]):
+                self.assertLessEqual(
+                    rendered_width(label),
+                    allotted_width(label),
+                    f"help section {HELP_SECTIONS[index][0]!r} is clipped",
+                )
+
+    def test_editing_the_key_clears_a_stale_rejection(self):
+        dialog = self._dialog(
+            error=urllib.error.HTTPError(
+                "https://example.invalid", 401, "Unauthorized", {}, None
+            )
+        )
+        dialog.key_var.set("wrong-key")
+        self._verify(dialog)
+        self.assertIn("couldn't verify this API key", dialog.status_var.get())
+        self.assertTrue(dialog._status_is_error)
+
+        # Correcting the key puts the dialog back to neutral, so the red
+        # sentence does not sit there contradicting what is in the field.
+        dialog.key_var.set("wrong-key-corrected")
+        self.app.update()
+        self.assertEqual(dialog.status_var.get(), "")
+        self.assertFalse(dialog._status_is_error)
+        self.assertEqual(
+            dialog.status_label.cget("text_color"), COLORS["muted"]
+        )
+        # Clearing the field entirely is also an edit, and must not resurrect it.
+        dialog.key_var.set("")
+        self.app.update()
+        self.assertEqual(dialog.status_var.get(), "")
+
+    def test_a_successful_verification_survives_the_field_being_cleared(self):
+        """Clearing the key on success must not wipe the confirmation."""
+
+        dialog = self._dialog()
+        dialog.key_var.set(SECRET)
+        self._verify(dialog)
+        self.assertEqual(dialog.key_var.get(), "")
+        self.assertIn(VERIFIED_HEADLINE, dialog.status_var.get())
+        self.assertFalse(dialog._status_is_error)
+
+    def test_the_help_window_fits_a_laptop_viewport(self):
+        """Sized against a laptop screen, not whichever screen runs the tests.
+
+        The window takes its height from the display it opens on, so proving it
+        fits a 1366x768 laptop means telling it that is the display it is on.
+        """
+
+        dialog = self._dialog()
+        scale = max(1.0, float(self.app.ui_scaling))
+        laptop_height = round(768 * scale)
+        with patch.object(
+            TextToCadHelpDialog, "winfo_screenheight", lambda _self: laptop_height
+        ):
+            help_window = dialog.open_help()
+            self.addCleanup(help_window.close)
+            self.app.update()
+        self.assertLessEqual(help_window.winfo_width(), round(1366 * scale))
+        self.assertLessEqual(
+            help_window.winfo_height(), round((768 - LAPTOP_CHROME) * scale)
+        )
+        # Still big enough to read rather than a letterbox.
+        self.assertGreaterEqual(help_window.winfo_height(), round(300 * scale))
 
 
 @unittest.skipUnless(GUI_MAY_BE_AVAILABLE, "A desktop display is required.")
