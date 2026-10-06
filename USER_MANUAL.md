@@ -142,26 +142,63 @@ In the builder:
 7. Select **Send selected to LHS** to open the existing sample generator with
    those parameter names and suggested bounds.
 
-To enable Gemini, copy `.env.example` to `.env` in the application/repository
-root, then edit the local file:
+### Setting up the cloud planner
 
-```text
-GEMINI_API_KEY=your_key_from_Google_AI_Studio
-```
+The first time you choose **Open Experimental Builder**, the **Set up
+Text-to-CAD** dialog asks for one cloud API key and recommends **Gemini**:
 
-The `.env` file is excluded by `.gitignore`. Do not commit it or paste the key
-into an antenna prompt. You may also set `GEMINI_API_KEY` in the process
-environment. If no key is found, the Studio shows a clear message and Local
-Ollama remains available.
+1. Select **Get an API key**. Google AI Studio opens in your browser.
+2. Create a key there and copy it.
+3. Paste it into the masked **API key** field.
+4. Select **Verify & Continue**.
 
-To enable Groq, set `GROQ_API_KEY` in the same ignored `.env` or process
-environment. `openai/gpt-oss-120b` is labeled Tested when returned by the
-provider. Never paste a cloud key into an antenna prompt.
+The Studio checks the key with Gemini before accepting it. On success it shows
+**✓ API key verified**, saves the key in your operating system's credential
+store, and opens the builder. You are not asked again. Nothing needs to be
+edited on disk.
 
-To enable Nemotron, set `OPENROUTER_API_KEY` in the same ignored `.env` or
-process environment. The loader also accepts `OPEN_ROUTER_API_KEY` for the
-existing local spelling. OpenRouter models are discovered from its catalog;
-**Free only** filters on provider pricing metadata.
+If the key is rejected the dialog stays open, the key is not saved, and one
+plain sentence says what to fix — for example *We couldn't verify this API key.*
+or *Gemini could not be reached. Check your internet connection and try again.*
+
+To use **Groq** or **OpenRouter** instead, open **Other providers and offline
+use** in the same dialog, pick the provider, and paste its key. `openai/gpt-oss-120b`
+is labeled Tested when Groq returns it. OpenRouter models are discovered from
+its catalog, and **Free only** filters on provider pricing metadata.
+
+To work without any cloud account, choose **Use Local Ollama instead** in that
+panel. It needs no key and keeps every request on your computer, but local
+models are smaller and interpret fewer design requests correctly.
+
+The **? API usage, privacy, and other providers** panel explains where the key
+is stored, what the provider receives, cost, and the offline option. Text-to-CAD
+uses your own provider account; provider pricing can change, so start with a
+small spending limit or prepaid balance where the provider supports one.
+
+### Changing or removing a saved key
+
+The **API keys** button beside the builder's **Model** menu reopens the same
+dialog at any time. It lists which source each provider's key comes from, and
+**Remove saved key** deletes the stored one. A saved key is never displayed
+again, so replacing it means pasting the new one.
+
+### Advanced: environment variables and `.env`
+
+Keys resolve in this order, highest first:
+
+1. the process environment — `GEMINI_API_KEY`, `GROQ_API_KEY`, or
+   `OPENROUTER_API_KEY` (`OPEN_ROUTER_API_KEY` is still accepted for the
+   existing local spelling);
+2. an untracked `.env` in the working directory or the application/repository
+   root, copied from `.env.example`;
+3. the operating system credential store, where the setup dialog saves keys.
+
+If a key is already configured by either of the first two routes, the setup
+dialog never appears. An exported environment variable always wins over a key
+saved through the dialog; the dialog names the source actually in effect, so a
+shadowed stored key is visible rather than puzzling. The `.env` file is excluded
+by `.gitignore` — do not commit it. Never paste a cloud key into an antenna
+prompt.
 
 Provider/model choice and the OpenRouter filter are stored with the project.
 If a catalog request fails, the last valid model remains selected and the

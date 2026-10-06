@@ -258,29 +258,83 @@ Points worth knowing before you solve:
 
 ## Antenna planner options
 
-SnowBuddy's built-in workflow guidance works without any additional service.
-The antenna builder defaults to the **Local Ollama** provider, which requires a
-running local [Ollama](https://ollama.com/download) instance. Its Model menu is
-populated from the models installed in that instance:
+### First run: paste an API key
 
-- `qwen3:8b` is the recommended and live-validated antenna-planner model for
-  computers with about 16 GB RAM or more.
+The first time you open the experimental builder, the Studio asks for one cloud
+API key:
+
+1. Open a project and choose **Open Experimental Builder**.
+2. **Set up Text-to-CAD** appears, recommending **Gemini**.
+3. Select **Get an API key** to open Google AI Studio in your browser, create a
+   key, and copy it.
+4. Paste it into the masked **API key** field and select **Verify & Continue**.
+
+The Studio checks the key with the provider before accepting it. On success it
+saves the key in your operating system's credential store — the Windows
+Credential Manager on Windows — and opens the builder. You are not asked again,
+on that or any other project. There is no file to create and no environment
+variable to set.
+
+A rejected key keeps the dialog open with one plain sentence about what to fix,
+and is not saved. The **API keys** button beside the builder's Model menu
+reopens the same dialog later to replace or remove a stored key. The Studio
+never displays a saved key again.
+
+The dialog's **? API usage, privacy, and other providers** panel covers where
+the key is stored, what the provider receives, cost, and the offline option.
+Text-to-CAD uses your own provider account; provider pricing can change, so
+start with a small spending limit or prepaid balance where the provider
+supports one.
+
+### Provider and model selection
+
+SnowBuddy's built-in workflow guidance works without any additional service.
+The builder has separate **Provider** and **Model** menus covering **Gemini**,
+**Groq**, **OpenRouter** and **Local Ollama**, and discovers each provider's
+current catalog. Models exercised with the antenna agent are labeled **Tested**;
+other compatible text models are labeled **Untested**. `qwen3:8b`,
+`gemini-3.8-flash`, `openai/gpt-oss-120b`, and
+`nvidia/nemotron-3-ultra-550b-a55b:free` carry Tested metadata when their
+providers list them. OpenRouter includes a pricing-based **Free only** filter.
+Groq and OpenRouter keys are entered through the same setup dialog, under
+**Other providers and offline use**.
+
+### Running without a cloud account
+
+**Local Ollama** needs no API key and keeps every request on your computer. It
+requires a running local [Ollama](https://ollama.com/download) instance, and is
+offered under **Other providers and offline use** in the setup dialog:
+
+- `qwen3:8b` is the recommended and live-validated local antenna-planner model
+  for computers with about 16 GB RAM or more.
 - `qwen3:1.7b` remains useful for SnowBuddy and simple edits on lower-resource
   computers, but complex multi-tool antenna plans may be refused after strict
   validation.
 
-The builder has separate **Provider** and **Model** menus. It discovers installed
-models from local Ollama and current catalogs from **Gemini**, **Groq**, and
-**OpenRouter**. Models exercised with the antenna agent are labeled **Tested**;
-other compatible text models are labeled **Untested**. Copy
-[`.env.example`](.env.example) to an untracked `.env` in the repository root
-and set the corresponding `GEMINI_API_KEY`, `GROQ_API_KEY`, or
-`OPENROUTER_API_KEY` value. OpenRouter includes a pricing-based **Free only**
-filter. `qwen3:8b`, `gemini-3.8-flash`, `openai/gpt-oss-120b`, and
-`nvidia/nemotron-3-ultra-550b-a55b:free` carry Tested metadata when their
-providers list them. Never commit
-`.env`; it is excluded by `.gitignore`. If a cloud key is missing, the builder
-reports the setup requirement and Local Ollama remains usable.
+Local models are smaller than the cloud planners and interpret fewer design
+requests correctly, which is why the cloud path is recommended first.
+
+### Advanced: environment variables and `.env`
+
+Credentials resolve in this order, highest first:
+
+1. the process environment — `GEMINI_API_KEY`, `GROQ_API_KEY`, or
+   `OPENROUTER_API_KEY`;
+2. an untracked `.env` in the working directory or repository root, copied from
+   [`.env.example`](.env.example);
+3. the operating system credential store, where the setup dialog saves keys.
+
+An environment variable therefore always wins over a key saved in the dialog,
+which is what a developer exporting one for a session expects. The setup
+dialog's **Other providers and offline use** panel names the source actually in
+effect for each provider, so a stored key that a variable is shadowing is
+visible rather than mysterious. If a key is configured by either of the first
+two routes, the Studio never shows the setup dialog.
+
+Never commit `.env`; it is excluded by `.gitignore`. Setting
+`ANTENNA_STUDIO_NO_CREDENTIAL_STORE=1` keeps the Studio away from the
+credential store entirely, leaving the environment and `.env` as the only
+sources.
 
 Provider, model and filter choice persist with the project. A failed catalog
 request keeps the last valid model and reports the failure. A provider listing

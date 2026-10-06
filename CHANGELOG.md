@@ -5,6 +5,58 @@ Notable changes to Antenna Surrogate Studio. Newest first.
 Versions before `0.34.0-beta` predate this file; their history is in the commit
 log.
 
+## [0.34.1-beta] — 2026-10-06
+
+A focused usability release. The experimental Text-to-CAD builder now asks for
+its cloud API key in the application instead of expecting the user to create a
+file. Nothing about the planner, the recipes, the geometry or the CST output
+changes.
+
+### Added
+
+- **Text-to-CAD API key setup.** Opening the experimental builder for the first
+  time shows a short **Set up Text-to-CAD** dialog recommending Gemini, with a
+  masked key field, a **Get an API key** action that opens the provider's own
+  key page in the system browser, and **Verify & Continue**. Verification is a
+  real authenticated request to the provider's model catalog, so an unusable key
+  is caught at setup rather than deep inside a later design request. It carries
+  no geometry, design state or instruction.
+- **Operating system credential storage.** A verified key is saved through
+  `keyring`, which resolves to the Windows Credential Manager on Windows, under
+  one Antenna Surrogate Studio service entry per provider. Keys are held per
+  provider rather than per project, and are never written to a project file, a
+  log, the planner audit, or `.env`. A saved key is not displayed again.
+- **An API keys button** beside the builder's Model menu reopens the same
+  dialog to replace or remove a stored key, and names which source each
+  provider's key currently comes from.
+- **A help panel** covering where the key is stored, what the provider
+  receives, cost, and the offline option, kept out of the main dialog.
+
+### Changed
+
+- Credentials now resolve from the process environment, then an ignored `.env`,
+  then the credential store. The first two are unchanged, so existing
+  environment variables and `.env` files keep working and never trigger setup.
+  An exported variable deliberately outranks a key saved in the dialog, and the
+  dialog names the source in effect so a shadowed key is visible.
+- README and the User Manual describe pasting a key into the dialog as the
+  normal path, with environment variables and `.env` moved to an advanced
+  section.
+- Groq, OpenRouter and Local Ollama remain fully supported, under **Other
+  providers and offline use**. Local Ollama is no longer the recommended first
+  run, and its lower capability is stated where it is offered.
+
+### Notes
+
+- Entering the builder settles how the planner will be reached before the
+  workspace opens, so a first run can no longer proceed with no usable
+  credential and fail later. A project that already records a planner choice,
+  including a deliberate offline one, is never interrupted.
+- `ANTENNA_STUDIO_NO_CREDENTIAL_STORE=1` keeps the Studio away from the
+  credential store, leaving the environment and `.env` as the only sources.
+- No OpenAI provider was added, and the builder still performs no solving or
+  optimisation.
+
 ## [0.34.0-beta] — 2026-10-05
 
 The release that introduces the **experimental text-driven antenna builder**.

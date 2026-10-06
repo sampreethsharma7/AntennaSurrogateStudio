@@ -22,6 +22,13 @@ environment measures around 750 MB.
 Windows 10 and 11 are the primary tested platforms. CST, HFSS, an API key, and
 a cloud account are not required to install or launch the Studio.
 
+If you later use the experimental Text-to-CAD builder with a cloud planner, it
+asks for an API key inside the application the first time you open it and saves
+it in your operating system's credential store. There is no configuration file
+to prepare during installation. See
+[Antenna planner options](README.md#antenna-planner-options) for the
+environment-variable and `.env` routes, which are still supported.
+
 ## Windows: recommended installation
 
 1. Download the repository ZIP and extract it to a writable location such as
