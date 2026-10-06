@@ -23,7 +23,7 @@ from studio.planner_credentials import KEYRING_SERVICE, LOCAL_OLLAMA
 from studio.planner_model_discovery import GEMINI, ModelDiscoveryError, PlannerModel
 from studio.planner_onboarding_ui import SetupOutcome
 from studio.project_store import ProjectStore
-from studio.theme import FONTS
+from studio.theme import FONTS, column_safe_width
 from studio.ui import StudioApp
 
 
@@ -48,6 +48,18 @@ GUI_MAY_BE_AVAILABLE = (
     or os.sys.platform == "darwin"
     or bool(os.environ.get("DISPLAY"))
 )
+
+# Narrowest a planner control may render and still be readable and clickable,
+# in logical UI units. Logical, because the physical size of everything moves
+# with the host's UI scale, so a pixel figure would describe the monitor the
+# test happens to run on rather than the layout.
+MIN_USABLE_CONTROL_WIDTH = 60
+# ...and how much of the width it asks for it must actually get. A control
+# squeezed by a neighbour stays wide enough to see while losing most of itself,
+# so the absolute floor alone is not enough to catch it. Measured: every
+# control keeps at least 76% when the row is laid out correctly, and the two
+# stretchy ones drop to 38% and 53% when a sixth control takes a column.
+MIN_DECLARED_SHARE = 0.65
 
 
 class _ImmediateThread:
@@ -469,9 +481,22 @@ class AntennaBuilderPageTests(unittest.TestCase):
         the API keys button next to the model menu squeezed the provider menu
         to 2px: still there, still selectable from code, and invisible to the
         person who has to change provider with it.
+
+        Judged in logical units, not rendered pixels. Every physical size moves
+        with the host's UI scale -- about 1.08 on the laptop these minima
+        describe, 0.81 on a 1024x768 headless runner -- so a pixel threshold
+        asserts the monitor rather than the layout. Normalising first, the same
+        correct layout measures the same on either machine.
         """
 
         self.app.design_start_page.choose_template()
+        # At the laptop window these minima describe. The row's width comes
+        # from a paned workspace, so without a settled window the measurement
+        # would depend on whatever the previous test left behind.
+        self.app.geometry("1366x768+0+0")
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(True)
+        self.app.set_snowbuddy_collapsed(True)
         self.app.update()
         self.app.update_idletasks()
         for name, widget in (
@@ -483,10 +508,20 @@ class AntennaBuilderPageTests(unittest.TestCase):
         ):
             with self.subTest(control=name):
                 self.assertEqual(widget.winfo_manager(), "grid", f"{name} is not laid out")
+                rendered = widget.winfo_width()
+                logical = column_safe_width(widget, rendered)
+                declared = int(widget.cget("width"))
                 self.assertGreaterEqual(
-                    widget.winfo_width(),
-                    60,
-                    f"{name} is {widget.winfo_width()}px wide, too narrow to use",
+                    logical,
+                    MIN_USABLE_CONTROL_WIDTH,
+                    f"{name} renders {rendered}px, which is {logical} logical "
+                    f"units at this scale -- too narrow to read or click",
+                )
+                self.assertGreaterEqual(
+                    logical,
+                    MIN_DECLARED_SHARE * declared,
+                    f"{name} asks for {declared} logical units and gets "
+                    f"{logical} -- something beside it is taking its width",
                 )
 
     def test_planner_selector_marks_cloud_context_and_uses_gemini_backend(self):
