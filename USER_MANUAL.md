@@ -170,10 +170,11 @@ To work without any cloud account, choose **Use Local Ollama instead** in that
 panel. It needs no key and keeps every request on your computer, but local
 models are smaller and interpret fewer design requests correctly.
 
-The **? API usage, privacy, and other providers** panel explains where the key
-is stored, what the provider receives, cost, and the offline option. Text-to-CAD
-uses your own provider account; provider pricing can change, so start with a
-small spending limit or prepaid balance where the provider supports one.
+The **? API usage, privacy, and other providers** link opens a separate help
+window covering where the key is stored, what the provider receives, cost
+guidance, and the offline option. Text-to-CAD uses your own provider account;
+provider pricing can change, so start with a small spending limit or prepaid
+balance where the provider supports one.
 
 ### Changing or removing a saved key
 

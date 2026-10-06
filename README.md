@@ -1,6 +1,6 @@
 # Antenna Surrogate Studio
 
-**Studio Preview v0.34.0-beta.** Source-available for noncommercial use; see
+**Studio Preview v0.34.1-beta.** Source-available for noncommercial use; see
 [License](#license).
 
 Antenna Surrogate Studio is a local desktop application for antenna engineers
@@ -280,8 +280,9 @@ and is not saved. The **API keys** button beside the builder's Model menu
 reopens the same dialog later to replace or remove a stored key. The Studio
 never displays a saved key again.
 
-The dialog's **? API usage, privacy, and other providers** panel covers where
-the key is stored, what the provider receives, cost, and the offline option.
+The **? API usage, privacy, and other providers** link opens a separate help
+window covering where the key is stored, what the provider receives, cost
+guidance, and the offline option.
 Text-to-CAD uses your own provider account; provider pricing can change, so
 start with a small spending limit or prepaid balance where the provider
 supports one.
