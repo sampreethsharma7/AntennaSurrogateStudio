@@ -30,6 +30,11 @@ jobs:
       # prints, such as "Pooled R²". This affects the runner's stdio only, not
       # how the application reads or writes files.
       PYTHONIOENCODING: utf-8
+      # Pick Mesa's software rasteriser explicitly. Left unset, the Windows
+      # gallium frontend would also consider the d3d12 driver, which needs
+      # dxil.dll and a WARP device; llvmpipe needs neither and reports OpenGL
+      # 4.6 Core, well past the 3.2 VTK requires.
+      GALLIUM_DRIVER: llvmpipe
 
     steps:
       - name: Check out the repository
@@ -50,11 +55,65 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      # The runner has no GPU, and Microsoft's System32 opengl32.dll is a GDI
+      # stub capped at OpenGL 1.1. VTK 9.7 needs 3.2+, so without this step
+      # vtkWin32OpenGLRenderWindow cannot find a usable pixel format, VTK falls
+      # back to vtkOSOpenGLRenderWindow, osmesa.dll is absent, and the process
+      # dies partway through the suite.
+      #
+      # Mesa's Windows build is a software WGL implementation: opengl32.dll is a
+      # thin frontend whose only non-system import is libgallium_wgl.dll, which
+      # contains the llvmpipe rasteriser. Nothing else from the package is
+      # needed, and neither DLL wants a Visual C++ redistributable.
+      #
+      # They go in the interpreter's own directory. That is the application
+      # directory for every `python` call in this job, and the application
+      # directory is searched ahead of System32, so VTK's load-time import of
+      # OPENGL32.dll resolves to Mesa. It is also already on PATH, which covers
+      # any implementation VTK loads at run time instead. PATH alone would not
+      # be enough: since Python 3.8 an extension module's load-time dependencies
+      # are resolved only from the module's own directory, directories added
+      # with os.add_dll_directory, the application directory and the system
+      # directories -- not from PATH.
+      #
+      # Source: pal1000/mesa-dist-win, the Windows Mesa build that VTK's own
+      # fallback message directs users to. Pinned to a release tag and verified
+      # by SHA-256 before anything is extracted. The DLLs are fetched here and
+      # never committed to the repository, and nothing about a normal Windows
+      # user installation changes: this step exists only on the runner.
+      - name: Provide software OpenGL (Mesa llvmpipe)
+        shell: bash
+        env:
+          MESA_VERSION: "26.2.4"
+          MESA_SHA256: 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
+        run: |
+          set -euo pipefail
+          # Staged outside the checkout, so the workspace the suite runs in and
+          # the uploaded log artifact stay exactly what git produced.
+          work="$(mktemp -d)"
+          name="mesa3d-${MESA_VERSION}-release-msvc.7z"
+          url="https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VERSION}/${name}"
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 5 --retry-all-errors --output "$work/$name" "$url"
+          echo "${MESA_SHA256}  $work/$name" | sha256sum --check --strict
+          7z x -y -o"$work/mesa" "$work/$name" x64/opengl32.dll x64/libgallium_wgl.dll
+          interpreter_dir=$(python -c "import pathlib, sys; print(pathlib.Path(sys.executable).parent.as_posix())")
+          cp "$work/mesa/x64/opengl32.dll" "$work/mesa/x64/libgallium_wgl.dll" "$interpreter_dir"
+          # setup-python already puts this directory on PATH; stating it here
+          # means the guarantee does not rest on that action's internals.
+          echo "$interpreter_dir" >> "$GITHUB_PATH"
+          ls -l "$interpreter_dir/opengl32.dll" "$interpreter_dir/libgallium_wgl.dll"
+
       # The same import check Start Antenna Surrogate Studio.bat runs before it
       # launches. It fails fast and clearly when a wheel is missing or broken,
       # instead of surfacing later as hundreds of confusing test errors.
       - name: Verify the application imports
         run: python -c "import tkinter, customtkinter, numpy, sklearn, scipy, joblib, xgboost, shapely, vtkmodules; from studio.ui import run"
+
+      # Report the implementation VTK actually bound, and stop here if it is
+      # not Mesa. Otherwise a provisioning regression would surface as an
+      # unexplained crash in whichever test first opens a render window.
+      - name: Verify VTK renders on software OpenGL
+        run: python .github/scripts/verify_software_opengl.py
 
       # bash (Git for Windows) is used for pipefail: it keeps the suite's exit
       # code when the output is piped to tee. A PowerShell pipeline would
@@ -71,12 +130,21 @@ jobs:
       # machine, so any skip here is a finding and fails the job. If a skip is
       # ever genuinely unavoidable in CI, add it to this step deliberately with
       # a comment saying which external software is missing and why.
-      - name: Fail on silently skipped tests
+      - name: Verify the suite completed and skipped nothing
         if: always()
         shell: bash
         run: |
           if [ ! -f test-output.txt ]; then
             echo "No test output was captured; the suite did not run." >&2
+            exit 1
+          fi
+          # A crash kills the runner before unittest prints its summary, and a
+          # truncated log contains no skips either. Require the summary line, so
+          # "zero skipped" can never be read off a run that never finished.
+          if ! grep -qE "^Ran [0-9]+ tests" test-output.txt; then
+            echo "::error::The suite did not reach its summary line; it crashed or was killed."
+            echo "Last 40 lines of output:"
+            tail -n 40 test-output.txt
             exit 1
           fi
           skipped=$(grep -c "\.\.\. skipped" test-output.txt || true)

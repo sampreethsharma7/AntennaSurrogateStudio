@@ -69,19 +69,32 @@ that step deliberately, with a comment naming the missing software.
 | CST Studio Suite | `test_cst_native_history.py` patches `win32com.client.DispatchEx` and `pythoncom`; no COM server is contacted. The `.bas` adapter is pure text generation. |
 | Ollama | `test_assistant.py` patches `urllib.request.urlopen` with a local fake. |
 | Gemini / Groq / OpenRouter keys | `test_antenna_llm_planner.py` writes throwaway `.env` fixtures with dummy values and asserts the missing-key errors. No request leaves the runner. |
-| A GPU vendor driver | `test_antenna_vtk_preview.py` only builds and inspects `vtkPolyData` and computes viewport scaling, with no render window at all. The builder-page tests do construct the preview widget, which creates an **offscreen** `vtkRenderWindow`; its assertions count actors rather than pixels, so they do not depend on a successful draw. See the note below. |
+| A GPU vendor driver | The workflow provisions Mesa's software OpenGL on the runner, so the **offscreen** `vtkRenderWindow` that the builder-page tests create renders without one. See the note below. |
 
 The complete verbose log is uploaded as the `test-output-windows-py312`
 artifact on every run, including failures, so a red build can be diagnosed
 without rerunning it.
 
-**One thing to watch on the first run.** The antenna preview creates an
-offscreen `vtkRenderWindow`, and GitHub's Windows images have no GPU vendor
-driver. Actor-count assertions do not need a successful draw, so this is
-expected to be fine, but it has not been proven on a hosted runner. If VTK
-rendering turns out to be the thing that fails, the log will say so plainly, and
-the fix is to provide a software OpenGL implementation on the runner (a Mesa
-`opengl32.dll` alongside the interpreter) rather than to skip the tests.
+**Software OpenGL on the runner.** GitHub's Windows images have no GPU, and
+Microsoft's `opengl32.dll` in `System32` is a GDI stub capped at OpenGL 1.1.
+VTK 9.7 needs 3.2 or newer. An earlier revision of this file guessed that the
+builder-page tests would survive that, because their assertions count actors
+rather than pixels; they did not. `vtkWin32OpenGLRenderWindow` could not find a
+usable pixel format, VTK fell back to `vtkOSOpenGLRenderWindow`, no `osmesa.dll`
+was present, and the process died partway through the suite.
+
+The workflow now provisions Mesa's software WGL implementation: `opengl32.dll`
+and `libgallium_wgl.dll` from a version-pinned, SHA-256-verified
+[mesa-dist-win](https://github.com/pal1000/mesa-dist-win) release, copied into
+the interpreter's own directory, which the Windows loader searches ahead of
+`System32`. `GALLIUM_DRIVER=llvmpipe` picks the software rasteriser, which
+reports OpenGL 4.6 Core. A dedicated step renders a frame and fails the job
+unless VTK really did bind Mesa, so a provisioning regression is reported as
+itself instead of as a crash in an unrelated test.
+
+This affects the runner only. Nothing is added to the repository, and a normal
+Windows installation is unchanged: on a real desktop VTK uses the GPU driver
+that is already there.
 
 ## Documentation
 
