@@ -4,7 +4,7 @@ Contract version: 3.97
 Studio version: 0.34.0-beta
 UI source SHA-256: df816406dfcbcdf0360fe780703cd3af0ea7aed716367966c11c8e00218b3f77
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
-Antenna Builder UI source SHA-256: cabc9f361b05272e02dc1c2e394310351a1d9468d84f4c1994434f3738ab2c94
+Antenna Builder UI source SHA-256: c2c24eaa67f5ca8827e674c7162d3e1a7a49bf31fd87fe681d7e3491eced784e
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42

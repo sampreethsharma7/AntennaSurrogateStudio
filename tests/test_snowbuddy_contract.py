@@ -9,7 +9,19 @@ BLIND_GUI = ROOT / "snowbuddy" / "BLIND_GUI_READ.md"
 
 
 def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash a GUI source independently of the checkout's line endings.
+
+    `.gitattributes` declares `*.py text eol=lf`, so every fresh clone holds LF
+    and the recorded hashes have to describe that. Hashing raw bytes recorded
+    whatever the local working copy happened to hold instead, which another
+    checkout cannot reproduce: one source hashed cabc9f36 on a stale CRLF copy
+    and c2c24eaa in CI, with byte-identical content once the endings were
+    normalized. Reading in text mode folds CRLF and lone CR to LF, so the
+    contract describes the source and not the clone.
+    """
+
+    normalized = path.read_text(encoding="utf-8")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class SnowBuddyContractTests(unittest.TestCase):
