@@ -182,23 +182,67 @@ class OnboardingDecisionTests(unittest.TestCase):
                     )
                 )
 
-    def test_a_project_that_already_chose_a_planner_is_never_interrupted(self):
-        # Including a deliberate offline choice: reopening an existing design
-        # must not demand a cloud key the user already declined.
-        project = self._fresh_project()
-        for provider in (LOCAL_OLLAMA, GEMINI):
-            with self.subTest(provider=provider):
-                updated = self.store.update_project(
-                    project, {"antenna_builder": {"planner_provider": provider}}
+    def test_a_recorded_offline_choice_is_never_interrupted(self):
+        # Reopening an existing design must not demand a cloud key the user
+        # already declined.
+        project = self.store.update_project(
+            self._fresh_project(),
+            {"antenna_builder": {"planner_provider": LOCAL_OLLAMA}},
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(
+                cloud_onboarding_required(
+                    project,
+                    env_file="absent.env",
+                    credential_backend=FakeCredentialStore(),
                 )
-                with patch.dict(os.environ, {}, clear=True):
-                    self.assertFalse(
-                        cloud_onboarding_required(
-                            updated,
-                            env_file="absent.env",
-                            credential_backend=FakeCredentialStore(),
-                        )
-                    )
+            )
+
+    def test_a_recorded_cloud_choice_is_honoured_only_while_its_key_exists(self):
+        """A stored provider settles the question; a stored provider with no
+        key does not.
+
+        Keys get removed from the API keys dialog, revoked at the provider, or
+        left behind on another machine. Treating the recorded choice alone as
+        settled sent the user into the builder with a dead credential, and the
+        request then failed inside the planner telling them to set an
+        environment variable -- which is the ending this dialog exists to
+        prevent.
+        """
+
+        project = self.store.update_project(
+            self._fresh_project(),
+            {"antenna_builder": {"planner_provider": GEMINI}},
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(
+                cloud_onboarding_required(
+                    project,
+                    env_file="absent.env",
+                    credential_backend=FakeCredentialStore(
+                        {(KEYRING_SERVICE, "gemini"): SECRET}
+                    ),
+                ),
+                "a usable key must not be interrupted",
+            )
+            self.assertTrue(
+                cloud_onboarding_required(
+                    project,
+                    env_file="absent.env",
+                    credential_backend=FakeCredentialStore(),
+                ),
+                "a recorded cloud provider whose key is gone must ask again",
+            )
+            # Another provider's key is no substitute for the one in use.
+            self.assertTrue(
+                cloud_onboarding_required(
+                    project,
+                    env_file="absent.env",
+                    credential_backend=FakeCredentialStore(
+                        {(KEYRING_SERVICE, "groq"): SECRET}
+                    ),
+                )
+            )
 
     def test_a_legacy_project_recorded_only_as_a_backend_is_not_interrupted(self):
         project = self.store.update_project(
@@ -621,6 +665,14 @@ class BuilderEntryGatingTests(unittest.TestCase):
         self.backend = FakeCredentialStore()
         self.start_page.credential_backend = self.backend
         self.calls = []
+        # Adopting a provider asks it for its model catalog. That is right in
+        # the application and wrong in a test suite, which must never reach the
+        # network, so the request is recorded instead of made.
+        patcher = patch.object(
+            self.app.antenna_builder_page, "_refresh_models_async"
+        )
+        self.model_refreshes = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.app.withdraw()
@@ -664,23 +716,21 @@ class BuilderEntryGatingTests(unittest.TestCase):
         self.start_page.setup_dialog_runner = self._runner(
             SetupOutcome(provider=GEMINI, verified=True)
         )
-        with patch.object(builder, "_refresh_models_async"), patch.dict(
-            os.environ, {}, clear=True
-        ):
+        with patch.dict(os.environ, {}, clear=True):
             self.start_page.choose_template()
             self.app.update()
 
         self.assertEqual(builder._provider_id(), GEMINI)
         self.assertEqual(builder._selected_model_id(), DEFAULT_MODELS[GEMINI])
+        # It asked the provider for its catalog rather than reaching out itself.
+        self.assertTrue(self.model_refreshes.called)
 
     def test_choosing_the_offline_planner_leaves_the_builder_on_it(self):
         builder = self.app.antenna_builder_page
         self.start_page.setup_dialog_runner = self._runner(
             SetupOutcome(provider=LOCAL_OLLAMA, verified=False)
         )
-        with patch.object(builder, "_refresh_models_async"), patch.dict(
-            os.environ, {}, clear=True
-        ):
+        with patch.dict(os.environ, {}, clear=True):
             self.start_page.choose_template()
             self.app.update()
 

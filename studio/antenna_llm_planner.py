@@ -1428,7 +1428,9 @@ class GeminiSchemaConstrainedPlanner(_AgentLoopPlannerMixin):
     ) -> LLMToolPlan:
         if not self.api_key:
             raise CapabilityError(
-                "Gemini cloud planner requires GEMINI_API_KEY. Set it in the environment or in the ignored project .env file; Local Ollama remains available."
+                "No Gemini API key is set up. Use the API keys button beside the model "
+                "menu to add one. Setting GEMINI_API_KEY in the environment or a .env "
+                "file also works, and Local Ollama needs no key at all."
             )
         if not self.model:
             raise CapabilityError("Choose a Gemini model before using the cloud planner.")
@@ -1690,7 +1692,9 @@ class GroqSchemaConstrainedPlanner(_AgentLoopPlannerMixin):
     ) -> LLMToolPlan:
         if not self.api_key:
             raise CapabilityError(
-                "Groq cloud planner requires GROQ_API_KEY. Set it in the environment or in the ignored project .env file; Local Ollama remains available."
+                "No Groq API key is set up. Use the API keys button beside the model "
+                "menu to add one. Setting GROQ_API_KEY in the environment or a .env "
+                "file also works, and Local Ollama needs no key at all."
             )
         if not self.model:
             raise CapabilityError("Choose a Groq model before using the cloud planner.")
@@ -1858,7 +1862,9 @@ class OpenRouterNemotronPlanner(_AgentLoopPlannerMixin):
     ) -> LLMToolPlan:
         if not self.api_key:
             raise CapabilityError(
-                "OpenRouter Nemotron planner requires OPENROUTER_API_KEY. Set it in the environment or in the ignored project .env file; Local Ollama remains available."
+                "No OpenRouter API key is set up. Use the API keys button beside the "
+                "model menu to add one. Setting OPENROUTER_API_KEY in the environment "
+                "or a .env file also works, and Local Ollama needs no key at all."
             )
         if not self.model:
             raise CapabilityError("Choose an OpenRouter model before using the cloud planner.")

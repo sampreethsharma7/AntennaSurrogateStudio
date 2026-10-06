@@ -85,6 +85,17 @@ def _active_color(value: str | tuple[str, str]) -> str:
     return value[1] if ctk.get_appearance_mode().lower() == "dark" else value[0]
 
 
+# Planner identifiers written by versions before providers were named.
+LEGACY_BACKENDS: dict[str, str] = {
+    "local_qwen": LOCAL_OLLAMA,
+    "gemini_cloud": GEMINI,
+    "groq_gpt_oss_120b_cloud": GROQ,
+    "groq_cloud": GROQ,
+    "openrouter_nemotron_3_ultra_free_cloud": OPENROUTER,
+    "openrouter_cloud": OPENROUTER,
+}
+
+
 def cloud_onboarding_required(
     project: Project | None,
     *,
@@ -111,10 +122,23 @@ def cloud_onboarding_required(
     if project is None:
         return False
     settings = project.manifest.get("antenna_builder")
-    if isinstance(settings, dict) and (
-        settings.get("planner_provider") or settings.get("planner_backend")
-    ):
+    recorded = None
+    if isinstance(settings, dict):
+        recorded = settings.get("planner_provider") or LEGACY_BACKENDS.get(
+            str(settings.get("planner_backend") or "")
+        )
+    if recorded is not None and recorded not in CLOUD_PROVIDERS:
+        # A deliberate offline choice. Reopening it is not a first run.
         return False
+    if recorded in CLOUD_PROVIDERS:
+        # A recorded cloud provider only settles the question while its key is
+        # still there. Keys get removed, revoked, or left behind on another
+        # machine, and without this the request fails inside the planner with
+        # a message about an environment variable -- the exact ending this
+        # dialog exists to prevent.
+        return not has_credential(
+            recorded, env_file=env_file, backend=credential_backend
+        )
     return not any(
         has_credential(provider, env_file=env_file, backend=credential_backend)
         for provider in CLOUD_PROVIDERS
@@ -1124,14 +1148,10 @@ class AntennaBuilderPage(ctk.CTkFrame):
             ):
                 self._persisted_sweep_parameters = set(stored_sweep_parameters)
             legacy_backend = str(settings.get("planner_backend", "local_qwen"))
-            provider = str(settings.get("planner_provider") or {
-                "local_qwen": LOCAL_OLLAMA,
-                "gemini_cloud": GEMINI,
-                "groq_gpt_oss_120b_cloud": GROQ,
-                "groq_cloud": GROQ,
-                "openrouter_nemotron_3_ultra_free_cloud": OPENROUTER,
-                "openrouter_cloud": OPENROUTER,
-            }.get(legacy_backend, LOCAL_OLLAMA))
+            provider = str(
+                settings.get("planner_provider")
+                or LEGACY_BACKENDS.get(legacy_backend, LOCAL_OLLAMA)
+            )
             if provider not in PROVIDER_LABELS:
                 provider = LOCAL_OLLAMA
             model = str(settings.get("planner_model") or DEFAULT_MODELS[provider])

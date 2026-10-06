@@ -212,7 +212,7 @@ class LLMPlannerTests(unittest.TestCase):
     def test_gemini_missing_key_is_clear_and_local_planner_remains_independent(self):
         with patch.dict(os.environ, {}, clear=True):
             planner = GeminiSchemaConstrainedPlanner(api_key="", env_file=Path("missing.env"))
-            with self.assertRaisesRegex(CapabilityError, "GEMINI_API_KEY.*Local Ollama remains available"):
+            with self.assertRaisesRegex(CapabilityError, "API keys button.*GEMINI_API_KEY.*Local Ollama needs no key"):
                 planner.plan(
                     instruction="Make the patch wider",
                     current_design=self.state.to_dict(),
@@ -385,7 +385,7 @@ class LLMPlannerTests(unittest.TestCase):
             with patch.dict(os.environ, {}, clear=True):
                 self.assertEqual(load_groq_api_key(env_file=env_file), "file-key")
                 planner = GroqSchemaConstrainedPlanner(api_key="", env_file=Path(directory) / "missing.env")
-                with self.assertRaisesRegex(CapabilityError, "GROQ_API_KEY.*Local Ollama remains available"):
+                with self.assertRaisesRegex(CapabilityError, "API keys button.*GROQ_API_KEY.*Local Ollama needs no key"):
                     planner.plan(
                         instruction="Make the patch wider",
                         current_design=self.state.to_dict(),
@@ -484,7 +484,7 @@ class LLMPlannerTests(unittest.TestCase):
                 planner = OpenRouterNemotronPlanner(
                     api_key="", env_file=Path(directory) / "missing.env"
                 )
-                with self.assertRaisesRegex(CapabilityError, "OPENROUTER_API_KEY.*Local Ollama remains available"):
+                with self.assertRaisesRegex(CapabilityError, "API keys button.*OPENROUTER_API_KEY.*Local Ollama needs no key"):
                     planner.plan(
                         instruction="Make the patch wider",
                         current_design=self.state.to_dict(),
