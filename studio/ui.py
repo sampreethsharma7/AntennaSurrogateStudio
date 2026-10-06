@@ -4231,6 +4231,9 @@ class ModelTrainingPage(ctk.CTkFrame):
         self._training_elapsed_after_id: str | None = None
         self._training_started_at = 0.0
         self.latest_run_number: int | None = None
+        # The project whose finished run `latest_run_number` describes, so a
+        # manifest snapshot captured before that run cannot erase it.
+        self._latest_run_path: Path | None = None
         self.latest_run_var = ctk.StringVar(value="Latest Run: None")
 
         self.grid_columnconfigure(0, weight=1)
@@ -5101,7 +5104,13 @@ class ModelTrainingPage(ctk.CTkFrame):
 
     def _reset_ui_state(self) -> None:
         if self.training_in_progress:
+            # This abandons a run that is still executing, which happens when
+            # the page is handed a different project mid-run.  Retire the job
+            # id so the result is ignored when it lands, and disarm the poll:
+            # leaving it armed suppressed the next run's own poll, because
+            # `_schedule_training_poll` is a no-op while an id is held.
             self._training_job_id += 1
+            self._cancel_training_poll()
         self._set_training_busy(False)
         self.state.reset()
         self.last_training_request = None
@@ -5388,8 +5397,26 @@ class ModelTrainingPage(ctk.CTkFrame):
             )
             return
 
-        self.project = self.app.update_current_project({})
+        # Record the finished run before persisting it.  The model and its
+        # artifacts are already on disk, so the run number is known regardless
+        # of whether the project record can be rewritten.
         self._set_latest_run(result.run_number)
+        self._latest_run_path = self.project.path if self.project else None
+        try:
+            self.project = self.app.update_current_project({})
+        except (OSError, ProjectError) as exc:
+            # A manifest rewrite can fail transiently while another process
+            # holds the file.  This used to abandon the rest of the completion
+            # path, and Tk swallowed the exception, leaving the page silently
+            # half-updated: busy cleared, no results, no message.
+            messagebox.showwarning(
+                "Project record not updated",
+                "Training finished and the model artifacts were saved, but the "
+                "project file could not be updated:\n\n"
+                f"{exc}\n\n"
+                "Reopen the project to refresh its recorded status.",
+                parent=self,
+            )
         metrics = result.metrics
         pooled_r_squared = pooled_r_squared_from_prediction_records(result.predictions)
         r_squared_label = (
@@ -5571,12 +5598,31 @@ class ModelTrainingPage(ctk.CTkFrame):
 
     def _load_latest_run(self, project: Project | None) -> None:
         if project is None:
+            self._latest_run_path = None
             self._set_latest_run(None)
             return
+        recorded = self._recorded_run_number(project)
+        # `Project.manifest` is a copy taken when the object was built, so a
+        # caller can hold one that predates a run this page has already
+        # recorded -- including the page's own `self.project` when the
+        # post-training manifest rewrite failed.  Reporting that older value
+        # would retract a run whose model and artifacts are on disk, so for
+        # the project the run belongs to the recorded number only moves
+        # forward.  A different project still reports its own state.
+        if (
+            self._latest_run_path == project.path
+            and self.latest_run_number is not None
+            and (recorded is None or recorded < self.latest_run_number)
+        ):
+            return
+        self._latest_run_path = project.path
+        self._set_latest_run(recorded)
+
+    @staticmethod
+    def _recorded_run_number(project: Project) -> int | None:
         training_state = project.manifest.get("model_training")
         if not isinstance(training_state, dict):
-            self._set_latest_run(None)
-            return
+            return None
         raw_number = training_state.get("latest_run_number")
         if raw_number is None and training_state.get("status") == "TRAINING_COMPLETED":
             raw_number = 1
@@ -5584,7 +5630,15 @@ class ModelTrainingPage(ctk.CTkFrame):
             run_number = int(raw_number)
         except (TypeError, ValueError):
             run_number = 0
-        self._set_latest_run(run_number if run_number > 0 else None)
+        return run_number if run_number > 0 else None
+
+    def _cancel_training_poll(self) -> None:
+        if self._training_poll_after_id is not None:
+            try:
+                self.after_cancel(self._training_poll_after_id)
+            except tk.TclError:
+                pass
+            self._training_poll_after_id = None
 
     def _set_latest_run(self, run_number: int | None) -> None:
         self.latest_run_number = run_number

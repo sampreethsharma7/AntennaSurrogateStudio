@@ -2,7 +2,7 @@
 
 Contract version: 3.97
 Studio version: 0.33.2
-UI source SHA-256: 90a21e271f3623095cf7fa76f2238d3ff729faa14dfe8e7b0de9d5857c98fcb2
+UI source SHA-256: df816406dfcbcdf0360fe780703cd3af0ea7aed716367966c11c8e00218b3f77
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
 Antenna Builder UI source SHA-256: cabc9f361b05272e02dc1c2e394310351a1d9468d84f4c1994434f3738ab2c94
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
@@ -635,7 +635,13 @@ label hides, the button is enabled again, and it returns to “Train Model.”
 
 The left side of the action bar displays the persisted latest-run readout. It
 shows “Latest Run: None” before the first successful run and then uses the exact
-format “Latest Run: Run 3.” Reopening the project restores this readout.
+format “Latest Run: Run 3.” Reopening the project restores this readout. The
+readout never moves backwards for the project the run belongs to: once a run has
+finished, a later refresh against an older project record leaves the number
+alone, so a finished run is not retracted from the display while its model and
+artifacts exist on disk. Opening a different project shows that project’s own
+value, and starting a run and then switching project abandons the first run’s
+readout rather than reporting it against the new project.
 
 Linear Regression executes in Auto Medium, Auto High, or Custom. All modes load
 the active integrity-checked registered dataset and create the same deterministic
@@ -732,6 +738,13 @@ If request validation fails, a user-facing “Invalid training configuration”
 dialog shows the contract message and the backend is not called. Dataset or
 execution failures use a “Training failed” dialog. Neither exposes a raw
 traceback.
+
+If training itself succeeds but the project file cannot be rewritten — for
+example while another process briefly holds it — a “Project record not updated”
+warning reports that the model and its artifacts were saved, quotes the
+underlying error, and advises reopening the project to refresh its recorded
+status. The completed run is still reported: the latest-run readout, the
+completion dialog and the results page are unaffected.
 The fixed footer provides “Back to Data Prep” and an enabled “View Training
 Results” action. The latter reads saved run artifacts and never starts training.
 
