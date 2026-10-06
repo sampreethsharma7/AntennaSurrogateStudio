@@ -461,6 +461,34 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.assertIsNone(self.page.session)
         self.assertEqual(self.page.apply_button.cget("state"), "disabled")
 
+    def test_the_planner_controls_are_all_wide_enough_to_use(self):
+        """Every control in the planner row has to be visible, not just present.
+
+        These share one grid, and the provider menu holds the only stretchy
+        column, so anything added beside them comes out of its width. Adding
+        the API keys button next to the model menu squeezed the provider menu
+        to 2px: still there, still selectable from code, and invisible to the
+        person who has to change provider with it.
+        """
+
+        self.app.design_start_page.choose_template()
+        self.app.update()
+        self.app.update_idletasks()
+        for name, widget in (
+            ("provider menu", self.page.planner_menu),
+            ("model menu", self.page.model_menu),
+            ("refresh button", self.page.refresh_models_button),
+            ("API keys button", self.page.api_keys_button),
+            ("free-only checkbox", self.page.free_only_checkbox),
+        ):
+            with self.subTest(control=name):
+                self.assertEqual(widget.winfo_manager(), "grid", f"{name} is not laid out")
+                self.assertGreaterEqual(
+                    widget.winfo_width(),
+                    60,
+                    f"{name} is {widget.winfo_width()}px wide, too narrow to use",
+                )
+
     def test_planner_selector_marks_cloud_context_and_uses_gemini_backend(self):
         self.app.design_start_page.choose_template()
         self.assertEqual(self.page.planner_var.get(), LOCAL_QWEN_LABEL)

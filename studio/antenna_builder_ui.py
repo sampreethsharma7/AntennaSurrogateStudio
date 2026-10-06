@@ -539,7 +539,7 @@ class AntennaBuilderPage(ctk.CTkFrame):
             font=FONTS["caption"],
             command=self._model_changed,
         )
-        self.model_menu.grid(row=1, column=1, columnspan=3, pady=(5, 0), sticky="ew")
+        self.model_menu.grid(row=1, column=1, columnspan=2, pady=(5, 0), sticky="ew")
         self.free_only_checkbox = ctk.CTkCheckBox(
             planner_row,
             text="Free only",
@@ -576,7 +576,13 @@ class AntennaBuilderPage(ctk.CTkFrame):
             text_color=COLORS["ink"],
             command=self.open_api_key_settings,
         )
-        self.api_keys_button.grid(row=1, column=4, padx=(4, 0), pady=(5, 0))
+        # Shares the Refresh button's column rather than opening a fifth one.
+        # A fifth column is a fifth column on both selector rows, and the
+        # provider menu holds the only stretchy one, so a button beside the
+        # model menu squeezed the provider menu from the 162px it asks for
+        # down to 2px. A row of its own instead costs height the 1366x768
+        # layout has already spent.
+        self.api_keys_button.grid(row=1, column=3, padx=(4, 0), pady=(5, 0), sticky="e")
         self.planner_notice_label = ctk.CTkLabel(
             instruction,
             textvariable=self.planner_notice_var,
