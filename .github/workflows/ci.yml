@@ -1,0 +1,116 @@
+name: CI
+
+# The Studio is a Windows-first desktop application. Its GUI and VTK coverage
+# only executes on a runner with a desktop session, so CI runs on Windows
+# rather than the cheaper Linux default: on Linux every Tk test would skip and
+# the suite would report a green run with the UI coverage silently missing.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows-tests:
+    name: Tests (windows-latest, Python 3.12)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    env:
+      # Keep stdout UTF-8 so the captured log survives characters the suite
+      # prints, such as "Pooled R²". This affects the runner's stdio only, not
+      # how the application reads or writes files.
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # setup_windows.bat prefers 3.12, then 3.11, then 3.13. CI pins the
+      # first preference; README.md and INSTALL.md document all three as
+      # supported.
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      # The same import check Start Antenna Surrogate Studio.bat runs before it
+      # launches. It fails fast and clearly when a wheel is missing or broken,
+      # instead of surfacing later as hundreds of confusing test errors.
+      - name: Verify the application imports
+        run: python -c "import tkinter, customtkinter, numpy, sklearn, scipy, joblib, xgboost, shapely, vtkmodules; from studio.ui import run"
+
+      # bash (Git for Windows) is used for pipefail: it keeps the suite's exit
+      # code when the output is piped to tee. A PowerShell pipeline would
+      # discard it and report a green job for a red suite.
+      - name: Run the full test suite
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee test-output.txt
+
+      # A skipped GUI or VTK test looks identical to a passing one in the exit
+      # code, so a silent skip would quietly delete the UI coverage this job
+      # exists to provide. The suite skips nothing on a healthy Windows
+      # machine, so any skip here is a finding and fails the job. If a skip is
+      # ever genuinely unavoidable in CI, add it to this step deliberately with
+      # a comment saying which external software is missing and why.
+      - name: Fail on silently skipped tests
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f test-output.txt ]; then
+            echo "No test output was captured; the suite did not run." >&2
+            exit 1
+          fi
+          skipped=$(grep -c "\.\.\. skipped" test-output.txt || true)
+          {
+            echo "### Test run"
+            echo
+            grep -E "^Ran [0-9]+ tests" test-output.txt || true
+            echo
+            echo "Skipped tests: ${skipped}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$skipped" -ne 0 ]; then
+            echo "::error::${skipped} test(s) skipped. GUI and VTK coverage must execute on this runner."
+            echo "Skipped tests:"
+            grep "\.\.\. skipped" test-output.txt
+            {
+              echo
+              echo "<details><summary>Skipped tests</summary>"
+              echo
+              echo '```'
+              grep "\.\.\. skipped" test-output.txt
+              echo '```'
+              echo
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "No tests were skipped; GUI and VTK coverage executed."
+
+      # Kept for every outcome, so a red run can be diagnosed without a rerun.
+      - name: Upload the full test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-windows-py312
+          path: test-output.txt
+          retention-days: 30
+          if-no-files-found: warn
