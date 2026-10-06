@@ -25,7 +25,15 @@ from studio.model_training import (
 from studio.parser_engine import TrainingRequest
 from studio.project_store import ProjectStore
 from studio.scientific_plot import MAX_SCATTER_MARKERS
-from studio.ui import StudioApp, responsive_window_layout
+from laptop_viewport import pin_laptop_ui_scale
+from studio.ui import (
+    DESIGN_MIN_WIDTH,
+    SIDEBAR_COLLAPSED_WIDTH,
+    StudioApp,
+    _content_sized_dialog_dimensions,
+    expanded_sidebar_width,
+    responsive_window_layout,
+)
 
 
 GUI_MAY_BE_AVAILABLE = (
@@ -53,6 +61,66 @@ class ResponsiveWindowLayoutTests(unittest.TestCase):
                     1.0,
                 )
                 self.assertTrue(layout.compact)
+
+    def test_a_screen_narrower_than_the_design_minimum_shrinks_the_ui(self):
+        # Below DESIGN_MIN_WIDTH the bounded scale shrinks the interface to fit
+        # instead of clipping it, and fonts shrink with the boxes. A hosted CI
+        # session reports 1024x768 and lands here, which is why the laptop
+        # layout tests pin their own scale: this path is asserted directly.
+        layout = responsive_window_layout(1024, 768, 1.0)
+        self.assertAlmostEqual(layout.ui_scaling, 1024 / DESIGN_MIN_WIDTH)
+        self.assertLess(layout.ui_scaling, 1.0)
+        self.assertTrue(layout.compact)
+        self.assertEqual((layout.width, layout.height), (1024, 768))
+        # The floor stops an absurdly small screen from shrinking it further.
+        self.assertAlmostEqual(
+            responsive_window_layout(600, 400, 1.0).ui_scaling, 0.8
+        )
+
+    def test_content_sized_dialogs_keep_actions_visible_at_common_scaling(self):
+        for dpi_scaling in (1.0, 1.25, 1.5):
+            with self.subTest(dpi_scaling=dpi_scaling):
+                window_scaling = 1.0 / dpi_scaling
+                for requested_width, requested_height, minimum_width, minimum_height in (
+                    (540, 428, 540, 430),
+                    (580, 620, 580, 540),
+                ):
+                    width, height = _content_sized_dialog_dimensions(
+                        requested_width,
+                        requested_height,
+                        window_scaling=window_scaling,
+                        screen_width_px=1366,
+                        screen_height_px=768,
+                        minimum_width=minimum_width,
+                        minimum_height=minimum_height,
+                    )
+                    self.assertGreaterEqual(round(width * window_scaling), requested_width)
+                    self.assertGreaterEqual(round(height * window_scaling), requested_height)
+                    self.assertLessEqual(round(width * window_scaling), 1326)
+                    self.assertLessEqual(round(height * window_scaling), 728)
+
+    def test_runtime_dpi_change_reapplies_bounded_scaling(self):
+        initial = responsive_window_layout(1366, 768, 1.0)
+        app = SimpleNamespace(
+            _applied_dpi_scaling=1.0,
+            window_layout=initial,
+            ui_scaling=initial.ui_scaling,
+            winfo_screenwidth=lambda: 1366 / 1.5,
+            winfo_screenheight=lambda: 768 / 1.5,
+        )
+
+        with (
+            patch("studio.ui._window_dpi_scaling", return_value=1.5),
+            patch("studio.ui.ctk.set_window_scaling") as set_window_scaling,
+            patch("studio.ui.ctk.set_widget_scaling") as set_widget_scaling,
+        ):
+            changed = StudioApp._refresh_dpi_scaling(app)
+
+        self.assertTrue(changed)
+        self.assertEqual(app._applied_dpi_scaling, 1.5)
+        self.assertLessEqual(app.ui_scaling, 1.08)
+        set_window_scaling.assert_called_once_with(1.0 / 1.5)
+        set_widget_scaling.assert_called_once_with(app.ui_scaling / 1.5)
 
 
 def create_active_book(project, *, output_count=1, name="Page Model"):
@@ -115,6 +183,9 @@ def create_active_book(project, *, output_count=1, name="Page Model"):
 class InferencePageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # The laptop layout test below asserts design-pixel geometry, so the UI
+        # scale must come from a 1366x768 viewport, not from the host screen.
+        pin_laptop_ui_scale(cls)
         test_root = Path(__file__).resolve().parents[1] / ".test_runs"
         test_root.mkdir(exist_ok=True)
         cls.temp_dir = tempfile.TemporaryDirectory(dir=test_root)
@@ -198,6 +269,17 @@ class InferencePageTests(unittest.TestCase):
         self.assertIn("linkedin.com/in/sai-sampreeth-indharapu", message)
 
     def test_required_features_generate_numeric_input_fields(self):
+        project = self.app.update_current_project(
+            {
+                "inference": {
+                    "ui_state": {"model_book_id": "test-reset", "inputs": {}}
+                }
+            }
+        )
+        self.app.set_project(project, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+
         self.assertEqual(list(self.page.input_entries), ["P2", "P3", "P4"])
         self.assertEqual(list(self.page.input_shells), ["P2", "P3", "P4"])
         self.assertTrue(
@@ -206,7 +288,45 @@ class InferencePageTests(unittest.TestCase):
                 for entry in self.page.input_entries.values()
             )
         )
+        self.assertEqual(self.page.input_entries["P2"].get(), "12.5")
+        self.assertEqual(self.page.input_entries["P3"].get(), "3")
+        self.assertEqual(self.page.input_entries["P4"].get(), "2")
+        self.assertEqual(
+            self.page.input_range_labels["P2"].cget("text"),
+            "1 to 24",
+        )
+        self.assertEqual(
+            self.page.input_range_labels["P3"].cget("text"),
+            "0 to 6",
+        )
         self.assertEqual(self.page.input_pager.winfo_manager(), "")
+
+    def test_input_value_and_training_range_share_one_compact_row(self):
+        shell = self.page.input_shells["P2"]
+
+        self.assertEqual(self.page.input_entries["P2"].grid_info()["row"], 0)
+        self.assertEqual(self.page.input_range_labels["P2"].grid_info()["row"], 0)
+        self.assertEqual(self.page.input_entries["P2"].grid_info()["column"], 1)
+        self.assertEqual(self.page.input_range_labels["P2"].grid_info()["column"], 2)
+        self.assertEqual(shell.grid_info()["column"], 0)
+
+    def test_parameter_columns_align_with_a_longer_runtime_name(self):
+        names = ["P2", "SlotRadius", "ManufacturingKeepoutDistance"]
+        self.page._clear_input_fields()
+        self.page._create_input_fields(names)
+        self.app.update()
+
+        self.assertEqual(
+            len({self.page.input_entries[name].winfo_rootx() for name in names}),
+            1,
+        )
+        self.assertEqual(
+            len({self.page.input_range_labels[name].winfo_rootx() for name in names}),
+            1,
+        )
+        long_label = self.page.input_name_labels[names[-1]]
+        self.assertEqual(long_label.cget("text"), names[-1])
+        self.assertGreaterEqual(long_label.winfo_height(), long_label.winfo_reqheight())
 
     def test_many_required_inputs_are_paged_without_losing_values(self):
         self.page.active_book.feature_columns = [f"P{index}" for index in range(1, 11)]
@@ -422,6 +542,62 @@ class InferencePageTests(unittest.TestCase):
         self.assertFalse(self.app.snowbuddy_collapsed)
         self.assertEqual(self.app.snowbuddy_panel.winfo_manager(), "grid")
 
+    def test_every_resume_label_is_covered_by_the_measured_action_width(self):
+        """The hero action stack is sized against every label it can show."""
+
+        from studio.project_store import Project
+        from studio.ui import RESUME_ACTION_LABELS, project_resume_destination
+
+        stages = (
+            "project_created",
+            "data_discovered",
+            "data_prepared",
+            "dataset_registered",
+            "model_trained",
+            "model_saved",
+            "an_unknown_future_stage",
+        )
+        seen = set()
+        for stage in stages:
+            for extra in (
+                {},
+                {"design_start": {"choice": "generated_template"}},
+                {"design_start": {"choice": "existing_design"}},
+                {"model_library": {"active_book_id": "book-0001"}},
+            ):
+                manifest = {"workflow": {"stage": stage}, **extra}
+                project = Project(self.single_project.path, manifest)
+                _destination, label = project_resume_destination(project)
+                seen.add(label)
+        self.assertTrue(
+            seen.issubset(set(RESUME_ACTION_LABELS)),
+            msg=f"unmeasured labels: {sorted(seen - set(RESUME_ACTION_LABELS))}",
+        )
+
+    def test_expanded_sidebar_shows_its_own_text_without_clipping(self):
+        """Nothing in the expanded rail may be narrower than its own text."""
+
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(False)
+        self.app.update()
+
+        clipped = []
+
+        def inspect(widget):
+            if not widget.winfo_ismapped():
+                return
+            width = widget.winfo_width()
+            required = widget.winfo_reqwidth()
+            if width > 1 and required > width + 1:
+                label = str(widget.cget("text"))[:32] if "text" in widget.keys() else ""
+                clipped.append((widget.__class__.__name__, label, width, required))
+            for child in widget.winfo_children():
+                inspect(child)
+
+        inspect(self.app.sidebar)
+        self.assertEqual(clipped, [])
+        self.app.withdraw()
+
     def test_workflow_sidebar_collapses_to_icons_and_navigation_still_works(self):
         self.assertEqual(self.app.workflow_divider.winfo_manager(), "grid")
         self.assertEqual(int(self.app.workflow_divider.cget("width")), 2)
@@ -429,11 +605,19 @@ class InferencePageTests(unittest.TestCase):
         self.app.update_idletasks()
 
         self.assertTrue(self.app.sidebar_collapsed)
-        self.assertEqual(self.app.sidebar.cget("width"), 76)
+        self.assertEqual(self.app.sidebar.cget("width"), SIDEBAR_COLLAPSED_WIDTH)
         self.assertEqual(self.app.sidebar_workflow_label.winfo_manager(), "")
         self.assertEqual(self.app.sidebar_project_shell.winfo_manager(), "")
+        seen_icons = set()
         for name, button in self.app.nav_buttons.items():
             icon, label = self.app.nav_specs[name]
+            # Collapsed navigation shows one distinct mark per destination.
+            # Letter pairs were tried here and read as jargon ("ML" in a
+            # machine-learning tool), so the icons stay pictorial and the label
+            # is carried by the tooltip and the accessible name instead.
+            self.assertEqual(len(icon), 1)
+            self.assertNotIn(icon, seen_icons)
+            seen_icons.add(icon)
             self.assertEqual(button.cget("text"), icon)
             self.assertNotIn(label, button.cget("text"))
             self.assertEqual(button.accessible_name, label)
@@ -450,7 +634,14 @@ class InferencePageTests(unittest.TestCase):
         self.app.sidebar_toggle_button.invoke()
         self.app.update_idletasks()
         self.assertFalse(self.app.sidebar_collapsed)
-        self.assertEqual(self.app.sidebar.cget("width"), 226)
+        # The expanded rail is measured from the strings it renders; a fixed
+        # 226 clipped the brand subtitle, the footer and the Return button.
+        self.assertEqual(
+            self.app.sidebar.cget("width"), self.app.sidebar_expanded_width
+        )
+        self.assertGreaterEqual(
+            self.app.sidebar_expanded_width, expanded_sidebar_width()
+        )
         self.assertIn("Inference", self.app.nav_buttons["inference"].cget("text"))
 
     def test_snowbuddy_uses_top_bar_launcher_and_docked_non_overlay_panel(self):
@@ -506,6 +697,12 @@ class InferencePageTests(unittest.TestCase):
         workbench = self.page.response_plot
         plot_width = workbench.canvas.winfo_width()
         self.assertGreaterEqual(plot_width, 420)
+        self.assertLessEqual(
+            workbench.curve_count_label.winfo_rootx()
+            + workbench.curve_count_label.winfo_width()
+            + 4,
+            workbench.marker_count_label.winfo_rootx(),
+        )
         self.assertLess(
             workbench._plot_bounds[3],
             workbench.canvas.winfo_height(),
@@ -717,6 +914,8 @@ class InferencePageTests(unittest.TestCase):
             payload["export_type"],
             "antenna_surrogate_studio_prediction",
         )
+        self.assertEqual(payload["schema_version"], 2)
+        self.assertEqual(payload["warnings"], [])
         self.assertEqual(payload["model_book"]["book_id"], self.multi_book.book_id)
         self.assertEqual(payload["model_book"]["name"], "Response Model")
         self.assertEqual(
@@ -774,6 +973,7 @@ class InferencePageTests(unittest.TestCase):
 
     def test_missing_and_invalid_numeric_values_show_clear_errors(self):
         with patch("studio.inference_ui.submit_inference_request") as submit:
+            self.page.input_entries["P2"].delete(0, "end")
             self.page.predict_button.invoke()
             self.assertIn("Enter a value for P2", self.page.input_error.cget("text"))
             submit.assert_not_called()
@@ -784,6 +984,55 @@ class InferencePageTests(unittest.TestCase):
             self.page.predict_button.invoke()
             self.assertIn("P3 must be a numeric value", self.page.input_error.cget("text"))
             submit.assert_not_called()
+
+    def test_extrapolation_warns_without_blocking_and_is_exported(self):
+        self._fill_inputs({"P2": 30.0, "P3": 2.0, "P4": 3.0})
+
+        self.page.predict_button.invoke()
+
+        self.assertTrue(self.page.last_result.success)
+        warning_text = self.page.input_error.cget("text")
+        self.assertIn("P2 = 30", warning_text)
+        self.assertIn("outside its training range 1 to 24", warning_text)
+        self.assertIn("extrapolation", warning_text)
+
+        export_path = Path(self.temp_dir.name) / "extrapolated_prediction.json"
+        with (
+            patch(
+                "studio.inference_ui.filedialog.asksaveasfilename",
+                return_value=str(export_path),
+            ),
+            patch("studio.inference_ui.messagebox.showinfo"),
+        ):
+            self.page.export_button.invoke()
+
+        payload = json.loads(export_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(payload["warnings"]), 1)
+        warning = payload["warnings"][0]
+        self.assertEqual(warning["type"], "training_range_extrapolation")
+        self.assertEqual(warning["feature"], "P2")
+        self.assertEqual(warning["value"], 30.0)
+        self.assertEqual(warning["training_minimum"], 1.0)
+        self.assertEqual(warning["training_maximum"], 24.0)
+
+    def test_prediction_export_default_filename_is_unique_per_run(self):
+        defaults: list[str] = []
+
+        for values in (
+            {"P2": 4.0, "P3": 2.0, "P4": 3.0},
+            {"P2": 5.0, "P3": 2.0, "P4": 3.0},
+        ):
+            self._fill_inputs(values)
+            self.page.predict_button.invoke()
+            with patch(
+                "studio.inference_ui.filedialog.asksaveasfilename",
+                return_value="",
+            ) as ask_save:
+                self.page.export_button.invoke()
+            defaults.append(ask_save.call_args.kwargs["initialfile"])
+
+        self.assertNotEqual(defaults[0], defaults[1])
+        self.assertTrue(all(name.endswith(".json") for name in defaults))
 
     def test_no_active_model_disables_prediction_with_guidance(self):
         project = self.store.open_project(self.empty_project.path, touch=False)
@@ -878,6 +1127,21 @@ class InferencePageTests(unittest.TestCase):
         self.app.set_project(reopened)
         self.app.update_idletasks()
         self.assertEqual(self.app.active_page, "inference")
+
+    def test_successful_prediction_inputs_persist_across_project_reopen(self):
+        values = {"P2": 7.25, "P3": 1.5, "P4": 4.0}
+        self._fill_inputs(values)
+        self.page.predict_button.invoke()
+
+        reopened = self.store.open_project(self.single_project.path, touch=False)
+        self.app.set_project(reopened, target_page="inference")
+        self.app.update_idletasks()
+        self.page = self.app.inference_page
+
+        self.assertEqual(
+            {name: float(entry.get()) for name, entry in self.page.input_entries.items()},
+            values,
+        )
 
     def test_start_resume_button_uses_model_saved_stage(self):
         self.app.show_page("start")

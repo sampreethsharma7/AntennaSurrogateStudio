@@ -6,6 +6,7 @@ import tkinter as tk
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from studio.dataset_registry import register_dataset
 from studio.dataset_validation import validate_dataset
@@ -312,7 +313,11 @@ class ModelLibraryPageTests(unittest.TestCase):
         )
         self.assertEqual(
             self.page.metric_values["R²"].cget("text"),
-            f"{self.first.test_metrics['R²']:.6g}",
+            f"{self.first.pooled_test_r_squared:.6g}",
+        )
+        self.assertEqual(
+            self.page.metric_labels["R²"].cget("text"),
+            "POOLED R²",
         )
         self.assertEqual(self.page.details_badge.cget("text"), "Selected Model Book")
         self.assertFalse(self.page.provenance_expanded)
@@ -351,6 +356,11 @@ class ModelLibraryPageTests(unittest.TestCase):
         self.assertNotIn("theta_0", self.page.details_subtitle.cget("text"))
         self.assertIn("+3 more", self.page.required_inputs_value.cget("text"))
         self.assertEqual(self.page.view_inputs_button.winfo_manager(), "grid")
+        with patch("studio.library_ui.messagebox.showinfo") as showinfo:
+            self.page.view_inputs_button.invoke()
+        showinfo.assert_called_once()
+        self.assertIn("P9", showinfo.call_args.args[1])
+        self.assertIn("Showing all 9 required inputs", self.page.footer_status.cget("text"))
         self.assertEqual(
             self.page.book_rows[self.first.book_id]["interface"].cget("text"),
             "9 inputs → 361 outputs",

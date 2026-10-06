@@ -1,0 +1,14 @@
+{
+  "inset": "81955b6384da3582f6d3b60f722bd72d3dec1f5be3ae004b4ac3479fb04e99ab",
+  "circle_hole": "cfbc4619520a9604e5f1a0ff8cd9f5a4f3fa4bde76a93ffe0a43e675ced2698c",
+  "rectangle_hole": "45313f5813f998dde5a8e7e214ad0a73295f93de867defdadcd414d7a59a969c",
+  "edge_union": "5cef122fd177fdd43283b8ab6f56cf23fa51be34067137b139b9a3acaffaabb1",
+  "circular": "4a3a0cd7cf18ad7fa70c3389913a3eff536f457147cda776a5de828500ed2974",
+  "dipole": "801a3640efcbd2140a2cf12e8178fa9cc7c40b7a87daea9693c56acc8cf2a008",
+  "array_2x3": "640cbf671db38c325de7422f7fa1348688bc6c8d86d9522cb5008ac983afea75",
+  "translated_duplicate": "f17385aaf8ba05bb9cda9ddf36727802e022cfbd2d9523ea5715378e3b12448f",
+  "rotated": "36ebf5bc1fa467b9ca7e52e581c6b867d52bfde0e1c978bc72eed63f2d911500",
+  "separate_z": "a174d269e87b8fa19624695dad42bb679d6915015d9b148682a29e6d1c135bc3",
+  "nonplanar_boolean": "b83c8579bc521b9c089b7d4b34058dce85445ddddde5ae1ca98eee44f4e496e3",
+  "tilted_primitive": "4b4d472e86aa879ca002fef91cb949fbca6ab5b1faff5c6d27f6c85ff1c1cffe"
+}

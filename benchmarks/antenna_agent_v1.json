@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "benchmark_version": "antenna-agent-unseen-v1",
+  "title": "Frozen unseen benchmark for the conversational antenna engineering agent",
+  "categories": {
+    "A": "design_creation",
+    "B": "free_form_geometry_composition",
+    "C": "edit_move_delete",
+    "D": "array_excitation",
+    "E": "engineering_reasoning",
+    "F": "read_only_rf_analysis",
+    "G": "project_memory_multi_turn_intent",
+    "H": "failure_transaction_safety"
+  },
+  "fixtures": {
+    "empty_project": {"kind": "empty", "design": null, "memory": "empty"},
+    "inset_patch_clean": {"kind": "saved_baseline", "family": "inset_patch", "array": [1, 1], "features": [], "excitation": "single_element_feed"},
+    "inset_patch_center_circle": {"kind": "saved_baseline", "family": "inset_patch", "array": [1, 1], "features": ["center_circle_subtraction"], "excitation": "single_element_feed"},
+    "inset_patch_two_features": {"kind": "saved_baseline", "family": "inset_patch", "array": [1, 1], "features": ["left_circle_subtraction", "right_rectangle_subtraction"], "excitation": "single_element_feed"},
+    "inset_patch_parameter_rectangle": {"kind": "saved_baseline", "family": "inset_patch", "array": [1, 1], "features": ["parameter_backed_rectangle_subtraction"], "excitation": "single_element_feed"},
+    "inset_patch_2x3_decorated": {"kind": "saved_baseline", "family": "inset_patch", "array": [2, 3], "features": ["all_elements_center_circle_subtraction"], "excitation": "independent_ports"},
+    "circular_patch_clean": {"kind": "saved_baseline", "family": "circular_patch", "array": [1, 1], "features": [], "excitation": "single_element_feed"},
+    "dipole_clean": {"kind": "saved_baseline", "family": "dipole", "array": [1, 1], "features": [], "excitation": "single_element_feed"},
+    "independent_2x2": {"kind": "saved_baseline", "family": "inset_patch", "array": [2, 2], "features": [], "excitation": "independent_ports"},
+    "warning_patch_overlap": {"kind": "saved_baseline", "family": "inset_patch", "array": [1, 1], "features": ["conflicting_conductor_union"], "excitation": "single_element_feed"},
+    "warning_patch_heavy": {"kind": "saved_baseline", "family": "inset_patch", "array": [2, 3], "features": ["large_all_element_subtraction"], "excitation": "independent_ports"}
+  },
+  "cases": [
+    {
+      "case_id": "A01", "category": "A", "title": "Circular patch from an empty project", "initial_fixture": "empty_project",
+      "turns": ["Begin a circular microstrip radiator for 3.3 GHz using Rogers 4003C."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "family", "op": "eq", "value": "circular_patch"}, {"key": "frequency_ghz", "op": "eq", "value": 3.3}, {"key": "material", "op": "eq", "value": "Rogers 4003C"}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "A02", "category": "A", "title": "Dipole from natural frequency request", "initial_fixture": "empty_project",
+      "turns": ["Start a basic dipole intended for the 915 MHz ISM band."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "family", "op": "eq", "value": "dipole"}, {"key": "frequency_ghz", "op": "eq", "value": 0.915}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "A03", "category": "A", "title": "Array creation through progressive capabilities", "initial_fixture": "empty_project",
+      "turns": ["Build an FR4 inset-fed patch for 5.2 GHz as a two-by-two array."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "family", "op": "eq", "value": "inset_patch"}, {"key": "array_rows", "op": "eq", "value": 2}, {"key": "array_columns", "op": "eq", "value": 2}, {"key": "frequency_ghz", "op": "eq", "value": 5.2}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "A04", "category": "A", "title": "Unsupported helical antenna refusal", "initial_fixture": "empty_project",
+      "turns": ["Create an axial-mode helical antenna with eight turns at 1.6 GHz."],
+      "acceptance": {"allowed_terminal_outcomes": ["refuse"], "completion": "no", "mutation": "forbidden", "rollback_required": true, "clarification": "allowed", "canonical_facts": [{"key": "design_exists", "op": "eq", "value": false}], "required_capabilities": [], "forbidden_capabilities": ["helix.create", "solver.command"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+
+    {
+      "case_id": "B01", "category": "B", "title": "Off-center rectangular aperture", "initial_fixture": "inset_patch_clean",
+      "turns": ["Cut a 4 mm by 1.5 mm rectangular opening 6 mm left of the patch center."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "composed_feature_count", "op": "gte", "value": 1}, {"key": "rectangular_subtraction_count", "op": "gte", "value": 1}], "required_capabilities": [], "forbidden_capabilities": ["center_rectangle_slot_modifier"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "B02", "category": "B", "title": "Asymmetric circular union", "initial_fixture": "inset_patch_clean",
+      "turns": ["Attach a 2.5 mm radius circular conductor to the upper-right edge of the radiating metal."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "circle_union_count", "op": "eq", "value": 1}, {"key": "feature_target_role", "op": "eq", "value": "radiating_patch"}], "required_capabilities": [], "forbidden_capabilities": ["edge_circle_modifier"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "B03", "category": "B", "title": "Multiple asymmetric Boolean cuts", "initial_fixture": "inset_patch_clean",
+      "turns": ["Make two separate circular cuts: radius 1.8 mm at x=-7 mm and radius 2.2 mm at x=5 mm, both relative to the patch center."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "circle_subtraction_count", "op": "eq", "value": 2}, {"key": "distinct_feature_offsets", "op": "eq", "value": true}], "required_capabilities": [], "forbidden_capabilities": ["corner_circle_cutouts_v1"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "B04", "category": "B", "title": "Generic feature propagation over an array", "initial_fixture": "inset_patch_center_circle",
+      "turns": ["Expand the design to three elements in one row and apply the existing aperture to each radiator."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "array_rows", "op": "eq", "value": 1}, {"key": "array_columns", "op": "eq", "value": 3}, {"key": "logical_composed_feature_count", "op": "eq", "value": 1}, {"key": "physical_circle_subtraction_count", "op": "eq", "value": 3}], "required_capabilities": [], "forbidden_capabilities": ["center_slot_modifier"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+
+    {
+      "case_id": "C01", "category": "C", "title": "Resize an existing circular feature", "initial_fixture": "inset_patch_center_circle",
+      "turns": ["Increase the existing round aperture to a radius of 4.25 mm without adding another cut."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "logical_composed_feature_count", "op": "eq", "value": 1}, {"key": "circle_radius_mm", "op": "eq", "value": 4.25}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "C02", "category": "C", "title": "Move feature in target-local coordinates", "initial_fixture": "inset_patch_2x3_decorated",
+      "turns": ["Shift the repeated aperture 4 mm toward positive x on every element, measured from each element's own center."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "logical_composed_feature_count", "op": "eq", "value": 1}, {"key": "feature_scope", "op": "eq", "value": "all"}, {"key": "feature_local_offset_x_mm", "op": "eq", "value": 4}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "C03", "category": "C", "title": "Resize parameter-backed rectangle", "initial_fixture": "inset_patch_parameter_rectangle",
+      "turns": ["Set the existing rectangular opening width to 8 mm and leave its height and location intact."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "rectangle_width_mm", "op": "eq", "value": 8}, {"key": "rectangular_subtraction_count", "op": "eq", "value": 1}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "C04", "category": "C", "title": "Ambiguous feature deletion", "initial_fixture": "inset_patch_two_features",
+      "turns": ["Remove the cutout."],
+      "acceptance": {"allowed_terminal_outcomes": ["clarify"], "completion": "no", "mutation": "forbidden", "rollback_required": true, "clarification": "required", "canonical_facts": [{"key": "logical_composed_feature_count", "op": "eq", "value": 2}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+
+    {
+      "case_id": "D01", "category": "D", "title": "Convert one radiator to a linear array", "initial_fixture": "inset_patch_clean",
+      "turns": ["Replicate the element into a horizontal row of four with 0.6 free-space-wavelength spacing."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "array_rows", "op": "eq", "value": 1}, {"key": "array_columns", "op": "eq", "value": 4}, {"key": "element_spacing_lambda", "op": "eq", "value": 0.6}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "D02", "category": "D", "title": "Realize independent excitation and report it", "initial_fixture": "inset_patch_clean",
+      "turns": ["Make a 2 by 2 array with one independent port per element.", "Describe the excitation that physically exists now."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "array_rows", "op": "eq", "value": 2}, {"key": "array_columns", "op": "eq", "value": 2}, {"key": "excitation_strategy", "op": "eq", "value": "independent_ports"}, {"key": "physical_port_count", "op": "eq", "value": 4}], "required_capabilities": [], "forbidden_capabilities": ["corporate_feed_synthesis"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "D03", "category": "D", "title": "Resize a realized independently excited array", "initial_fixture": "independent_2x2",
+      "turns": ["Change the array to one row of five while retaining independent excitation."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "array_rows", "op": "eq", "value": 1}, {"key": "array_columns", "op": "eq", "value": 5}, {"key": "excitation_strategy", "op": "eq", "value": "independent_ports"}, {"key": "physical_port_count", "op": "eq", "value": 5}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "D04", "category": "D", "title": "Unsupported feed intent does not replace realization", "initial_fixture": "independent_2x2",
+      "turns": ["I would like a series-fed network if you can build one; otherwise retain the existing independent ports.", "What feed or excitation is actually modeled?"],
+      "acceptance": {"allowed_terminal_outcomes": ["finished", "refuse"], "completion": "partial", "mutation": "optional", "rollback_required": false, "clarification": "allowed", "canonical_facts": [{"key": "excitation_strategy", "op": "eq", "value": "independent_ports"}, {"key": "physical_port_count", "op": "eq", "value": 4}], "required_capabilities": [], "forbidden_capabilities": ["series_feed_synthesis", "corporate_feed_synthesis"], "engineering": {}, "analysis": {}, "memory": {"required_items": [{"key": "feed_network_future_goal", "status": "active", "value": "series_feed"}]}}
+    },
+
+    {
+      "case_id": "E01", "category": "E", "title": "Recognize a deliberate conductor conflict", "initial_fixture": "warning_patch_overlap",
+      "turns": ["Review this antenna for geometry or excitation concerns before I export it."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {"minimum_warning_count": 1, "disposition_required": true}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "E02", "category": "E", "title": "Clean design does not invent warnings", "initial_fixture": "circular_patch_clean",
+      "turns": ["Check the present model for the engineering issues your installed checks can evaluate."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {"maximum_warning_count": 0, "disposition_required": false}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "E03", "category": "E", "title": "Warning-heavy design disposition and prose", "initial_fixture": "warning_patch_heavy",
+      "turns": ["Assess the current array and tell me which detected issues need attention and which limitations remain."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {"minimum_warning_count": 2, "disposition_required": true}, "analysis": {}, "memory": {"required_items": []}}
+    },
+
+    {
+      "case_id": "F01", "category": "F", "title": "Electrical spacing measurement", "initial_fixture": "independent_2x2",
+      "turns": ["Calculate the present element pitch as a fraction of free-space wavelength."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": ["analysis.array_spacing"], "forbidden_capabilities": [], "engineering": {}, "analysis": {"required_tools": ["analysis.array_spacing"]}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "F02", "category": "F", "title": "Scan-angle grating-order analysis", "initial_fixture": "independent_2x2",
+      "turns": ["For a 35 degree scan in the array's principal plane, evaluate visible grating-order risk using the available analytical tool."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": ["analysis.array_spacing"], "forbidden_capabilities": [], "engineering": {}, "analysis": {"required_tools": ["analysis.array_spacing"], "forbid_unconditional_grating_lobe_claim": true}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "F03", "category": "F", "title": "Slotted patch analytical baseline", "initial_fixture": "inset_patch_center_circle",
+      "turns": ["Give the installed rectangular-patch analytical baseline for this slotted radiator and state what the estimate cannot prove."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": ["analysis.rectangular_patch_baseline"], "forbidden_capabilities": [], "engineering": {}, "analysis": {"required_tools": ["analysis.rectangular_patch_baseline"], "forbid_simulated_resonance_claim": true}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "F04", "category": "F", "title": "Dipole electrical-length baseline", "initial_fixture": "dipole_clean",
+      "turns": ["Compare the modeled dipole length with a free-space half-wave baseline, including the analytical limitations."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "forbidden", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": ["analysis.dipole_electrical_length"], "forbidden_capabilities": [], "engineering": {}, "analysis": {"required_tools": ["analysis.dipole_electrical_length"], "forbid_proven_resonance_claim": true}, "memory": {"required_items": []}}
+    },
+
+    {
+      "case_id": "G01", "category": "G", "title": "Future polarization survives design evolution", "initial_fixture": "empty_project",
+      "turns": ["Long term I want circular polarization, but begin with a linearly polarized 2.4 GHz inset patch.", "Turn the current element into a row of three.", "Which polarization goals have I asked you to remember?"],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "family", "op": "eq", "value": "inset_patch"}, {"key": "array_columns", "op": "eq", "value": 3}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": [{"key": "target_polarization", "status": "active", "value": "circular_polarization"}]}}
+    },
+    {
+      "case_id": "G02", "category": "G", "title": "Constraint supersession remains traceable", "initial_fixture": "inset_patch_clean",
+      "turns": ["The complete board must stay under 72 mm wide.", "Revise that limit: up to 90 mm is acceptable.", "List the active size constraint you retained."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "optional", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": [{"key": "board_width_limit", "status": "superseded", "value": 72}, {"key": "board_width_limit", "status": "active", "value": 90}]}}
+    },
+    {
+      "case_id": "G03", "category": "G", "title": "Future feed goal stays separate from physical ports", "initial_fixture": "inset_patch_clean",
+      "turns": ["Use separate element ports now, though a corporate distribution network is a later project goal.", "Expand to a two-by-three array.", "Summarize both the realized excitation and the feed goal."],
+      "acceptance": {"allowed_terminal_outcomes": ["finished"], "completion": "yes", "mutation": "required", "rollback_required": false, "clarification": "forbidden", "canonical_facts": [{"key": "array_rows", "op": "eq", "value": 2}, {"key": "array_columns", "op": "eq", "value": 3}, {"key": "excitation_strategy", "op": "eq", "value": "independent_ports"}, {"key": "physical_port_count", "op": "eq", "value": 6}], "required_capabilities": [], "forbidden_capabilities": ["corporate_feed_synthesis"], "engineering": {}, "analysis": {}, "memory": {"required_items": [{"key": "feed_network_future_goal", "status": "active", "value": "corporate_feed"}]}}
+    },
+
+    {
+      "case_id": "H01", "category": "H", "title": "Unsupported request after provisional work rolls back", "initial_fixture": "inset_patch_clean",
+      "turns": ["First widen the patch by 2 mm, then add a logarithmic spiral feed structure."],
+      "acceptance": {"allowed_terminal_outcomes": ["refuse", "agent_limit", "invalid_plan"], "completion": "no", "mutation": "forbidden", "rollback_required": true, "clarification": "allowed", "canonical_facts": [], "required_capabilities": [], "forbidden_capabilities": ["spiral_feed.create", "solver.command"], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "H02", "category": "H", "title": "Clarification after provisional edit rolls back", "initial_fixture": "inset_patch_two_features",
+      "turns": ["Change the patch length to 31 mm and remove the feature nearest the feed."],
+      "acceptance": {"allowed_terminal_outcomes": ["clarify"], "completion": "no", "mutation": "forbidden", "rollback_required": true, "clarification": "required", "canonical_facts": [{"key": "logical_composed_feature_count", "op": "eq", "value": 2}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "H03", "category": "H", "title": "Provider failure cannot publish provisional state", "initial_fixture": "inset_patch_clean",
+      "turns": ["Increase the substrate thickness to 2 mm and add an offset circular aperture."],
+      "acceptance": {"allowed_terminal_outcomes": ["provider_error"], "completion": "no", "mutation": "forbidden", "rollback_required": true, "clarification": "forbidden", "canonical_facts": [], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    },
+    {
+      "case_id": "H04", "category": "H", "title": "Rejected invalid batch preserves baseline", "initial_fixture": "circular_patch_clean",
+      "turns": ["Move the feed probe outside the radiator and keep that invalid location."],
+      "acceptance": {"allowed_terminal_outcomes": ["refuse", "invalid_plan", "duplicate_rejection", "agent_limit"], "completion": "no", "mutation": "forbidden", "rollback_required": true, "clarification": "allowed", "canonical_facts": [{"key": "probe_inside_patch", "op": "eq", "value": true}], "required_capabilities": [], "forbidden_capabilities": [], "engineering": {}, "analysis": {}, "memory": {"required_items": []}}
+    }
+  ]
+}

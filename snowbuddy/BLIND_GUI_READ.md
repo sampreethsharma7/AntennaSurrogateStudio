@@ -1,15 +1,17 @@
 # SnowBuddy Blind GUI Read
 
-Contract version: 3.50
-Studio version: 0.33.2
-UI source SHA-256: 39f075f35b720f2f0d7190063844b2d6e631edef4d454e051f36f7a3601f6a5b
-Sample Generator UI source SHA-256: 7c59e5fdd2f1ac1a92fe42cadeb914a3a9e36e6252432dae1d2be2298b39b6fe
-Results UI source SHA-256: 84d3bcacd172120de0beadb8b77d723acf102424ff5e975920d9ad267b61c346
-Library UI source SHA-256: 6449a5822e601ae4f609c552e04534b084c39440aaf042c936a2db8f1a02b8b0
-Inference UI source SHA-256: f87b7f455daf8c597328a97176bfc4f9c996f91c60d5b73556d0e67d23956ea2
-Inverse Design UI source SHA-256: c5d1529324d4faf690b88fa2d3e9e718d073830c56ca852bbdd040fe39c1023f
-Scientific Plot UI source SHA-256: 90ffa0bca1408d4aaabe73f6722b9144c9e0ab585e6cb15837701b6d8b6eb825
-Theme source SHA-256: c1149c09ec5cd35f71710288f9067c6949e00088b8a8d0470011e38ed07aedb8
+Contract version: 3.97
+Studio version: 0.34.0-beta
+UI source SHA-256: df816406dfcbcdf0360fe780703cd3af0ea7aed716367966c11c8e00218b3f77
+Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
+Antenna Builder UI source SHA-256: c2c24eaa67f5ca8827e674c7162d3e1a7a49bf31fd87fe681d7e3491eced784e
+VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
+Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
+Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
+Inference UI source SHA-256: 465baaa40efa7b89edaec4fcd80053a18e8bd5605828c5ca6631355231038b41
+Inverse Design UI source SHA-256: d23ee1ea3ab90d3e1a071da4082c9d6f70fc981741079742852ec50bbc3cbe14
+Scientific Plot UI source SHA-256: e4d30b547ba62a6161e16de6e800085087dd7cfe2c710d7a5e1999fbc3c93441
+Theme source SHA-256: 05e6f1b72b45ccd5254689fede586eceb7df5f861be2c4d07305f6ab3beaec40
 
 This file is SnowBuddy’s visual and interaction map. It describes the interface
 without assuming screen vision. The live UI-state snapshot supplied at runtime
@@ -28,10 +30,14 @@ adds the user’s current page, values, selections, and status.
   scaling by bounding the effective CustomTkinter UI scale to 1.08. The initial
   window is at most 1440 by 900, never larger than the physical monitor, and a
   1366-by-768 monitor starts in compact-sidebar mode. The shared type scale runs
-  from 15 through 39 points; body copy is 16 or 17 points, captions are 15
-  points, and buttons are 16-point semibold. Plot titles, labels, tick values,
-  legends, and legacy page-local text are also at least 20% larger than in the
-  preceding release.
+  from 16 through 40 points; body copy is 17 or 18 points, captions are 16
+  points, and buttons are 17-point semibold. Every GUI source routes small text
+  through this shared scale: no literal GUI font is smaller than its 16-point
+  floor. Secondary hierarchy uses muted colour and weight instead of tiny type.
+  The root window rechecks its live per-monitor DPI on Configure events. A DPI
+  transition reapplies these same bounded window/widget scale factors without
+  resizing the workspace; CustomTkinter's title bar remains limited by its
+  per-monitor-awareness implementation.
 - SnowBuddy uses a violet accent. Success is green, warnings are amber, and
   errors are red.
 - A fixed top application-menu row spans the window. “File,” “Edit,” and
@@ -42,14 +48,20 @@ adds the user’s current page, values, selections, and status.
   settings or the About dialog. About shows the Studio version, local-first
   product line, and creator contact for Sai Sampreeth Indharapu.
 - A light-steel or graphite workflow sidebar sits on the left. Expanded, its
-  brand subtitle is “RF SURROGATE LAB,” its navigation label is “LAB WORKFLOW,”
+  brand subtitle is “SURROGATE STUDIO,” so the two-line wordmark reads as the
+  full product name. Its navigation label is “LAB WORKFLOW,”
   and its footer reads “LOCAL COMPUTE · PRIVATE.” A clear chevron collapses it
-  from 226 pixels to a 76-pixel icon-only rail. The same control expands it.
+  from its expanded width to a 76-pixel icon-only rail, and the same control
+  expands it. The expanded width is measured from the strings the rail renders
+  (brand subtitle, navigation labels, the active-project card and the footer),
+  so none of them is clipped.
   Navigation remains active and the chosen state survives page changes for the
   current application session. The Active Project card and footer hide only in
-  compact mode; no project or page state is changed. Each compact icon exposes
-  its page name on pointer hover and keyboard focus and has the same accessibility
-  name.
+  compact mode; no project or page state is changed. Compact mode shows one
+  distinct pictorial mark per destination rather than letter pairs, which read
+  as jargon in a machine-learning tool. Each mark exposes its page name on
+  pointer hover and keyboard focus and has the same accessibility name, so the
+  destination is always recoverable without reading the glyph.
 - A fixed two-pixel steel divider separates the workflow rail from the active
   page workspace in expanded and collapsed modes.
 - SnowBuddy is not allocated a permanent workspace column while closed. The
@@ -66,49 +78,262 @@ adds the user’s current page, values, selections, and status.
   active page, project,
   form values, or chat. The choice is global for this local Studio library and
   is restored from `studio_settings.json` on the next launch.
-- The sidebar contains the AS brand badge, Start, Data Prep, Model Training,
-  Training Results, Model Library, Inference, and Inverse Design. Collapsed mode shows those same
-  destinations as icons. All project workflow pages are available
+- The sidebar contains the AS brand badge, Start, Antenna Design, Data Prep, Model Training,
+  Training Results, Model Library, Inference, and Inverse Design, evenly spaced
+  as one group with no gap before the last destination. Collapsed mode shows those same
+  destinations as single icon marks. All project workflow pages are available
   while a project is active. Selecting one without a project returns to Start
   with an Open project message.
 - The sidebar’s Active Project card shows the open project name and workflow
   status, or “No project open.” With a project active it also shows “Return to
   Welcome.”
 - A fresh application launch stays in Welcome mode with no project silently
-  preloaded. Creating a project opens Data Prep immediately. Opening an
+  preloaded. Creating a project opens Antenna Design immediately. Opening an
   existing project restores that project’s last active page.
 
 ## Start page
 
-The page heading is “Your surrogate workspace” with the subtitle “Build trusted
-antenna models. Save them as books. Reuse them anytime.”
+The page heading is “Your surrogate workspace” with a subtitle that introduces
+the full path: describe a supported antenna, inspect generated geometry, then
+build a trusted surrogate model.
 
-### Active workspace hero
+### Active project hero
 
 - A pale blue instrument card in Light mode or blue-black instrument card in
-  Dark mode, with a teal/cyan border, shows the active project name, next
-  action, progress bar, and completed-step count.
-- With no project it says “Start something precise” and “No active project.”
+  Dark mode, with a teal/cyan border, labelled ACTIVE PROJECT. It shows the
+  active project name, the step its resume action leads to, a progress bar, and
+  the completed-step count. The sentence and the button are both derived from
+  the resolved resume destination, so they always describe the same step.
+- With no project it says “Start something precise” and explains that the user
+  can create a project, describe an antenna in plain language, or bring an
+  existing design.
 - With no project, the hero offers “+ Create project” and “Open project.”
-- With a project active, those empty-state actions disappear and the hero shows
-  one stage-aware resume action: Continue Data Prep, Validate & Register Data,
-  Continue Model Training, Review Training Results, or Run Inference. New/Open
-  remain available from File.
+- Create project always raises and focuses the one active Create antenna
+  project dialog; repeated clicks reuse that visible dialog instead of opening
+  hidden or duplicate windows.
+- With a project active, the hero keeps all three actions visible, stacked to a
+  shared width with matching edges. The stage-aware resume action appears first
+  and is the only filled button, so the one likely action is also the most
+  prominent; it reads Continue Data Prep, Validate & Register Data, Continue
+  Model Training, Review Training Results, or Run Inference. **+ Create
+  project** and **Open project** stay directly beneath it as outlined buttons,
+  as well as in File, so switching projects does not require returning to an
+  empty Welcome state.
 
 ### Recent projects
 
 - An appearance-aware “Recent projects” instrument panel displays up to five
   project icon cards in latest-opened order.
-- Each card shows project name, relative last-opened time, and status.
+- Each card shows a status badge immediately below its icon, followed by project
+  name and relative last-opened time. The icon carries the same status colour as
+  the badge rather than a rotating decorative accent. The badge and the
+  last-opened time both remain visible even when a long project name wraps: the
+  time is anchored to the bottom of the card and the name wraps to the card's
+  measured width. A completed Model Book appears as **Model saved**.
 - Clicking a project card opens that project.
 - When empty, the card says “Your project shelf is empty” and offers “Create
   project.”
-- The five cards share one fixed responsive row. The Start page has no page
-  scrollbar.
-- A fixed bottom workflow footer mirrors the same stage-aware destination as
-  the hero action. It is enabled only while a project is open and may read
-  Continue Data Prep, Validate & Register Data, Continue Model Training,
-  Review Training Results, Open Model Library, or Run Inference.
+- The Create antenna project dialog measures its rendered content before
+  centering, is resizable, and keeps the Cancel and Create project actions
+  visible at 100%, 125%, and 150% Windows display scaling.
+- The five cards share one fixed responsive row, and the panel is sized to that
+  row rather than stretched to the window, so no large empty area opens beneath
+  the cards. The Start page has no page scrollbar.
+- There is no separate bottom workflow footer. The hero's resume button is the
+  page's single next-step control; it previously appeared a second time at the
+  page foot under a caption placed at the opposite edge.
+
+## Antenna Design page
+
+- A new project opens this dedicated choice page before Data Prep.
+- **I already have a design** records the existing-design path and opens the
+  unchanged Data Prep workflow.
+- **Design with antenna agent** records the experimental-builder path and opens
+  a blank conversational antenna workspace with no selected family, frequency,
+  material, parameters, or geometry.
+- Returning to Antenna Design does not discard a saved generated design. Project
+  reopen restores the last selected page and saved builder state.
+
+## Experimental Parametric Antenna Builder page
+
+- A persistent amber experimental label identifies the constrained antenna
+  builder. A new project begins with no antenna design or hidden template.
+  Installed validated recipes cover an inset-fed rectangular
+  patch, probe-fed circular patch, and center-fed dipole. Each can be replicated
+  into a linear or planar array when its spacing validation passes.
+- The left work area is the conversation column. A scrollable transcript is
+  preceded by a persistent **Project context** card. The card shows active
+  project constraints, durable user intent, open-question and limitation
+  counts, and unsupported requests retained only for traceability. Supported
+  constraints are measured against the current canonical design. A violated
+  board-width maximum changes the card heading to **CONSTRAINT VIOLATION** in
+  red and states the measured and allowed widths. The publication gate also
+  appends that violation to the assistant's transcript response; recording a
+  constraint never implies that later geometry will silently satisfy it.
+  Refused requests cannot create active project goals. Legacy semantic-memory
+  items associated with a recorded refusal load as `requested_unsupported` and
+  are excluded from active planner intent.
+- The conversation column's scrollable transcript is
+  above the bordered, multiline **Design Request** composer, and automatically
+  returns to the newest entry after label reflow and scrollregion refresh on
+  every render. Mouse-wheel events are bound on transcript frames, labels, and
+  starter controls, so hovering over message text still scrolls the transcript.
+  User turns use a muted
+  **you** gutter; successful/completed, clarification, and refusal entries use
+  distinct success check, amber question-mark, and red refusal glyphs.
+  Transcript copy is 30 percent larger than the standard small-body size and
+  reflows whenever the conversation pane width changes; it has no fixed-width
+  wrapping boundary. A new,
+  empty project shows four concise, untruncated clickable starters for an inset
+  patch, circular patch, center-fed dipole, and patch array. Clicking one fills
+  the composer with the complete detailed request. The empty state also states
+  the supported three-family/array/slot/circular-corner-notch scope and
+  explicitly lists horns, Vivaldi antennas, spirals, feed networks, and solver
+  runs as unsupported.
+- The composer grows from 92 through 154 pixels as text wraps or gains lines,
+  then scrolls. A live character and visual-line count stays in its header.
+  Enter adds a line; Ctrl+Enter or the prominent Apply button submits the
+  complete request. While planning, the composer is disabled and Apply becomes
+  **Cancel**. Cancellation prevents publication of that turn. A successful
+  physical edit clears the composer; clarification and refusal keep the text
+  available for revision and place the agent response in the transcript rather
+  than opening a modal warning. Separate
+  **Provider** and **Model** option menus configure the planner. Provider offers
+  **Local Ollama**, **Gemini**, **Groq**, and **OpenRouter**. Changing provider
+  or selecting **Refresh** requests that provider's current model catalog;
+  Local Ollama uses its local tags endpoint. Models validated with the antenna
+  agent are labeled **Tested** and other compatible discovered text models are
+  labeled **Untested**. OpenRouter adds a **Free only** filter based on catalog
+  pricing. If discovery fails, the last valid model remains selected and the
+  notice states the failure. Local Ollama is the default and shows
+  **Private/offline: models are discovered from local Ollama; design context
+  stays on this computer.** Cloud notices state that design state and requests
+  are sent to the selected provider. Provider, model, and OpenRouter filter
+  persist with the project. Every submitted request goes to the
+  selected backend with the same complete current design, planner instruction,
+  runtime manifest of installed recipes/modifiers/primitives, exact registered
+  planning-tool schemas, and ToolPlan output schema. The model must return an
+  ordered sequence of registered calls, one clarification question, or a refusal. It cannot
+  return arbitrary code, geometry, files, CST commands, or solver operations.
+  Transcript and status copy uses user-facing feature names; internal modifier,
+  composition-group, and operation IDs remain confined to planner audit data.
+  The deterministic executor validates every call, compiles recipes and
+  modifiers to primitive tools, and applies layered validation before replacing
+  the live design. Validated LLM-composed primitive groups persist with the
+  project. Later conversational or parameter-table edits rebuild the base
+  recipe, reapply modifiers, resolve stored Boolean targets by semantic role
+  and array element, and replay those groups before publishing. An incompatible
+  topology or failed replay rejects the edit and leaves the prior design open.
+  Gemini requires `GEMINI_API_KEY`, Groq requires `GROQ_API_KEY`, and OpenRouter
+  requires `OPENROUTER_API_KEY` (with `OPEN_ROUTER_API_KEY` accepted as a local
+  compatibility alias) in the environment or ignored local `.env`; a missing
+  key produces a clear warning
+  and does not affect Local Ollama. Each
+  project records credential-free comparison metadata in
+  `design/planner_ab.jsonl`: backend, request, returned plan, validation,
+  repair, and final deterministic tool sequence.
+  A parameter owned by another recipe is rejected; for
+  example, conductor radius belongs to the dipole, while the circular patch
+  exposes patch radius and probe radius as separate parameters. The installed
+  circular-corner modifier composes four cylinder and Boolean-subtraction tool
+  calls over the rectangular-patch recipe. Each circle center is exactly on a
+  patch corner. Its default `CornerRadius` is `PatchW / 4`, represented as the
+  editable and LHS-selectable `CornerRadiusRatio` of 0.25. Later patch-width and
+  array edits rebuild the same modifier. Requests for added copper corner lobes
+  remain rejected instead of being improvised or routed to the circular-patch
+  recipe. When active, the preview note reads **Corner-circle centers sit on
+  patch corners. No array feed network is generated.**
+- The conversation pane has a 420-pixel minimum and 480-pixel starting width;
+  extra horizontal space grows the design pane, whose minimum is 660 pixels.
+  The parameter table sits in the right design pane directly under the 3D
+  preview. The preview has a 240-pixel minimum and receives three parts of the
+  flexible height; the parameter area has a 200-pixel minimum and receives two
+  parts. This exposes at least six parameter rows at the supported 1366 by 768
+  layout and about ten at 1080p while retaining scrolling. Substrate material
+  is the first table row, with no Vary control. Numeric entries use a compact
+  26-pixel height and 30-pixel row pitch. The parameter table rebuilds for the
+  active recipe: inset-patch dimensions and substrate controls,
+  circular-patch radius/probe/substrate controls, or dipole arm/wire/gap
+  controls, plus frequency and array controls. Supported numeric rows have Vary
+  boxes with useful family-specific defaults. Which spacing basis the design
+  uses decides whether frequency can be varied, and exactly one of the two
+  spacing rows is independent at a time. On the default electrical basis the
+  element spacing is held in wavelengths, so operating frequency remains
+  editable but its Vary box is disabled: frequency drives recipe dimensions,
+  wavelength-based array spacing, and the solver range, so it is deliberately
+  excluded from LHS variables to prevent a confounded geometry/frequency sweep.
+  This rule is stated directly above the parameter rows. On the physical basis
+  the element spacing is held in millimetres and becomes the editable, varyable
+  row; the wavelength row turns read-only and reports the electrical spacing
+  that the fixed dimension actually has at the current frequency; and the
+  frequency Vary box is enabled, because a frequency sweep then changes the
+  operating point only and leaves the array where it is. Parameters created by persisted
+  composed geometry, such as a circular-slot radius or rectangular-slot width
+  and height, are added to this same table, survive project reopen, and are
+  removed when their owning composed operation is deleted. A table edit submits
+  only values that actually changed; dependent inset-patch dimensions and the
+  50-ohm feed width can therefore be re-derived without reporting untouched
+  rows as edits. The compact
+  selected-for-sweep count sits in the footer beside **Send selected to LHS**.
+  The footer has no general-purpose status label; complete conversational
+  feedback remains in the transcript, so long messages cannot displace its
+  actions.
+- The right side is a prominent depth-buffered VTK 3D preview evaluated from
+  the same canonical primitive, transform, Boolean, and triangulated mesh graph
+  used by export. VTK renders the framebuffer at the current monitor's physical
+  pixel density, including proportionally scaled overlays, then downsamples it
+  into the logical Tk viewport. Tk forwards camera input; it does not draw or
+  sort individual geometry faces.
+  Left-drag orbits through top, edge, and underside views; right- or
+  middle-drag pans; the mouse wheel zooms; Reset view restores orbit, pan, and
+  zoom. The preview preserves millimetre Z dimensions instead of visually
+  exaggerating substrate or feed thickness. It resolves inset-patch conductor
+  unions, arbitrary rectangular and circular subtractions, circular unions,
+  arrays, translations, duplicates, and supported rotations into the displayed
+  mesh. A real depth buffer removes hidden surfaces, internal triangulation
+  edges are hidden, and clean feature boundaries preserve circular and
+  rectangular holes. Canonical port endpoints appear as red P-numbered arrows.
+  If a Boolean
+  cannot be evaluated faithfully, the affected inputs are suppressed and a red
+  preview warning names the operation rather than drawing a false solid. A
+  summary reports material, frequency, element count, and port count.
+- While the canonical design is null, the preview displays **No antenna design
+  yet. Describe the antenna you want to create.** and renders no geometry. The
+  parameter area shows no fake values, while the conversation, request composer,
+  Apply action, provider/model controls, and cloud/local notice remain usable.
+  Parameter and material editing, Reset view, CST script export, native CST
+  creation, and LHS transfer are disabled. A first validated recipe/tool plan
+  publishes revision zero in place, displays its VTK geometry, rebuilds the
+  parameter table, and enables the design-dependent controls without reopening
+  the page. Capability questions, clarifications, validation rejections, and
+  refusals appear in the transcript and leave the workspace blank. Clarify and
+  refuse are normal terminal agent outcomes; only transport, malformed-state,
+  validation, and other genuine faults use the error path.
+- Single and array layouts retain the selected recipe geometry. Inset-fed,
+  probe-fed, and dipole elements receive an independent discrete port per
+  element. The visible warning states the applicable feed limitation.
+- **Export CST script** asks for a user-selected `.bas` name and writes the
+  parameterized construction script plus a `_design.json` record. **Create CST
+  project** asks for a new `.cst` filename, preserves the macro and design
+  record, creates one unsolved native project through installed CST on Windows,
+  and never overwrites an existing CST file. CST work runs outside the UI
+  thread in an isolated automation instance. After SaveAs the model quits and
+  COM is uninitialized, so the generated file is not held by a hidden
+  Studio-owned CST process. Neither export starts a solver.
+- **Send selected to LHS** opens Data Prep and the existing LHS dialog with the
+  selected meaningful CST parameter names and suggested editable bounds. The
+  VARY selection is retained in the project as soon as a checkbox changes, so
+  every selected or cleared checkbox survives page navigation and project reopen.
+  Sending to LHS uses and reaffirms that same saved selection for a later matching
+  #Parameters import.
+- Builder state, raw conversation, and project engineering memory are
+  project-local under `design/` and restore when the project reopens. A blank
+  saved session reopens blank and opening the page alone does not create
+  `antenna_state.json`. A failed session load disables Apply and is never saved
+  as an intentional null design. The canonical state is solver-neutral and stores
+  parameters, materials, primitive geometry, relationships, ports, array data,
+  simulation setup, and validation records. CST is the first separate adapter.
+  The LLM never owns or directly constructs geometry.
 
 ## SnowBuddy companion panel
 
@@ -133,6 +358,10 @@ antenna models. Save them as books. Reuse them anytime.”
   being available, Model Library being future work, or changing the fixed split—
   are excluded with their paired question. The live snapshot and current contracts
   remain authoritative; saved history is not rewritten.
+- A local-model reply that directly contradicts the authoritative active
+  project, SnowBuddy mode, or visible-page snapshot is discarded and replaced
+  by the built-in project-grounded guide. If Ollama is unreachable, the reply
+  says so plainly before giving that fallback guidance.
 - “Return to Welcome” removes the active project and restores the current
   launch’s Welcome session.
 - The same SnowBuddy panel remains visible while the user moves between Start,
@@ -177,11 +406,17 @@ training.
   and per-row remove actions; five visible rows per page for as many as 20
   variables; Samples; optional Seed; and Generate Samples. The right panel shows
   a neutral sampling-coverage plot and the first five generated rows. The footer
-  keeps validation/status copy and Export inputs.csv visible. At least one
+  keeps validation/status copy and **Export CSV + CST TXT** visible. At least one
   variable is required. Names must be non-empty and unique without using the
   reserved `sample_id` name. Bounds must be finite numbers with Min below Max;
   sample count must be a whole number from 1 through 100,000; and a supplied seed
   must be a whole number from 0 through 4,294,967,295.
+- When opened through **Send selected to LHS** in the antenna builder, the same
+  dialog starts with the selected meaningful CST parameter names and suggested
+  ranges. The user can review and edit every range before generation. If a
+  later #Parameters source contains those exact parameter names, Data Prep
+  preselects the matching inputs and still requires the user to review and save
+  the variable contract; unavailable names are ignored.
 - Generation uses SciPy Latin Hypercube sampling. The same settings and seed
   reproduce the same samples. Coverage plots the first two variables, or one
   variable against sample index, without inventing units. Both axes show the
@@ -189,9 +424,17 @@ training.
   Editing a setting
   invalidates the existing preview and disables export until samples are
   regenerated.
-- Export writes a user-chosen CSV containing only variables in the editor order;
-  it does not add a Sample ID column. The default project location is
-  `data/generated/lhs/inputs.csv`. It loads only the generated Input CSV path,
+- One export writes two files with the same basename containing only variables
+  in the editor order: a comma-delimited Studio CSV and a tab-delimited CST
+  parameter-sweep TXT. Neither adds a Sample ID column. The default project
+  files are `data/generated/lhs/inputs.csv` and `inputs.txt`. The confirmation
+  identifies the TXT as the file to import into CST's parameter sweep. It tells
+  the user to select **Define multiple sequences**, not the default **Define one
+  sequence only**, so every row is a separate run. It also warns that CST's 1D
+  plot view shows 25 curves by default and ASCII export includes only displayed
+  curves, so that display limit must be raised or removed before a complete
+  export. Data Prep
+  loads only the generated Input CSV path,
   clears any Output CSV path to prevent a stale pairing, collapses later subtasks,
   and explains that solver outputs with the same row count and unchanged row
   order are still required. It does not run CST/HFSS, fabricate outputs,
@@ -325,6 +568,8 @@ Instrument Lab fields rather than bright generic split buttons. Each has the
 current palette’s control surface, subtle border and arrow well. Its expanded
 menu uses the current Light or Dark surface, matching ink text, and the same
 teal-tinted navigation hover used elsewhere in the Studio.
+The native model menu closes before model-specific controls are rebuilt, so
+the first Train Model click after a selection is delivered normally.
 
 In Auto mode, an “Auto Search Level” panel is visible. Its dropdown contains
 “Medium” and “High,” with Medium selected by default. The two descriptions are
@@ -390,7 +635,13 @@ label hides, the button is enabled again, and it returns to “Train Model.”
 
 The left side of the action bar displays the persisted latest-run readout. It
 shows “Latest Run: None” before the first successful run and then uses the exact
-format “Latest Run: Run 3.” Reopening the project restores this readout.
+format “Latest Run: Run 3.” Reopening the project restores this readout. The
+readout never moves backwards for the project the run belongs to: once a run has
+finished, a later refresh against an older project record leaves the number
+alone, so a finished run is not retracted from the display while its model and
+artifacts exist on disk. Opening a different project shows that project’s own
+value, and starting a run and then switching project abandons the first run’s
+readout rather than reporting it against the new project.
 
 Linear Regression executes in Auto Medium, Auto High, or Custom. All modes load
 the active integrity-checked registered dataset and create the same deterministic
@@ -456,7 +707,7 @@ artifact paths. The page retains the last request and structured result.
 After a successful Auto run, the dialog title is “Auto Search Completed.” Its
 body shows the selected model family, Search Level, Configurations Evaluated,
 Cross-Validation Folds, that model's Best Parameters, Validation RMSE, Test MAE,
-Test RMSE, and Test R². A successful Custom run retains the “Training Completed”
+Test RMSE, and Test Pooled R². A successful Custom run retains the “Training Completed”
 dialog with its mode, applied parameters, and test metrics. Neither dialog shows
 fake metrics.
 
@@ -477,14 +728,23 @@ Ensemble completion uses “Ensemble Training Completed.” It shows the number 
 valid/failed components, normalized weights, Ensemble and best-individual
 validation RMSE, the validation-based recommendation, and final test metrics.
 
-After either successful dialog is dismissed, the Studio opens Training Results
-for the newly completed run. The result is also reloaded whenever the project is
+After a successful dialog is dismissed, the Studio remains on Model Training so
+the user can start another run. The dialog names the explicit **View Training
+Results** action; choosing that footer action or the sidebar destination opens
+the newly completed run. The result is also reloaded whenever the project is
 reopened or Training Results is selected from the sidebar.
 
 If request validation fails, a user-facing “Invalid training configuration”
 dialog shows the contract message and the backend is not called. Dataset or
 execution failures use a “Training failed” dialog. Neither exposes a raw
 traceback.
+
+If training itself succeeds but the project file cannot be rewritten — for
+example while another process briefly holds it — a “Project record not updated”
+warning reports that the model and its artifacts were saved, quotes the
+underlying error, and advises reopening the project to refresh its recorded
+status. The completed run is still reported: the latest-run readout, the
+completion dialog and the results page are unaffected.
 The fixed footer provides “Back to Data Prep” and an enabled “View Training
 Results” action. The latter reads saved run artifacts and never starts training.
 
@@ -493,15 +753,19 @@ Results” action. The latter reads saved run artifacts and never starts trainin
 Training Results is a fixed, non-scrolling, artifact-backed page for the latest
 completed run by default. Its visualizations never retrain or modify that run;
 the footer can copy it into a new Model Book. SnowBuddy retains the shared
-floating/drawer behavior. The header shows “Training Results” and a latest-run
-badge. Opening an older family run from Model Comparison changes the badge to
+floating/drawer behavior. The header shows “Training Results,” a visible dropdown
+containing every completed immutable run, and a latest/selected run badge.
+Choosing an older run directly or opening one from Model Comparison changes the badge to
 SELECTED and opens that immutable run's Predictions detail. Before any completed run it displays
 “No completed training run is available yet. Train a model to view performance
 and prediction plots.” A failed attempt can display “Training did not
 complete. No performance results are available for this run.” Missing or
 malformed artifacts produce a friendly saved-artifact error without a traceback
-or partial metrics. Loading another project, reopening a project, or completing
-a new training run always resets the ordered section navigator to Predictions.
+or partial metrics. Every navigation into Training Results reloads the latest
+completed run from the current project. Reloading also clears a prior failed-run
+display, so a later successful run cannot remain hidden behind stale failure
+state. Loading another project, reopening a project, or completing a new
+training run always resets the ordered section navigator to Predictions.
 A secondary section selected for one displayed result is never carried into a
 different project or run. Manual section changes remain active while the user
 continues viewing the same result.
@@ -521,7 +785,10 @@ search level, configuration count, folds, and lowest validation RMSE above the
 candidate table. Custom's Configuration panel contains the compatible
 side-by-side suggestion or the Run Auto guidance.
 
-The four cards are R², RMSE, MAE, and Validation RMSE. A visible **LATEST
+The four cards are Pooled R², RMSE, MAE, and Validation RMSE. Pooled R²
+combines every held-out sample/output value into the same population used by
+the displayed RMSE and MAE, rather than averaging one R² score per output.
+A visible **LATEST
 SELECTED RUN METRICS** label names the displayed run and model above them so
 these values cannot be mistaken for the separate family recommendation. They are compact
 62-pixel, value-first tiles: only the metric name, saved numeric value, and a
@@ -589,18 +856,19 @@ detail panel visible at a time:
    fingerprint, exact feature columns, exact target columns, test size, and
    random state. Four concise family cards show the best validation-backed
    Linear Regression, XGBoost, Neural Network, and Ensemble AI Engine run: mode, selected parameters, validation
-   RMSE, test RMSE, MAE, and R². Each card has Open Run N Results for detailed
+   RMSE, test RMSE, MAE, and pooled R². Each card has Open Run N Results for detailed
    Predictions, Residuals, Errors, Configuration, and Run Info. The banner says
    Recommended Model with the selected family only when at least two families
    have valid compatible validation evidence. A compact bar view
-   visualizes validation RMSE, test RMSE, MAE, and R² with exact values. Test
+   visualizes validation RMSE, test RMSE, MAE, and pooled R² with exact values. Test
    metrics are context only and never choose the recommendation. The section
    title is explicitly **MODEL FAMILY COMPARISON**. Its bars represent relative
    quality rather than raw magnitude: longer is always better, downward arrows
    identify Validation RMSE/Test RMSE/MAE as lower-is-better, and an upward
-   arrow identifies R² as higher-is-better. Exact values remain beside the bars.
+   arrow identifies pooled R² as higher-is-better. Exact values remain beside the bars.
 6. Run Info — run ID, model, mode, search level, parameters, training/test
-   samples, full dataset fingerprint, and training timestamp.
+   samples, full dataset fingerprint, training timestamp, and the artifact's
+   precisely labelled mean per-output test R² for provenance.
 
 There is no separate What This Means panel. The backend's deterministic
 sample-count, validation/test-gap, residual, error-concentration, Auto-separation,
@@ -674,7 +942,7 @@ Model Library is a fixed, non-scrolling project page. It reloads
 `books/index.json` whenever opened. The left Model Books panel displays five
 books per page with Previous/Next arrow controls. Newest books appear first.
 Each whole saved-model card is selectable and shows the Model Book name, model
-type, test RMSE and R², input-to-output counts, and one of ACTIVE, SELECTED,
+type, test RMSE and Pooled R², input-to-output counts, and one of ACTIVE, SELECTED,
 SAVED, or INVALID. There is no separate Open button. The header shows only the
 indexed book count; active status remains on the relevant saved-book card and
 selected-book detail rather than being repeated in the header and footer.
@@ -684,9 +952,14 @@ summary shows the Model Book name, active/selected status, model type, input
 count, and output count. A single output is named in the prediction subtitle;
 multiple outputs show a saved axis label/range only when the Model Book contains
 reliable structured coordinates; otherwise they use a neutral count. RMSE, MAE,
-R², and available Validation RMSE
+Pooled R², and available Validation RMSE
 appear as prominent metric cards. Required Inputs lists up to six feature names
-inline and offers View all inputs when the list is longer.
+inline and offers View all inputs when the list is longer. Selecting it opens the
+complete ordered list and leaves a footer acknowledgement with the input count.
+New Model Books persist pooled test R² beside the estimator's mean per-output
+test R². Older books recover pooled R² from their source predictions when that
+run remains available; if it is unavailable, the fallback is labelled explicitly
+as Mean per-output R² rather than shown under a bare R² label.
 
 Source run, creation time, training mode/search level, exact parameters, full
 dataset fingerprint, and Model Book version are secondary and collapsed under
@@ -716,9 +989,18 @@ visible when no active Model Book is available.
 
 The narrower left New Sample panel shows the active interface's input-to-output
 counts without repeating the Model Book identity from the result header. It generates one
-labeled numeric entry for every saved feature in exact feature order. Up to
-eight inputs appear in a two-column grid; larger interfaces use Previous/Next
-pages while all entered values remain retained. A two-choice control offers
+compact table row for every saved feature in exact feature order: input name,
+numeric value, and immutable training minimum-to-maximum range share one eye-line.
+All rows use the same computed name, value, and range column widths, so a longer
+runtime-created parameter cannot shift the controls in only its own row. Names
+longer than the available label width wrap without reducing the text size.
+Each value starts at that feature's training-set median until a successful
+prediction has saved a project-local value for the active Model Book. Those exact
+latest inputs then restore with the matching saved curves after reopen, so fields
+and plotted results do not contradict one another. Up to eight rows appear
+on one page; larger interfaces use Previous/Next pages while all entered values
+remain retained. Values outside the training range remain valid for prediction but show
+an explicit extrapolation warning. A two-choice control offers
 **Replace current curve** (default) and **Add to plot**. Predict validates that
 every value is present, numeric, and finite, then calls the unchanged local
 inference backend. The button reads “Predicting…” and is disabled only during
@@ -737,6 +1019,8 @@ predictions are ordered curves. The plot consumes the structured output-axis
 metadata saved with the active Model Book. Legacy books derive the same
 deterministic metadata from target names; otherwise they use neutral ordered
 output indices without invented meaning or units.
+When no curve exists, the plot instruction wraps to the live axes width and
+stays inside the plot rectangle without touching either axis label.
 
 The plot toolbar offers **Explore**, **Pan**, and **Marker** modes plus zoom in,
 zoom out, **Reset**, **Autoscale**, and **Plot Settings**. Mouse-wheel zoom is centered on
@@ -770,14 +1054,18 @@ Every successful prediction is persisted as an immutable project-local run and
 all valid matching runs are restored as curves on reopen. A draggable vertical divider resizes
 the plot and Curves manager with minimum usable widths on both sides. Legend
 labels use the available legend width; they are no longer cut at a fixed 20
-characters. Full curve names always remain available in the Curves manager.
+characters. Full curve names always remain available in the Curves manager. The
+CURVES and MARKERS counters occupy equal, separately anchored header columns so
+their labels remain visibly separated at the minimum manager width.
 
 After a successful prediction, **View Raw Values** opens the complete inputs and
 predicted outputs in saved interface order. **Export Prediction** opens the
 operating system save dialog for either a JSON file containing Model Book identity,
-ordered input name/value records, structured output-axis metadata, output count,
-and ordered target/value records, or a curve CSV containing output-axis coordinate,
-predicted value, and output-variable name in saved order.
+ordered input name/value records, structured output-axis metadata, extrapolation
+warnings, output count, and ordered target/value records, or a curve CSV containing
+output-axis coordinate, predicted value, and output-variable name in saved order.
+The default JSON name includes the immutable inference run ID and adds a numeric
+suffix if that file already exists, so consecutive predictions do not collide.
 This explicit export is separate from the automatic project history. Both actions
 are disabled before prediction, during prediction, and after a failed result, and
 operate on the currently selected restored or newly generated curve.
@@ -807,7 +1095,9 @@ is disabled and the footer directs the user to select a valid Model Book.
 The page uses an Inference-style persistent split workspace: Search Configuration
 stays on the left and the scientific result workbench remains visible on the
 right. A draggable vertical divider adjusts their widths while enforcing minimum
-usable sizes. Search Configuration cannot be narrowed below 520 pixels. Its
+usable sizes. Search Configuration cannot be narrowed below 524 pixels, and that
+floor rises automatically when measured feature names need a wider name column,
+so a long name widens the pane instead of squeezing the columns. Its
 feature labels, Variable/Fixed controls, numeric fields, objective-range fields,
 and constraint controls resize with the pane; explanatory copy rewraps to the
 actual width. Dragged or restored divider positions are clamped before the
@@ -819,18 +1109,45 @@ fit these engineering-control minima and a docked SnowBuddy panel at the same
 time, SnowBuddy opens in its temporary focused presentation instead of squeezing
 or clipping the form or plot. Inputs, Objective, and Constraints are mutually exclusive
 configuration subtasks, so one compact section is visible at a time and the page
-never scrolls. **Inputs** lists saved features in exact feature order, five per
-page when necessary. Each row chooses Variable or Fixed. Variable rows enable
-finite Lower and Upper fields; Fixed rows enable one finite Value field. The
+itself never scrolls. **Inputs** lists every saved feature in exact feature order
+inside its own vertical scrolling viewport; there is no row-count threshold or
+pagination cap, and the scrollbar keeps the final row reachable at every supported
+display scale. Each compact row keeps its feature name, Variable/Fixed selector, and
+contextual numeric fields aligned to shared column widths. Column widths are
+measured from the rendered text rather than estimated from character counts, so
+the INPUT, ROLE, LOW, and HIGH headings sit centered over the fields they label
+on every row. Each row chooses Variable or Fixed. Variable rows show finite Low
+and High fields. Fixed rows hide those irrelevant bounds and show one full-width
+Value field, carrying its own "Value" placeholder, in the same numeric area;
+there is no permanently allocated fifth column. Long runtime-created names widen
+the shared name column, and the pane with it, rather than wrapping mid-word,
+clipping, or shifting only one row.
+The
 backend requires at least one variable, lower less than upper, and every saved
 feature assigned exactly once.
+Before a project-specific configuration exists, Variable Low/High fields use the
+active Model Book's immutable training minima/maxima and Fixed values use the
+training median. These are usable in-domain starting values rather than blanks.
+The Variable/Fixed role and its validated numeric bounds or fixed value are saved
+after a successful inverse-design run. They restore only for the same active Model
+Book; a different book starts from safe defaults instead of inheriting an
+incompatible feature contract.
 
 **Objective** has no long saved-output menu. It shows the saved output-axis label,
 coordinate bounds, and point count, then accepts a numeric coordinate for
 **Single point** or inclusive numeric start/end coordinates for **Mean over
-range**. Mean over range evaluates the arithmetic mean of all ordered saved
-outputs inside the range as one scalar objective and requires at least two
-points. Minimize, Maximize, or Target value applies to that scalar.
+range**. Typed coordinates snap to the nearest saved coordinate, including a
+rounded endpoint that lies within half of the adjacent grid interval. The result
+summary discloses each snap and the representative saved-grid spacing. Requests
+outside that selectable axis extent are rejected with the actual saved range.
+The immutable inverse-design `request.json` records both the selected saved output
+and the original typed coordinate or range endpoints, preserving the disclosure's
+provenance after reopen.
+Mean over range applies the same endpoint snapping, evaluates the arithmetic mean
+of all ordered saved outputs inside the snapped range as one scalar objective,
+and requires at least two points. Minimize, Maximize, or Target value applies to
+that scalar. Programmatic numeric values use compact four-decimal display
+precision while their stored calculation precision remains unchanged.
 An on-page explanation defines the objective as the one predicted scalar that
 Differential Evolution improves: lowest for Minimize, highest for Maximize, or
 closest to the requested number for Target value. **Constraints** allows up to
@@ -851,7 +1168,9 @@ SciPy Differential Evolution with seed 42. The Model Book predictor alone loads
 the artifact, restores saved feature order, and predicts; the inverse-design
 layer alone evaluates objective and constraint values.
 
-The scientific plot receives most of the right side. A compact summary above it
+The scientific plot receives most of the right side. Its empty-state instruction
+wraps to the live axes width and stays inside the plot rectangle rather than
+overlapping axis labels or clipping at narrow widths. A compact summary above it
 shows achieved objective value, explicit constraint status, evaluation and
 iteration counts, and exact best inputs. Unconstrained Minimize/Maximize results
 are labeled **OPTIMIZED** with Constraints **Not used**. Constrained successes
@@ -917,7 +1236,9 @@ labels and limits remain in force as curves are added until
 
 Opened from the no-project hero, empty recent-project card, or File menu. It
 asks for a project name and an optional description, then creates the portable
-project structure.
+project structure. The Studio retains, raises, and focuses the single active
+dialog. The rendered action-row geometry is checked at 100%, 125%, and 150%
+display scaling so Cancel and Create project remain inside the window.
 
 ### Open project
 
@@ -980,6 +1301,9 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
 - Actions: “Get Ollama,” “Download selected,” and “Use selected.”
 - An installed model disables the download action and displays “Installed.”
 
+- The local-model dialog measures its rendered content, is resizable, and keeps
+  all actions reachable across the supported Windows display scaling levels.
+
 ## Important interface states
 
 - No project: a fresh launch creates a new Welcome session and shows Start
@@ -987,9 +1311,18 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
   Training redirect to Start with an “Open a project” message. Welcome chat can discuss Create
   project, Open project, recent projects, workflow, and local-model settings
   without fabricating project state.
-- Project created: Data Prep opens immediately; workflow step 1 of 5 and the
-  next action is loading and preparing antenna data. SnowBuddy switches to
-  Focus mode automatically.
+- Project created: Antenna Design opens immediately and asks whether the user has
+  an existing design or wants the experimental conversational-agent path.
+  SnowBuddy switches to Focus mode automatically.
+- Existing-design start selected: Data Prep opens and the original data,
+  training, inference, and inverse-design workflow remains unchanged.
+- Antenna-agent start selected: the builder opens with a null design, empty
+  geometry and parameter states, and an immediately usable conversation and
+  planner. The first validated recipe selection creates revision zero; saved
+  text or structured edits then update that project-local design ID and preview.
+  A capability question or unsupported request is persisted without creating
+  an antenna. The user can change an active recipe to a circular patch or dipole
+  while the revision history continues.
 - Project reopened: the last active page recorded in `project.json` is restored.
 - Return to Welcome: active-project context is cleared, the Start page appears,
   and SnowBuddy returns to the current launch’s Welcome session.
@@ -1069,14 +1402,26 @@ clear local error and no raw traceback. Failed runs show no fake success metrics
 
 At question time SnowBuddy may receive:
 
-- Visible page: Start, Data Prep, Model Training, Training Results, Model Library,
-  Inference, or Inverse Design.
+- Visible page: Start, Antenna Design, Experimental Antenna Builder, Data Prep,
+  Model Training, Training Results, Model Library, Inference, or Inverse Design.
 - Appearance mode: Light or Dark.
 - Top application menu: File, Edit, Help.
 - Active project and workflow status.
 - On every page: SnowBuddy companion visibility, chat enabled state, and
   SnowBuddy mode (Welcome or Focus).
 - On Start: recent-project count.
+- On Antenna Design: current path choice and both existing-design and blank
+  conversational-agent actions.
+- On Experimental Antenna Builder with no canonical design: explicit
+  `awaiting_design` status, `Design: null`, no geometry or invented antenna
+  properties, persisted conversation count, enabled planner controls, and the
+  disabled design-dependent actions.
+- On Experimental Antenna Builder with a design: experimental status, recipe ID, solver-neutral
+  design ID and revision, topology, frequency, material properties, canonical
+  graph counts, validation stages, array spacing, selected LHS parameters,
+  selected planner, its private/local or cloud-transmission notice, planner
+  audit location, interactive-preview behavior, CST-adapter behavior, and the
+  explicit independent-port/feed limitation.
 - On Data Prep: source mode; input and output CSV paths or the #Parameters
   source path; the LHS sample-generator and Create templates actions; whether a
   generated input CSV is waiting for solver outputs; active accordion subtask;
@@ -1123,7 +1468,8 @@ Live snapshot values override defaults in this document.
 
 ## Maintenance rule
 
-Every change to `studio/ui.py`, `studio/results_ui.py`, `studio/library_ui.py`,
+Every change to `studio/ui.py`, `studio/antenna_builder_ui.py`,
+`studio/sample_generator_ui.py`, `studio/results_ui.py`, `studio/library_ui.py`,
 `studio/inference_ui.py`, `studio/inverse_design_ui.py`, or `studio/theme.py` must
 include a review of this file in the same change. Update affected descriptions,
 Studio/contract versions when appropriate, and all GUI SHA-256 values above.

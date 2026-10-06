@@ -16,6 +16,7 @@ from studio.sample_generator import (
     LHSSampleSet,
     LHSVariable,
     generate_lhs_samples,
+    write_lhs_inputs_cst_txt,
     write_lhs_inputs_csv,
 )
 from studio.theme import COLORS, FONTS
@@ -41,7 +42,7 @@ class LHSVariableEditor:
 
 
 class LHSSampleGeneratorDialog(ctk.CTkToplevel):
-    """Non-scrolling LHS editor, coverage preview, and CSV export workflow."""
+    """Non-scrolling LHS editor, coverage preview, and paired export workflow."""
 
     def __init__(
         self,
@@ -49,6 +50,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         *,
         project_path: Path,
         on_export: Callable[[Path], None],
+        initial_variables: list[LHSVariable] | None = None,
     ) -> None:
         super().__init__(parent)
         self.project_path = Path(project_path)
@@ -83,8 +85,15 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             "write",
             lambda *_args: self._invalidate_generated_samples(),
         )
-        for _index in range(3):
-            self._append_editor()
+        if initial_variables:
+            for variable in initial_variables:
+                self._append_editor(variable)
+            self.status_var.set(
+                "Template parameters loaded. Review their ranges before generating samples."
+            )
+        else:
+            for _index in range(3):
+                self._append_editor()
         self._render_variable_page()
         self.after_idle(self._draw_empty_coverage)
 
@@ -365,7 +374,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         self.status_label.grid(row=0, column=0, sticky="w")
         self.export_button = ctk.CTkButton(
             footer,
-            text="Export inputs.csv",
+            text="Export CSV + CST TXT",
             width=174,
             height=38,
             corner_radius=11,
@@ -380,11 +389,15 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         )
         self.export_button.grid(row=0, column=1, padx=(12, 0), sticky="e")
 
-    def _append_editor(self) -> None:
+    def _append_editor(self, initial: LHSVariable | None = None) -> None:
         editor = LHSVariableEditor(
-            name=ctk.StringVar(value=""),
-            minimum=ctk.StringVar(value=""),
-            maximum=ctk.StringVar(value=""),
+            name=ctk.StringVar(value=initial.name if initial else ""),
+            minimum=ctk.StringVar(
+                value=format(initial.minimum, ".12g") if initial else ""
+            ),
+            maximum=ctk.StringVar(
+                value=format(initial.maximum, ".12g") if initial else ""
+            ),
         )
         for variable in (editor.name, editor.minimum, editor.maximum):
             variable.trace_add(
@@ -647,7 +660,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             height / 2,
             text="Coverage preview appears after generation",
             fill=_active_color(COLORS["muted"]),
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
         )
 
     def _draw_coverage(self) -> None:
@@ -694,7 +707,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             height - 16,
             text=x_label,
             fill=ink,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         canvas.create_text(
             17,
@@ -702,7 +715,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             text=y_label,
             angle=90,
             fill=ink,
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         canvas.create_text(
             left - 8,
@@ -710,7 +723,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             text=format(y_max, ".4g"),
             fill=muted,
             anchor="ne",
-            font=("Segoe UI", 10),
+            font=FONTS["caption"],
         )
         canvas.create_text(
             left - 8,
@@ -718,7 +731,7 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
             text=format(y_min, ".4g"),
             fill=muted,
             anchor="se",
-            font=("Segoe UI", 10),
+            font=FONTS["caption"],
         )
         canvas.create_line(left - 4, top, left, top, fill=grid)
         canvas.create_line(left - 4, bottom, left, bottom, fill=grid)
@@ -742,20 +755,33 @@ class LHSSampleGeneratorDialog(ctk.CTkToplevel):
         if not destination:
             return
         try:
-            exported = write_lhs_inputs_csv(destination, self.generated_samples)
+            exported_csv = write_lhs_inputs_csv(destination, self.generated_samples)
+            exported_cst = write_lhs_inputs_cst_txt(
+                Path(destination).with_suffix(".txt"),
+                self.generated_samples,
+            )
         except (OSError, ValueError) as exc:
             self._show_error(str(exc))
             return
-        self.status_var.set(f"Exported and loaded into Data Prep: {exported.name}")
+        self.status_var.set(
+            f"Exported {exported_csv.name} for Data Prep and {exported_cst.name} for CST."
+        )
         self.status_label.configure(text_color=COLORS["success"])
-        self.on_export(exported)
+        self.on_export(exported_csv)
         messagebox.showinfo(
             "LHS inputs ready",
             (
-                f"Saved {self.generated_samples.sample_count:,} simulation inputs to:\n"
-                f"{exported}\n\n"
-                "Run these rows in your simulator without reordering them, then "
-                "return with an output CSV containing the same row count and order."
+                f"Saved {self.generated_samples.sample_count:,} simulation inputs.\n\n"
+                f"Studio Data Prep CSV:\n{exported_csv}\n\n"
+                f"CST parameter-sweep import TXT:\n{exported_cst}\n\n"
+                "Import the TXT file into CST's parameter sweep and choose "
+                "'Define multiple sequences' so each TXT row becomes one run. "
+                "Do not use the default 'Define one sequence only'.\n\n"
+                "CST's 1D plot view displays at most 25 curves by default, and ASCII "
+                "export includes only the curves currently displayed. Raise or remove "
+                "that display limit before exporting all simulation outputs.\n\n"
+                "Run the rows without reordering them, then return with an output CSV "
+                "containing the same row count and order."
             ),
             parent=self,
         )

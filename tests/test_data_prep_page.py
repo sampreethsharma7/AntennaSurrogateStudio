@@ -227,16 +227,18 @@ class DataPrepPageTests(unittest.TestCase):
         dialog.generate_samples()
 
         destination = self.project.path / "data" / "generated" / "inputs.csv"
+        cst_destination = destination.with_suffix(".txt")
         with (
             patch(
                 "studio.sample_generator_ui.filedialog.asksaveasfilename",
                 return_value=str(destination),
             ),
-            patch("studio.sample_generator_ui.messagebox.showinfo"),
+            patch("studio.sample_generator_ui.messagebox.showinfo") as info,
         ):
             dialog.export_samples()
 
         self.assertTrue(destination.exists())
+        self.assertTrue(cst_destination.exists())
         self.assertEqual(self.page.mode_var.get(), "pair")
         self.assertEqual(self.page.input_path_var.get(), str(destination.resolve()))
         self.assertEqual(self.page.output_path_var.get(), "")
@@ -246,6 +248,47 @@ class DataPrepPageTests(unittest.TestCase):
         exported_text = destination.read_text(encoding="utf-8")
         self.assertTrue(exported_text.startswith("patch_length,patch_width,feed_offset"))
         self.assertNotIn("sample_id", exported_text.splitlines()[0].lower())
+        cst_text = cst_destination.read_text(encoding="utf-8")
+        self.assertTrue(cst_text.startswith("patch_length\tpatch_width\tfeed_offset"))
+        self.assertEqual(len(cst_text.splitlines()), 9)
+        self.assertIn(str(destination.resolve()), info.call_args.args[1])
+        self.assertIn(str(cst_destination.resolve()), info.call_args.args[1])
+        self.assertIn("parameter sweep", info.call_args.args[1])
+        self.assertIn("Define multiple sequences", info.call_args.args[1])
+        self.assertIn("Do not use the default 'Define one sequence only'", info.call_args.args[1])
+        self.assertIn("25 curves", info.call_args.args[1])
+        self.assertIn("ASCII export includes only", info.call_args.args[1])
+
+    def test_builder_vary_parameters_preselect_matching_discovered_inputs(self):
+        self.project = self.app.update_current_project(
+            {
+                "antenna_builder": {
+                    "selected_sweep_parameters": [
+                        "PatchW",
+                        "SlotOffsetY",
+                        "NotInTheExtract",
+                    ]
+                }
+            }
+        )
+
+        self.page._analysis_complete(
+            DiscoveryResult(
+                mode="parameters",
+                files=["cst_parameters.txt"],
+                input_variables=["PatchL", "PatchW", "SlotOffsetY"],
+                output_variables=["S11"],
+                sample_count=1000,
+            )
+        )
+
+        self.assertFalse(self.page.input_checks["PatchL"].get())
+        self.assertTrue(self.page.input_checks["PatchW"].get())
+        self.assertTrue(self.page.input_checks["SlotOffsetY"].get())
+        self.assertIn("Builder VARY inputs are preselected", self.page.status_var.get())
+        prep = self.app.current_project.manifest["data_prep"]
+        self.assertEqual(prep["selected_inputs"], ["PatchW", "SlotOffsetY"])
+        self.assertFalse(prep["variable_contract_confirmed"])
 
     def test_lhs_invalid_form_is_reported_without_exportable_output(self):
         self.page.open_lhs_sample_generator()

@@ -8,6 +8,7 @@ __pycache__/
 htmlcov/
 .pytest_cache/
 .test_runs/
+.capture_tmp/
 .verification/
 .development/
 .env

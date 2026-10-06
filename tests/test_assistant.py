@@ -12,6 +12,7 @@ from studio.assistant import (
     AssistantError,
     OllamaClient,
     SnowBuddyService,
+    _local_reply_conflicts_with_current_product,
     build_project_context,
     build_response_directive,
     classify_project_question,
@@ -492,8 +493,88 @@ class AssistantTests(unittest.TestCase):
         history = self.store.load_chat(self.project)
 
         self.assertFalse(used_local_model)
-        self.assertIn("Data Prep", reply)
+        self.assertIn("Antenna Design", reply)
         self.assertEqual(len(history), 2)
+
+    def test_live_project_snapshot_rejects_false_welcome_claim(self):
+        contradictory = (
+            "There is no active project loaded, and the visible page is Welcome."
+        )
+        with patch.object(
+            OllamaClient,
+            "create_response",
+            return_value=contradictory,
+        ):
+            reply, used_local_model = SnowBuddyService(
+                self.store,
+                model=LIGHTWEIGHT_MODEL,
+            ).ask(
+                self.project,
+                "What is the current state of this project?",
+                live_ui_state=(
+                    "Visible page: Inference\n"
+                    f"Active project: {self.project.name}\n"
+                    "SnowBuddy mode: Focus\n"
+                    "Active inference Model Book: E2E02"
+                ),
+            )
+
+        self.assertFalse(used_local_model)
+        self.assertIn(self.project.name, reply)
+        self.assertNotIn("no active project", reply.lower())
+        self.assertNotIn("visible page is Welcome", reply)
+
+    def test_antenna_design_page_claim_accepts_legacy_design_start_alias(self):
+        live_ui_state = "Visible page: Antenna Design"
+
+        self.assertFalse(
+            _local_reply_conflicts_with_current_product(
+                self.project,
+                "Which page is visible?",
+                "The visible page is Antenna Design.",
+                live_ui_state,
+            )
+        )
+        self.assertFalse(
+            _local_reply_conflicts_with_current_product(
+                self.project,
+                "Which page is visible?",
+                "The visible page is Design Start.",
+                live_ui_state,
+            )
+        )
+        self.assertTrue(
+            _local_reply_conflicts_with_current_product(
+                self.project,
+                "Which page is visible?",
+                "The visible page is Data Prep.",
+                live_ui_state,
+            )
+        )
+
+    def test_unreachable_local_model_reports_it_before_grounded_project_fallback(self):
+        with patch.object(
+            OllamaClient,
+            "create_response",
+            side_effect=AssistantError("offline"),
+        ):
+            reply, used_local_model = SnowBuddyService(
+                self.store,
+                model=LIGHTWEIGHT_MODEL,
+            ).ask(
+                self.project,
+                "What is the current state of this project?",
+                live_ui_state=(
+                    "Visible page: Inference\n"
+                    f"Active project: {self.project.name}\n"
+                    "SnowBuddy mode: Focus"
+                ),
+            )
+
+        self.assertFalse(used_local_model)
+        self.assertIn("local model is unavailable", reply.lower())
+        self.assertIn(self.project.name, reply)
+        self.assertNotIn("Welcome mode with no active project", reply)
 
     def test_welcome_mode_works_without_project(self):
         service = SnowBuddyService(self.store, model=LIGHTWEIGHT_MODEL)

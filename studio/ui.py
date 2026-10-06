@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import math
 import queue
 import subprocess
 import sys
@@ -19,6 +20,7 @@ from typing import Callable
 import customtkinter as ctk
 
 from studio import __version__
+from studio.antenna_builder_ui import AntennaBuilderPage, DesignStartPage
 from studio.assistant import (
     MODEL_PROFILES,
     AssistantError,
@@ -50,6 +52,7 @@ from studio.model_training import (
     XGBOOST_CUSTOM_PARAMETER_NAMES,
     ModelTrainingRequest,
     ModelTrainingResult,
+    pooled_r_squared_from_prediction_records,
     submit_model_training_request,
 )
 from studio.parser_engine import (
@@ -70,8 +73,15 @@ from studio.project_store import (
 )
 from studio.results_ui import TrainingResultsPage
 from studio.sample_generator_ui import LHSSampleGeneratorDialog
+from studio.sample_generator import LHSVariable
 from studio.settings import load_appearance_mode, save_appearance_mode
-from studio.theme import COLORS, FONTS, status_palette
+from studio.theme import (
+    COLORS,
+    FONTS,
+    column_safe_width,
+    status_palette,
+    widest_text_width,
+)
 from studio.training_ui import (
     AUTO_SEARCH_DESCRIPTIONS,
     AUTO_SEARCH_LEVELS,
@@ -95,6 +105,60 @@ DEFAULT_WINDOW_HEIGHT = 900
 MAX_EFFECTIVE_UI_SCALE = 1.08
 SNOWBUDDY_PANEL_WIDTH = 390
 MIN_DOCKED_PAGE_WIDTH = 980
+SIDEBAR_COLLAPSED_WIDTH = 76
+SIDEBAR_NAV_BUTTON_WIDTH = 200
+SIDEBAR_BRAND_BADGE_WIDTH = 38
+SIDEBAR_TOGGLE_WIDTH = 28
+HERO_PROGRESS_WIDTH = 300
+# Every label project_resume_destination can return.  The hero action stack is
+# measured against these, so the longest one cannot be clipped.
+RESUME_ACTION_LABELS = (
+    "Run Inference  →",
+    "Open Model Library  →",
+    "Continue Antenna Builder  →",
+    "Begin Antenna Design  →",
+    "Continue Data Prep  →",
+    "Validate & Register Data  →",
+    "Continue Model Training  →",
+    "Review Training Results  →",
+    "Resume Project  →",
+)
+
+
+def hero_action_width() -> int:
+    """Width that shows the longest hero action label in full."""
+
+    return widest_text_width(
+        "button",
+        RESUME_ACTION_LABELS + ("+  Create project", "Open project"),
+        padding=28,
+        minimum=196,
+    )
+
+
+def expanded_sidebar_width() -> int:
+    """Width that shows the brand, navigation, project card and footer uncut.
+
+    Measured from the strings the rail actually renders.  A hard-coded 226
+    clipped the brand subtitle under the collapse chevron, cut the final letter
+    from "LOCAL COMPUTE - PRIVATE", and trimmed the Return to Welcome button.
+    """
+
+    return max(
+        # Brand badge, gap, wordmark, gap, collapse chevron, frame padding.
+        SIDEBAR_BRAND_BADGE_WIDTH
+        + 9
+        + widest_text_width("caption", ("SURROGATE STUDIO",))
+        + 18
+        + SIDEBAR_TOGGLE_WIDTH
+        + 32,
+        widest_text_width("mono", ("LOCAL COMPUTE · PRIVATE", "LAB WORKFLOW")) + 44,
+        widest_text_width("caption", (f"Studio Preview  ·  v{__version__}",)) + 44,
+        # Project card: shell padding, button padding, then the label.
+        widest_text_width("button", ("←  Return to Welcome",)) + 24 + 56,
+        SIDEBAR_NAV_BUTTON_WIDTH + 24,
+        SIDEBAR_COLLAPSED_WIDTH,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,6 +233,30 @@ def _window_dpi_scaling(window: tk.Misc) -> float:
     return max(1.0, float(getattr(window, "_window_scaling", 1.0)))
 
 
+def _content_sized_dialog_dimensions(
+    requested_width_px: int,
+    requested_height_px: int,
+    *,
+    window_scaling: float,
+    screen_width_px: int,
+    screen_height_px: int,
+    minimum_width: int,
+    minimum_height: int,
+    padding_px: int = 20,
+) -> tuple[int, int]:
+    """Return logical CTk dimensions that contain the measured physical content."""
+
+    scale = max(0.1, float(window_scaling))
+    desired_width = math.ceil((requested_width_px + padding_px) / scale)
+    desired_height = math.ceil((requested_height_px + padding_px) / scale)
+    maximum_width = max(320, math.floor((screen_width_px - 40) / scale))
+    maximum_height = max(320, math.floor((screen_height_px - 40) / scale))
+    return (
+        min(max(minimum_width, desired_width), maximum_width),
+        min(max(minimum_height, desired_height), maximum_height),
+    )
+
+
 class HoverTooltip:
     """Themed hover/focus text for compact navigation controls."""
 
@@ -207,7 +295,7 @@ class HoverTooltip:
             fg=COLORS["surface"][index],
             padx=9,
             pady=5,
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
         ).pack()
         tooltip.update_idletasks()
         tooltip.geometry(
@@ -225,6 +313,32 @@ class HoverTooltip:
         self.window = None
 
 
+# What the resumed page actually asks the user to do.  The hero subtitle used
+# to show manifest["workflow"]["next_action"], which is written once at project
+# creation and then goes stale, so the card could advise "Load and prepare
+# antenna data." beside a button reading "Begin Antenna Design".  Both now
+# come from the resolved destination.
+RESUME_DESCRIPTIONS = {
+    "design_start": "Choose how this project starts: describe an antenna, or bring an existing design.",
+    "antenna_builder": "Keep describing the antenna and review the geometry it generates.",
+    "data": "Load and prepare antenna data.",
+    "training": "Train a surrogate model on the registered dataset.",
+    "results": "Review how the trained model performed before saving it.",
+    "library": "Set a saved Model Book as active so it can be used.",
+    "inference": "Predict a response from the active Model Book.",
+}
+
+
+def project_resume_description(project: Project) -> str:
+    """One sentence describing the step the resume action leads to."""
+
+    destination, _label = project_resume_destination(project)
+    return RESUME_DESCRIPTIONS.get(
+        destination,
+        str(project.manifest.get("workflow", {}).get("next_action", "")),
+    )
+
+
 def project_resume_destination(project: Project) -> tuple[str, str]:
     """Return the next page and action label for the persisted workflow stage."""
 
@@ -235,6 +349,14 @@ def project_resume_destination(project: Project) -> tuple[str, str]:
         if active_book_id:
             return "inference", "Run Inference  →"
         return "library", "Open Model Library  →"
+    if project.workflow_stage == "project_created":
+        design_start = project.manifest.get("design_start")
+        if isinstance(design_start, dict):
+            choice = design_start.get("choice")
+            if choice == "generated_template":
+                return "antenna_builder", "Continue Antenna Builder  →"
+            if choice != "existing_design":
+                return "design_start", "Begin Antenna Design  →"
     return {
         "project_created": ("data", "Continue Data Prep  →"),
         "data_discovered": ("data", "Continue Data Prep  →"),
@@ -261,6 +383,7 @@ class StudioApp(ctk.CTk):
         ctk.set_window_scaling(self.window_layout.window_scaling_factor)
         ctk.set_widget_scaling(self.window_layout.widget_scaling_factor)
         self.ui_scaling = self.window_layout.ui_scaling
+        self._applied_dpi_scaling = self.window_layout.dpi_scaling
         self.minsize(
             self.window_layout.min_width,
             self.window_layout.min_height,
@@ -281,6 +404,7 @@ class StudioApp(ctk.CTk):
         self.snowbuddy_collapsed = True
         self.snowbuddy_display_mode = "hidden"
         self.nav_tooltips: dict[str, HoverTooltip] = {}
+        self.create_project_window: CreateProjectDialog | None = None
 
         self._set_windows_identity()
         self._build_shell()
@@ -362,6 +486,8 @@ class StudioApp(ctk.CTk):
         self.page_host.grid_rowconfigure(0, weight=1)
 
         self.pages["start"] = StartPage(self.page_host, self)
+        self.pages["design_start"] = DesignStartPage(self.page_host, self)
+        self.pages["antenna_builder"] = AntennaBuilderPage(self.page_host, self)
         self.pages["data"] = DataPrepPage(self.page_host, self)
         self.pages["training"] = ModelTrainingPage(self.page_host, self)
         self.pages["results"] = TrainingResultsPage(self.page_host, self)
@@ -454,8 +580,34 @@ class StudioApp(ctk.CTk):
         self.snowbuddy_panel.tkraise()
 
     def _window_resized(self, event: tk.Event) -> None:
-        if event.widget is self and not self.snowbuddy_collapsed:
+        if event.widget is not self:
+            return
+        self._refresh_dpi_scaling()
+        if not self.snowbuddy_collapsed:
             self._place_snowbuddy_panel()
+
+    def _refresh_dpi_scaling(self) -> bool:
+        """Reapply the bounded UI scale after a per-monitor DPI transition."""
+
+        dpi_scaling = _window_dpi_scaling(self)
+        if math.isclose(
+            dpi_scaling,
+            self._applied_dpi_scaling,
+            rel_tol=0.0,
+            abs_tol=0.01,
+        ):
+            return False
+        layout = responsive_window_layout(
+            self.winfo_screenwidth(),
+            self.winfo_screenheight(),
+            dpi_scaling,
+        )
+        ctk.set_window_scaling(layout.window_scaling_factor)
+        ctk.set_widget_scaling(layout.widget_scaling_factor)
+        self.window_layout = layout
+        self.ui_scaling = layout.ui_scaling
+        self._applied_dpi_scaling = dpi_scaling
+        return True
 
     def _build_menu_bar(self) -> None:
         menu_bar = ctk.CTkFrame(
@@ -547,7 +699,7 @@ class StudioApp(ctk.CTk):
             disabledforeground=COLORS["disabled_text"][color_index],
             borderwidth=1,
             relief="solid",
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
         )
         if name == "file":
             menu.add_command(
@@ -600,15 +752,19 @@ class StudioApp(ctk.CTk):
         )
 
     def _build_sidebar(self) -> None:
+        self.sidebar_expanded_width = expanded_sidebar_width()
         self.sidebar = ctk.CTkFrame(
             self,
-            width=226,
+            width=self.sidebar_expanded_width,
             corner_radius=0,
             fg_color=COLORS["sidebar"],
         )
         self.sidebar.grid(row=1, column=0, sticky="nsew")
         self.sidebar.grid_propagate(False)
-        self.sidebar.grid_rowconfigure(9, weight=1)
+        # Row 9 holds the last navigation button; the growing spacer belongs on
+        # its own row below, or Inverse Design is pushed away from the workflow
+        # it is part of.
+        self.sidebar.grid_rowconfigure(10, weight=1)
 
         self.sidebar_brand = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.sidebar_brand.grid(row=0, column=0, padx=16, pady=(22, 30), sticky="ew")
@@ -637,9 +793,9 @@ class StudioApp(ctk.CTk):
         ).pack(anchor="w")
         ctk.CTkLabel(
             self.sidebar_brand_text,
-            text="RF SURROGATE LAB",
+            text="SURROGATE STUDIO",
             text_color=COLORS["subtle"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         ).pack(anchor="w")
         self.sidebar_toggle_button = ctk.CTkButton(
@@ -656,7 +812,7 @@ class StudioApp(ctk.CTk):
             font=("Segoe UI Semibold", 22),
             command=lambda: self.set_sidebar_collapsed(not self.sidebar_collapsed),
         )
-        self.sidebar_toggle_button.pack(side="right")
+        self.sidebar_toggle_button.pack(side="right", padx=(10, 0))
         self.sidebar_toggle_button.accessible_name = "Collapse workflow navigation"
 
         self.sidebar_workflow_label = ctk.CTkLabel(
@@ -676,30 +832,38 @@ class StudioApp(ctk.CTk):
 
         self.nav_specs = {
             "start": ("⌂", "Start"),
+            "design_start": ("∆", "Antenna Design"),
             "data": ("≋", "Data Prep"),
             "training": ("◇", "Model Training"),
             "results": ("◎", "Training Results"),
             "library": ("▤", "Model Library"),
             "inference": ("∿", "Inference"),
-            "inverse_design": ("⌾", "Inverse Design"),
+            "inverse_design": ("↔", "Inverse Design"),
         }
 
         self.nav_buttons["start"] = self._nav_button(
             self.sidebar, 2, "⌂", "Start", lambda: self.show_page("start")
         )
+        self.nav_buttons["design_start"] = self._nav_button(
+            self.sidebar,
+            3,
+            "∆",
+            "Antenna Design",
+            lambda: self.show_page("design_start"),
+        )
         self.nav_buttons["data"] = self._nav_button(
-            self.sidebar, 3, "≋", "Data Prep", lambda: self.show_page("data")
+            self.sidebar, 4, "≋", "Data Prep", lambda: self.show_page("data")
         )
         self.nav_buttons["training"] = self._nav_button(
             self.sidebar,
-            4,
+            5,
             "◇",
             "Model Training",
             lambda: self.show_page("training"),
         )
         self.nav_buttons["results"] = self._nav_button(
             self.sidebar,
-            5,
+            6,
             "◎",
             "Training Results",
             lambda: self.show_page("results"),
@@ -707,22 +871,22 @@ class StudioApp(ctk.CTk):
 
         self.nav_buttons["library"] = self._nav_button(
             self.sidebar,
-            6,
+            7,
             "▤",
             "Model Library",
             lambda: self.show_page("library"),
         )
         self.nav_buttons["inference"] = self._nav_button(
             self.sidebar,
-            7,
+            8,
             "∿",
             "Inference",
             lambda: self.show_page("inference"),
         )
         self.nav_buttons["inverse_design"] = self._nav_button(
             self.sidebar,
-            8,
-            "⌾",
+            9,
+            "↔",
             "Inverse Design",
             lambda: self.show_page("inverse_design"),
         )
@@ -735,7 +899,7 @@ class StudioApp(ctk.CTk):
             border_color=COLORS["border"],
         )
         self.sidebar_project_shell.grid(
-            row=9,
+            row=11,
             column=0,
             padx=16,
             pady=(18, 0),
@@ -761,7 +925,7 @@ class StudioApp(ctk.CTk):
             self.sidebar_project_shell,
             text="Create or open a project",
             text_color=COLORS["muted"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         )
         self.sidebar_project_status.pack(fill="x", padx=14, pady=(3, 8))
@@ -780,12 +944,12 @@ class StudioApp(ctk.CTk):
         )
 
         self.sidebar_footer = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.sidebar_footer.grid(row=10, column=0, padx=22, pady=20, sticky="ew")
+        self.sidebar_footer.grid(row=12, column=0, padx=22, pady=20, sticky="ew")
         self.sidebar_version_label = ctk.CTkLabel(
             self.sidebar_footer,
             text=f"Studio Preview  ·  v{__version__}",
             text_color=COLORS["muted"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         )
         self.sidebar_version_label.pack(anchor="w")
@@ -805,7 +969,7 @@ class StudioApp(ctk.CTk):
         self.sidebar_brand_text.pack_forget()
         self.sidebar_toggle_button.pack_forget()
         if self.sidebar_collapsed:
-            self.sidebar.configure(width=76)
+            self.sidebar.configure(width=SIDEBAR_COLLAPSED_WIDTH)
             self.sidebar_brand.grid_configure(padx=18, pady=(20, 24))
             self.sidebar_toggle_button.configure(text="›")
             self.sidebar_toggle_button.accessible_name = "Expand workflow navigation"
@@ -814,7 +978,7 @@ class StudioApp(ctk.CTk):
             self.sidebar_project_shell.grid_remove()
             self.sidebar_footer.grid_remove()
         else:
-            self.sidebar.configure(width=226)
+            self.sidebar.configure(width=self.sidebar_expanded_width)
             self.sidebar_brand.grid_configure(padx=16, pady=(22, 30))
             self.sidebar_brand_badge.pack(side="left")
             self.sidebar_brand_text.pack(side="left", padx=(9, 0))
@@ -829,7 +993,9 @@ class StudioApp(ctk.CTk):
             button.configure(
                 text=icon if self.sidebar_collapsed else f"{icon}    {label}",
                 anchor="center" if self.sidebar_collapsed else "w",
-                width=48 if self.sidebar_collapsed else 200,
+                width=(
+                    48 if self.sidebar_collapsed else SIDEBAR_NAV_BUTTON_WIDTH
+                ),
             )
             button.grid_configure(
                 padx=12 if self.sidebar_collapsed else 12,
@@ -854,6 +1020,7 @@ class StudioApp(ctk.CTk):
         self.appearance_mode = mode
         ctk.set_appearance_mode(mode)
         self.appearance_control.set(mode.title())
+        self.antenna_builder_page.refresh_theme()
         self.results_page.refresh_theme()
         self.inference_page.refresh_theme()
         self.inverse_design_page.refresh_theme()
@@ -894,7 +1061,17 @@ class StudioApp(ctk.CTk):
         return button
 
     def show_page(self, name: str, *, persist: bool = True) -> None:
-        if name in {"data", "training", "results", "library", "inference", "inverse_design"} and not self.current_project:
+        project_pages = {
+            "design_start",
+            "antenna_builder",
+            "data",
+            "training",
+            "results",
+            "library",
+            "inference",
+            "inverse_design",
+        }
+        if name in project_pages and not self.current_project:
             messagebox.showinfo(
                 "Open a project",
                 "Create or open a project before continuing the workflow.",
@@ -904,6 +1081,8 @@ class StudioApp(ctk.CTk):
         if name == "library" and self.current_project:
             self.library_page.project = self.current_project
             self.library_page.reload()
+        if name == "results" and self.current_project:
+            self.results_page.set_project(self.current_project)
         if name == "inference" and self.current_project:
             self.inference_page.project = self.current_project
             self.inference_page.reload()
@@ -915,7 +1094,7 @@ class StudioApp(ctk.CTk):
         if not self.snowbuddy_collapsed:
             self._place_snowbuddy_panel(force=True)
         for key, button in self.nav_buttons.items():
-            active = key == name
+            active = key == name or (key == "design_start" and name == "antenna_builder")
             button.configure(
                 fg_color=COLORS["nav_active"] if active else "transparent",
                 text_color=COLORS["cyan"] if active else COLORS["muted"],
@@ -923,7 +1102,7 @@ class StudioApp(ctk.CTk):
         if (
             persist
             and self.current_project
-            and name in {"start", "data", "training", "results", "library", "inference", "inverse_design"}
+            and name in {"start", *project_pages}
             and self.current_project.manifest.get("ui", {}).get("last_page") != name
         ):
             self.current_project = self.store.update_project(
@@ -944,6 +1123,8 @@ class StudioApp(ctk.CTk):
         self.sidebar_return_button.pack(fill="x", padx=12, pady=(0, 12))
         self.start_page.refresh()
         self.snowbuddy_panel.load_project(self.current_project)
+        self.design_start_page.set_project(self.current_project)
+        self.antenna_builder_page.set_project(self.current_project)
         self.data_page.set_project(self.current_project)
         self.training_page.set_project(self.current_project)
         self.results_page.set_project(self.current_project)
@@ -951,11 +1132,11 @@ class StudioApp(ctk.CTk):
         self.inference_page.set_project(self.current_project)
         self.inverse_design_page.set_project(self.current_project)
         remembered_page = str(
-            self.current_project.manifest.get("ui", {}).get("last_page") or "data"
+            self.current_project.manifest.get("ui", {}).get("last_page") or "design_start"
         )
         destination = target_page or remembered_page
         if destination not in self.pages:
-            destination = "data"
+            destination = "design_start"
         self.show_page(destination)
 
     def return_to_welcome(self) -> None:
@@ -963,6 +1144,8 @@ class StudioApp(ctk.CTk):
         self.sidebar_project_name.configure(text="No project open")
         self.sidebar_project_status.configure(text="Create or open a project")
         self.sidebar_return_button.pack_forget()
+        self.design_start_page.set_project(None)
+        self.antenna_builder_page.set_project(None)
         self.data_page.set_project(None)
         self.training_page.set_project(None)
         self.results_page.set_project(None)
@@ -989,6 +1172,24 @@ class StudioApp(ctk.CTk):
             # without clearing or re-rendering the active project conversation.
             self.snowbuddy_panel.current_project = self.current_project
         if (
+            hasattr(self, "design_start_page")
+            and self.design_start_page.project is not None
+            and self.design_start_page.project.path == self.current_project.path
+        ):
+            self.design_start_page.project = self.current_project
+        if (
+            hasattr(self, "antenna_builder_page")
+            and self.antenna_builder_page.project is not None
+            and self.antenna_builder_page.project.path == self.current_project.path
+        ):
+            self.antenna_builder_page.project = self.current_project
+        if (
+            hasattr(self, "data_page")
+            and self.data_page.project is not None
+            and self.data_page.project.path == self.current_project.path
+        ):
+            self.data_page.project = self.current_project
+        if (
             hasattr(self, "library_page")
             and self.library_page.project is not None
             and self.library_page.project.path == self.current_project.path
@@ -1011,6 +1212,14 @@ class StudioApp(ctk.CTk):
     @property
     def start_page(self) -> "StartPage":
         return self.pages["start"]  # type: ignore[return-value]
+
+    @property
+    def design_start_page(self) -> DesignStartPage:
+        return self.pages["design_start"]  # type: ignore[return-value]
+
+    @property
+    def antenna_builder_page(self) -> AntennaBuilderPage:
+        return self.pages["antenna_builder"]  # type: ignore[return-value]
 
     @property
     def data_page(self) -> "DataPrepPage":
@@ -1038,6 +1247,8 @@ class StudioApp(ctk.CTk):
 
     def snowbuddy_ui_state(self) -> str:
         page_label = {
+            "design_start": "Antenna Design",
+            "antenna_builder": "Experimental Antenna Builder",
             "data": "Data Prep",
             "training": "Model Training",
             "results": "Training Results",
@@ -1080,6 +1291,20 @@ class StudioApp(ctk.CTk):
                 f"Recent project cards: {len(self.store.recent_projects(limit=5))}"
             )
         if self.current_project:
+            design_visibility = (
+                "visible now"
+                if self.active_page in {"design_start", "antenna_builder"}
+                else "retained state; Antenna Design is not currently visible"
+            )
+            lines.append(f"Antenna Design UI ({design_visibility}):")
+            lines.extend(
+                f"- {item}"
+                for item in (
+                    self.antenna_builder_page.describe_ui_state()
+                    if self.active_page == "antenna_builder"
+                    else self.design_start_page.describe_ui_state()
+                )
+            )
             data_visibility = (
                 "visible now"
                 if self.active_page == "data"
@@ -1143,7 +1368,22 @@ class StudioApp(ctk.CTk):
         return "\n".join(lines)
 
     def create_project_dialog(self) -> None:
-        CreateProjectDialog(self, self._create_project)
+        existing = self.create_project_window
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    existing.present()
+                    return
+            except tk.TclError:
+                pass
+        dialog = CreateProjectDialog(self, self._create_project)
+        self.create_project_window = dialog
+
+        def clear_reference(event: tk.Event) -> None:
+            if event.widget is dialog and self.create_project_window is dialog:
+                self.create_project_window = None
+
+        dialog.bind("<Destroy>", clear_reference, add="+")
 
     def _create_project(self, name: str, description: str) -> None:
         try:
@@ -1151,7 +1391,7 @@ class StudioApp(ctk.CTk):
         except ProjectError as exc:
             messagebox.showerror("Could not create project", str(exc), parent=self)
             return
-        self.set_project(project, target_page="data")
+        self.set_project(project, target_page="design_start")
 
     def open_project_dialog(self) -> None:
         path = filedialog.askdirectory(
@@ -1180,7 +1420,10 @@ class StartPage(ctk.CTkFrame):
 
         self._build_header()
         self._build_workspace()
-        self._build_footer()
+        # The hero's continue button is the page's single "next step" control.
+        # Callers that reach for next_page_button get that same widget rather
+        # than a second copy of it at the bottom of the page.
+        self.next_page_button = self.continue_project_button
 
     def _build_header(self) -> None:
         header = ctk.CTkFrame(self, fg_color="transparent")
@@ -1196,13 +1439,16 @@ class StartPage(ctk.CTkFrame):
             font=FONTS["display"],
             anchor="w",
         ).pack(anchor="w")
-        ctk.CTkLabel(
+        self.workspace_subtitle = ctk.CTkLabel(
             heading,
-            text="Build trusted antenna models. Save them as books. Reuse them anytime.",
+            text="Describe a supported antenna, inspect generated geometry, then build a trusted surrogate model.",
             text_color=COLORS["muted"],
             font=FONTS["body"],
             anchor="w",
-        ).pack(anchor="w", pady=(4, 0))
+            justify="left",
+        )
+        self.workspace_subtitle.pack(anchor="w", pady=(4, 0))
+        heading.bind("<Configure>", self._rewrap_workspace_subtitle, add="+")
 
         date_text = datetime.now().strftime("%A  ·  %B %d")
         ctk.CTkLabel(
@@ -1215,11 +1461,16 @@ class StartPage(ctk.CTkFrame):
             font=FONTS["mono"],
         ).grid(row=0, column=1, sticky="e")
 
+    def _rewrap_workspace_subtitle(self, event: tk.Event) -> None:
+        available = column_safe_width(self, max(320, int(event.width)))
+        if int(self.workspace_subtitle.cget("wraplength")) != available:
+            self.workspace_subtitle.configure(wraplength=available)
+
     def _build_workspace(self) -> None:
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.grid(row=1, column=0, padx=(28, 24), pady=(0, 12), sticky="nsew")
         body.grid_columnconfigure(0, weight=1)
-        body.grid_rowconfigure(1, weight=1)
+        body.grid_rowconfigure(2, weight=1)
 
         self.hero = ctk.CTkFrame(
             body,
@@ -1240,9 +1491,8 @@ class StartPage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
         )
-        recent_shell.grid(row=1, column=0, pady=(18, 0), sticky="nsew")
+        recent_shell.grid(row=1, column=0, pady=(18, 0), sticky="ew")
         recent_shell.grid_columnconfigure(0, weight=1)
-        recent_shell.grid_rowconfigure(1, weight=1)
 
         title_row = ctk.CTkFrame(recent_shell, fg_color="transparent")
         title_row.grid(row=0, column=0, padx=20, pady=(18, 8), sticky="ew")
@@ -1256,7 +1506,7 @@ class StartPage(ctk.CTkFrame):
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(
             title_row,
-            text="Your five latest workspaces",
+            text="Your five most recent projects",
             text_color=COLORS["muted"],
             font=FONTS["caption"],
         ).grid(row=0, column=1, sticky="e")
@@ -1265,41 +1515,18 @@ class StartPage(ctk.CTkFrame):
             recent_shell,
             fg_color="transparent",
         )
-        self.recent_frame.grid(row=1, column=0, padx=12, pady=(2, 14), sticky="nsew")
+        self.recent_frame.grid(row=1, column=0, padx=12, pady=(2, 14), sticky="ew")
         for column in range(5):
             self.recent_frame.grid_columnconfigure(column, weight=1, uniform="recent")
 
-    def _build_footer(self) -> None:
-        footer = ctk.CTkFrame(self, fg_color="transparent")
-        footer.grid(row=2, column=0, padx=(28, 24), pady=(0, 18), sticky="ew")
-        footer.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(
-            footer,
-            text="MAIN WORKFLOW",
-            text_color=COLORS["subtle"],
-            font=FONTS["mono"],
-        ).grid(row=0, column=0, sticky="w")
-        self.next_page_button = ctk.CTkButton(
-            footer,
-            text="Next workflow step  →",
-            width=176,
-            height=42,
-            corner_radius=11,
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
-            font=FONTS["button"],
-            state="disabled",
-            command=self._continue_project,
-        )
-        self.next_page_button.grid(row=0, column=1, sticky="e")
-
     def _build_hero_contents(self) -> None:
+        self.hero_action_width = hero_action_width()
         left = ctk.CTkFrame(self.hero, fg_color="transparent")
         left.grid(row=0, column=0, padx=26, pady=24, sticky="nsew")
 
         ctk.CTkLabel(
             left,
-            text="ACTIVE WORKSPACE",
+            text="ACTIVE PROJECT",
             text_color=COLORS["cyan"],
             font=FONTS["mono"],
             anchor="w",
@@ -1314,7 +1541,7 @@ class StartPage(ctk.CTkFrame):
         self.hero_title.pack(anchor="w", pady=(6, 3))
         self.hero_subtitle = ctk.CTkLabel(
             left,
-            text="Create a project or reopen an existing antenna workspace.",
+            text="Create a project, then describe an antenna in plain language or bring an existing design.",
             text_color=COLORS["muted"],
             font=FONTS["body_small"],
             anchor="w",
@@ -1327,22 +1554,25 @@ class StartPage(ctk.CTkFrame):
         self.progress_row.pack(fill="x", pady=(18, 0))
         self.progress_bar = ctk.CTkProgressBar(
             self.progress_row,
-            width=190,
-            height=7,
+            width=HERO_PROGRESS_WIDTH,
+            height=9,
             corner_radius=4,
             progress_color=COLORS["cyan"],
             fg_color=COLORS["disabled"],
         )
-        self.progress_bar.pack(side="left")
+        self.progress_bar.pack(side="left", fill="x", expand=True)
         self.progress_text = ctk.CTkLabel(
             self.progress_row,
             text="1 of 5",
             text_color=COLORS["subtle"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
         )
-        self.progress_text.pack(side="left", padx=(10, 0))
+        self.progress_text.pack(side="left", padx=(12, 0))
 
-        self.hero_actions = ctk.CTkFrame(self.hero, fg_color="transparent")
+        self.hero_actions = ctk.CTkFrame(
+            self.hero, fg_color="transparent", width=self.hero_action_width
+        )
+        self.hero_actions.pack_propagate(False)
         self.hero_actions.grid(
             row=0,
             column=1,
@@ -1353,20 +1583,23 @@ class StartPage(ctk.CTkFrame):
         self.create_project_button = ctk.CTkButton(
             self.hero_actions,
             text="+  Create project",
-            width=164,
+            width=self.hero_action_width,
             height=43,
             corner_radius=12,
             font=FONTS["button"],
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
+            fg_color="transparent",
+            hover_color=COLORS["control_hover"],
+            border_width=1,
+            border_color=COLORS["border_strong"],
+            text_color=COLORS["ink"],
             command=self.app.create_project_dialog,
         )
-        self.create_project_button.pack()
+        self.create_project_button.pack(fill="x")
         self.open_project_button = ctk.CTkButton(
             self.hero_actions,
             text="Open project",
-            width=164,
-            height=41,
+            width=self.hero_action_width,
+            height=43,
             corner_radius=12,
             font=FONTS["button"],
             fg_color="transparent",
@@ -1376,11 +1609,11 @@ class StartPage(ctk.CTkFrame):
             text_color=COLORS["ink"],
             command=self.app.open_project_dialog,
         )
-        self.open_project_button.pack(pady=(10, 0))
+        self.open_project_button.pack(fill="x", pady=(10, 0))
         self.continue_project_button = ctk.CTkButton(
             self.hero_actions,
             text="Continue Data Prep  →",
-            width=182,
+            width=self.hero_action_width,
             height=43,
             corner_radius=12,
             font=FONTS["button"],
@@ -1398,40 +1631,34 @@ class StartPage(ctk.CTkFrame):
 
     def refresh(self) -> None:
         project = self.app.current_project
+        for button in (
+            self.create_project_button,
+            self.open_project_button,
+            self.continue_project_button,
+        ):
+            button.pack_forget()
         if project:
             workflow = project.manifest.get("workflow", {})
             completed = int(workflow.get("completed_steps", 1))
             total = max(1, int(workflow.get("total_steps", 5)))
             self.hero_title.configure(text=project.name)
-            self.hero_subtitle.configure(
-                text=workflow.get("next_action", "Continue building this surrogate project.")
-            )
+            self.hero_subtitle.configure(text=project_resume_description(project))
             _destination, action_label = project_resume_destination(project)
             self.continue_project_button.configure(text=action_label)
             self.progress_bar.set(min(1.0, completed / total))
             self.progress_text.configure(text=f"{completed} of {total} steps")
-            self.create_project_button.pack_forget()
-            self.open_project_button.pack_forget()
             self.continue_project_button.pack()
+            self.create_project_button.pack(pady=(10, 0))
+            self.open_project_button.pack(pady=(10, 0))
         else:
             self.hero_title.configure(text="Start something precise")
             self.hero_subtitle.configure(
-                text="Create a project or reopen an existing antenna workspace."
+                text="Create a project, then describe an antenna in plain language or bring an existing design."
             )
             self.progress_bar.set(0.0)
             self.progress_text.configure(text="No active project")
-            self.continue_project_button.pack_forget()
             self.create_project_button.pack()
             self.open_project_button.pack(pady=(10, 0))
-        self.next_page_button.configure(
-            state="normal" if project else "disabled",
-            text=(action_label if project else "Next workflow step  →"),
-            fg_color=(COLORS["primary"] if project else COLORS["disabled"]),
-            text_color=(
-                COLORS["on_primary"] if project else COLORS["disabled_text"]
-            ),
-        )
-
         for child in self.recent_frame.winfo_children():
             child.destroy()
         recent = self.app.store.recent_projects(limit=5)
@@ -1461,8 +1688,6 @@ class StartPage(ctk.CTkFrame):
 
 
 class ProjectCard(ctk.CTkFrame):
-    ACCENTS = ("#0C8091", "#6952D4", "#138159", "#A66A00", "#2D6FD2")
-
     def __init__(
         self,
         parent: ctk.CTkFrame,
@@ -1473,6 +1698,9 @@ class ProjectCard(ctk.CTkFrame):
         super().__init__(
             parent,
             width=100,
+            # Tall enough for a two-line name at the Start page's smallest
+            # supported window.  The timestamp is packed against the bottom, so
+            # a longer name is trimmed instead of evicting it.
             height=196,
             corner_radius=16,
             fg_color=COLORS["surface_alt"],
@@ -1481,7 +1709,9 @@ class ProjectCard(ctk.CTkFrame):
         )
         self.pack_propagate(False)
         self.command = command
-        accent = self.ACCENTS[accent_index % len(self.ACCENTS)]
+        # The icon carries the same status colour as the badge.  Five rotating
+        # accents implied a meaning the colours did not have.
+        _, accent = status_palette(project.status_label)
 
         icon_shell = ctk.CTkFrame(
             self, width=38, height=38, corner_radius=12, fg_color=accent
@@ -1495,16 +1725,20 @@ class ProjectCard(ctk.CTkFrame):
             font=("Segoe UI Symbol", 24),
         ).place(relx=0.5, rely=0.5, anchor="center")
 
-        ctk.CTkLabel(
+        background, foreground = status_palette(project.status_label)
+        self.status_badge = ctk.CTkLabel(
             self,
-            text=project.name,
-            text_color=COLORS["ink"],
-            font=FONTS["card_title"],
-            justify="left",
-            anchor="w",
-            wraplength=78,
-        ).pack(fill="x", padx=9)
+            text=project.status_label,
+            height=24,
+            corner_radius=12,
+            fg_color=background,
+            text_color=foreground,
+            font=FONTS["button"],
+        )
+        self.status_badge.pack(anchor="w", padx=9, pady=(0, 7))
 
+        # Pack the timestamp against the bottom first so a long name can never
+        # push it out of a fixed-height card.  It used to disappear entirely.
         date = _friendly_date(project.last_opened_at)
         ctk.CTkLabel(
             self,
@@ -1512,20 +1746,31 @@ class ProjectCard(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["caption"],
             anchor="w",
-        ).pack(fill="x", padx=9, pady=(4, 0))
+        ).pack(side="bottom", fill="x", padx=9, pady=(4, 9))
 
-        background, foreground = status_palette(project.status_label)
-        ctk.CTkLabel(
+        self.name_label = ctk.CTkLabel(
             self,
-            text=project.status_label,
-            height=24,
-            corner_radius=12,
-            fg_color=background,
-            text_color=foreground,
-            font=("Segoe UI Semibold", 12),
-        ).pack(anchor="w", padx=9, pady=(10, 0))
+            text=project.name,
+            text_color=COLORS["ink"],
+            font=FONTS["card_title"],
+            justify="left",
+            anchor="nw",
+            wraplength=1,
+        )
+        self.name_label.pack(side="top", fill="both", expand=True, padx=9)
+        # The card's width comes from its grid column, so the name can only be
+        # wrapped once that width is known.  A fixed 78px forced short names
+        # like "Pilot01 2p4GHz patch" onto three lines.
+        self.bind("<Configure>", self._rewrap_name, add="+")
 
         self._bind_clicks(self)
+
+    def _rewrap_name(self, event: tk.Event) -> None:
+        # CustomTkinter scales wraplength, so convert the measured on-screen
+        # width into the value that renders at that width.
+        available = column_safe_width(self, max(60, int(event.width) - 26))
+        if int(self.name_label.cget("wraplength")) != available:
+            self.name_label.configure(wraplength=available)
 
     def _bind_clicks(self, widget) -> None:
         widget.bind("<Button-1>", lambda _event=None: self.command(), add="+")
@@ -1651,7 +1896,7 @@ class SnowBuddyPanel(ctk.CTkFrame):
             fg_color=COLORS["violet_soft"],
             hover_color=COLORS["violet_hover"],
             text_color=COLORS["on_violet_soft"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             command=self._show_model_dialog,
         )
         self.connect_button.grid(row=0, column=2, rowspan=2, sticky="e")
@@ -1722,7 +1967,7 @@ class SnowBuddyPanel(ctk.CTkFrame):
             composer,
             textvariable=self.context_hint,
             text_color=COLORS["subtle"],
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
             anchor="w",
         ).grid(row=1, column=0, columnspan=2, pady=(5, 0), sticky="w")
 
@@ -2570,7 +2815,7 @@ class DataPrepPage(ctk.CTkFrame):
                 "project schema."
             ),
             text_color=COLORS["subtle"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             height=28,
             wraplength=370,
             justify="left",
@@ -3056,7 +3301,11 @@ class DataPrepPage(ctk.CTkFrame):
         self._maybe_load_pair()
         self._open_local_folder(folder, "Could not open template folder")
 
-    def open_lhs_sample_generator(self) -> None:
+    def open_lhs_sample_generator(
+        self,
+        *,
+        initial_variables: list[LHSVariable] | None = None,
+    ) -> None:
         if not self.project:
             messagebox.showwarning(
                 "Open a project",
@@ -3075,6 +3324,7 @@ class DataPrepPage(ctk.CTkFrame):
             self,
             project_path=self.project.path,
             on_export=self._lhs_samples_exported,
+            initial_variables=initial_variables,
         )
 
     def _lhs_samples_exported(self, path: Path) -> None:
@@ -3181,11 +3431,36 @@ class DataPrepPage(ctk.CTkFrame):
                 self.output_path_var.get().strip(),
             )
         self.discovery = result
-        self._render_discovery(result)
+        selected_inputs: list[str] = []
+        if result.mode == "parameters" and self.project is not None:
+            builder_state = self.project.manifest.get("antenna_builder", {})
+            builder_selection = (
+                builder_state.get("selected_sweep_parameters", [])
+                if isinstance(builder_state, dict)
+                else []
+            )
+            if isinstance(builder_selection, list):
+                selected_names = {
+                    name for name in builder_selection if isinstance(name, str)
+                }
+                selected_inputs = [
+                    name for name in result.input_variables if name in selected_names
+                ]
+        self._render_discovery(
+            result,
+            selected_inputs=(
+                selected_inputs if result.mode == "parameters" else None
+            ),
+        )
         self.status_var.set(
             "CSV pair accepted · all columns selected automatically."
             if result.mode == "pair"
-            else "Source discovered. Select inputs and one output."
+            else (
+                "Source discovered. Builder VARY inputs are preselected; "
+                "review them and select one output."
+                if selected_inputs
+                else "Source discovered. Select inputs and one output."
+            )
         )
         self.status_dot.configure(fg_color=COLORS["warning"])
         self.prepare_button.configure(text="Prepare input + output  →")
@@ -3220,7 +3495,9 @@ class DataPrepPage(ctk.CTkFrame):
                 "available_inputs": result.input_variables,
                 "available_outputs": result.output_variables,
                 "selected_inputs": (
-                    result.input_variables if result.mode == "pair" else []
+                    result.input_variables
+                    if result.mode == "pair"
+                    else selected_inputs
                 ),
                 "selected_output": (
                     IMPORTED_OUTPUT_LABEL if result.mode == "pair" else None
@@ -3954,6 +4231,9 @@ class ModelTrainingPage(ctk.CTkFrame):
         self._training_elapsed_after_id: str | None = None
         self._training_started_at = 0.0
         self.latest_run_number: int | None = None
+        # The project whose finished run `latest_run_number` describes, so a
+        # manifest snapshot captured before that run cannot erase it.
+        self._latest_run_path: Path | None = None
         self.latest_run_var = ctk.StringVar(value="Latest Run: None")
 
         self.grid_columnconfigure(0, weight=1)
@@ -4141,7 +4421,7 @@ class ModelTrainingPage(ctk.CTkFrame):
             font=FONTS["body_small"],
             dropdown_font=FONTS["body_small"],
             anchor="w",
-            command=self._model_changed,
+            command=self._model_selected,
         )
         self.model_dropdown.grid(
             row=0,
@@ -4680,6 +4960,12 @@ class ModelTrainingPage(ctk.CTkFrame):
         self.training_footer_model_label.configure(text=f"{value} · Local")
         self._apply_training_mode()
 
+    def _model_selected(self, value: str) -> None:
+        """Finish the native menu interaction before rebuilding its controls."""
+
+        self.model_dropdown._dropdown_menu.close()
+        self.after_idle(self._model_changed, value)
+
     def _training_mode_changed(self, value: str) -> None:
         if self.state.ensemble_mode_enabled:
             self.training_mode.set("Auto")
@@ -4818,7 +5104,13 @@ class ModelTrainingPage(ctk.CTkFrame):
 
     def _reset_ui_state(self) -> None:
         if self.training_in_progress:
+            # This abandons a run that is still executing, which happens when
+            # the page is handed a different project mid-run.  Retire the job
+            # id so the result is ignored when it lands, and disarm the poll:
+            # leaving it armed suppressed the next run's own poll, because
+            # `_schedule_training_poll` is a no-op while an id is held.
             self._training_job_id += 1
+            self._cancel_training_poll()
         self._set_training_busy(False)
         self.state.reset()
         self.last_training_request = None
@@ -5105,13 +5397,44 @@ class ModelTrainingPage(ctk.CTkFrame):
             )
             return
 
-        self.project = self.app.update_current_project({})
+        # Record the finished run before persisting it.  The model and its
+        # artifacts are already on disk, so the run number is known regardless
+        # of whether the project record can be rewritten.
         self._set_latest_run(result.run_number)
+        self._latest_run_path = self.project.path if self.project else None
+        try:
+            self.project = self.app.update_current_project({})
+        except (OSError, ProjectError) as exc:
+            # A manifest rewrite can fail transiently while another process
+            # holds the file.  This used to abandon the rest of the completion
+            # path, and Tk swallowed the exception, leaving the page silently
+            # half-updated: busy cleared, no results, no message.
+            messagebox.showwarning(
+                "Project record not updated",
+                "Training finished and the model artifacts were saved, but the "
+                "project file could not be updated:\n\n"
+                f"{exc}\n\n"
+                "Reopen the project to refresh its recorded status.",
+                parent=self,
+            )
         metrics = result.metrics
+        pooled_r_squared = pooled_r_squared_from_prediction_records(result.predictions)
+        r_squared_label = (
+            "Pooled R²"
+            if pooled_r_squared is not None
+            else "Mean per-output R²"
+        )
+        r_squared_value = (
+            pooled_r_squared if pooled_r_squared is not None else metrics["R²"]
+        )
         parameters = result.parameters_used
         training_mode_label = (
             result.training_mode or (request.training_mode if request else "")
         ).title()
+        navigation_hint = (
+            "\n\nYou can start another run here. Choose View Training Results "
+            "when you are ready to review this run."
+        )
         if result.model_name == "ensemble_ai_engine":
             best_model = self._display_model_name(
                 result.best_individual_model or "Unknown"
@@ -5136,11 +5459,11 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"Recommendation: {decision}\n\n"
                     f"Test MAE: {metrics['MAE']:.6g}\n"
                     f"Test RMSE: {metrics['RMSE']:.6g}\n"
-                    f"Test R²: {metrics['R²']:.6g}"
+                    f"Test {r_squared_label}: {r_squared_value:.6g}"
+                    f"{navigation_hint}"
                 ),
                 parent=self,
             )
-            self._open_latest_training_results(result)
             return
         if result.model_name in {"xgboost", "neural_network"} and (
             result.training_mode or request.training_mode
@@ -5166,11 +5489,11 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"{configuration}\n\n"
                     f"MAE: {metrics['MAE']:.6g}\n"
                     f"RMSE: {metrics['RMSE']:.6g}\n"
-                    f"R²: {metrics['R²']:.6g}"
+                    f"{r_squared_label}: {r_squared_value:.6g}"
+                    f"{navigation_hint}"
                 ),
                 parent=self,
             )
-            self._open_latest_training_results(result)
             return
         if (
             result.training_mode
@@ -5203,11 +5526,11 @@ class ModelTrainingPage(ctk.CTkFrame):
                     f"Validation RMSE: {validation_rmse_text}\n"
                     f"Test MAE: {test_metrics['MAE']:.6g}\n"
                     f"Test RMSE: {test_metrics['RMSE']:.6g}\n"
-                    f"Test R²: {test_metrics['R²']:.6g}"
+                    f"Test {r_squared_label}: {r_squared_value:.6g}"
+                    f"{navigation_hint}"
                 ),
                 parent=self,
             )
-            self._open_latest_training_results(result)
             return
         messagebox.showinfo(
             "Training Completed",
@@ -5220,11 +5543,11 @@ class ModelTrainingPage(ctk.CTkFrame):
                 f"positive: {parameters['positive']}\n\n"
                 f"MAE: {metrics['MAE']:.6g}\n"
                 f"RMSE: {metrics['RMSE']:.6g}\n"
-                f"R²: {metrics['R²']:.6g}"
+                f"{r_squared_label}: {r_squared_value:.6g}"
+                f"{navigation_hint}"
             ),
             parent=self,
         )
-        self._open_latest_training_results(result)
 
     def _open_latest_training_results(
         self,
@@ -5275,12 +5598,31 @@ class ModelTrainingPage(ctk.CTkFrame):
 
     def _load_latest_run(self, project: Project | None) -> None:
         if project is None:
+            self._latest_run_path = None
             self._set_latest_run(None)
             return
+        recorded = self._recorded_run_number(project)
+        # `Project.manifest` is a copy taken when the object was built, so a
+        # caller can hold one that predates a run this page has already
+        # recorded -- including the page's own `self.project` when the
+        # post-training manifest rewrite failed.  Reporting that older value
+        # would retract a run whose model and artifacts are on disk, so for
+        # the project the run belongs to the recorded number only moves
+        # forward.  A different project still reports its own state.
+        if (
+            self._latest_run_path == project.path
+            and self.latest_run_number is not None
+            and (recorded is None or recorded < self.latest_run_number)
+        ):
+            return
+        self._latest_run_path = project.path
+        self._set_latest_run(recorded)
+
+    @staticmethod
+    def _recorded_run_number(project: Project) -> int | None:
         training_state = project.manifest.get("model_training")
         if not isinstance(training_state, dict):
-            self._set_latest_run(None)
-            return
+            return None
         raw_number = training_state.get("latest_run_number")
         if raw_number is None and training_state.get("status") == "TRAINING_COMPLETED":
             raw_number = 1
@@ -5288,7 +5630,15 @@ class ModelTrainingPage(ctk.CTkFrame):
             run_number = int(raw_number)
         except (TypeError, ValueError):
             run_number = 0
-        self._set_latest_run(run_number if run_number > 0 else None)
+        return run_number if run_number > 0 else None
+
+    def _cancel_training_poll(self) -> None:
+        if self._training_poll_after_id is not None:
+            try:
+                self.after_cancel(self._training_poll_after_id)
+            except tk.TclError:
+                pass
+            self._training_poll_after_id = None
 
     def _set_latest_run(self, run_number: int | None) -> None:
         self.latest_run_number = run_number
@@ -5309,10 +5659,8 @@ class CreateProjectDialog(ctk.CTkToplevel):
         self.callback = callback
         self.title("Create antenna project")
         self.geometry("540x430")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.transient(parent)
-        self.grab_set()
-        self.after(20, self._center)
 
         ctk.CTkLabel(
             self,
@@ -5335,7 +5683,7 @@ class CreateProjectDialog(ctk.CTkToplevel):
             self,
             text="PROJECT NAME",
             text_color=COLORS["muted"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             anchor="w",
         ).pack(fill="x", padx=28, pady=(24, 7))
         self.name_entry = ctk.CTkEntry(
@@ -5352,7 +5700,7 @@ class CreateProjectDialog(ctk.CTkToplevel):
             self,
             text="DESCRIPTION  ·  OPTIONAL",
             text_color=COLORS["muted"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             anchor="w",
         ).pack(fill="x", padx=28, pady=(18, 7))
         self.description = ctk.CTkTextbox(
@@ -5365,10 +5713,10 @@ class CreateProjectDialog(ctk.CTkToplevel):
         )
         self.description.pack(fill="x", padx=28)
 
-        actions = ctk.CTkFrame(self, fg_color="transparent")
-        actions.pack(fill="x", padx=28, pady=(22, 24))
-        ctk.CTkButton(
-            actions,
+        self.actions_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.actions_frame.pack(fill="x", padx=28, pady=(22, 24))
+        self.cancel_button = ctk.CTkButton(
+            self.actions_frame,
             text="Cancel",
             width=100,
             height=40,
@@ -5377,9 +5725,10 @@ class CreateProjectDialog(ctk.CTkToplevel):
             hover_color=COLORS["control_hover"],
             text_color=COLORS["ink"],
             command=self.destroy,
-        ).pack(side="right")
-        ctk.CTkButton(
-            actions,
+        )
+        self.cancel_button.pack(side="right")
+        self.create_button = ctk.CTkButton(
+            self.actions_frame,
             text="Create project  →",
             width=150,
             height=40,
@@ -5388,9 +5737,21 @@ class CreateProjectDialog(ctk.CTkToplevel):
             hover_color=COLORS["primary_hover"],
             font=FONTS["button"],
             command=self._submit,
-        ).pack(side="right", padx=(0, 8))
-        self.name_entry.focus_set()
+        )
+        self.create_button.pack(side="right", padx=(0, 8))
         self.bind("<Return>", lambda _event: self._submit())
+        self.after_idle(self.present)
+
+    def present(self) -> None:
+        """Size, raise, and focus the one active project dialog."""
+
+        if not self.winfo_exists():
+            return
+        self._fit_to_content()
+        self.deiconify()
+        self.lift()
+        self.grab_set()
+        self.name_entry.focus_set()
 
     def _submit(self) -> None:
         name = self.name_entry.get().strip()
@@ -5405,11 +5766,28 @@ class CreateProjectDialog(ctk.CTkToplevel):
         self.destroy()
         self.callback(name, description)
 
-    def _center(self) -> None:
+    def _fit_to_content(self) -> None:
+        if not self.winfo_exists():
+            return
+        self.update_idletasks()
+        reverse_100 = max(1, self._reverse_window_scaling(100))
+        window_scaling = 100.0 / reverse_100
+        width, height = _content_sized_dialog_dimensions(
+            self.winfo_reqwidth(),
+            self.winfo_reqheight(),
+            window_scaling=window_scaling,
+            screen_width_px=self.winfo_screenwidth(),
+            screen_height_px=self.winfo_screenheight(),
+            minimum_width=540,
+            minimum_height=430,
+        )
+        self.minsize(width, height)
         parent = self.master
-        x = parent.winfo_rootx() + (parent.winfo_width() - 540) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 430) // 2
-        self.geometry(f"540x430+{max(0, x)}+{max(0, y)}")
+        physical_width = round(width * window_scaling)
+        physical_height = round(height * window_scaling)
+        x = parent.winfo_rootx() + (parent.winfo_width() - physical_width) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - physical_height) // 2
+        self.geometry(f"{width}x{height}+{max(0, x)}+{max(0, y)}")
 
 
 class LocalModelDialog(ctk.CTkToplevel):
@@ -5425,7 +5803,7 @@ class LocalModelDialog(ctk.CTkToplevel):
         self.selected_model = ctk.StringVar(value=service.model)
         self.title("SnowBuddy local model")
         self.geometry("580x540")
-        self.resizable(False, False)
+        self.resizable(True, True)
         self.transient(parent.winfo_toplevel())
         self.grab_set()
 
@@ -5460,7 +5838,7 @@ class LocalModelDialog(ctk.CTkToplevel):
             self,
             text=recommendation_text,
             text_color=COLORS["primary"],
-            font=("Segoe UI Semibold", 15),
+            font=FONTS["button"],
             anchor="w",
         ).pack(fill="x", padx=26, pady=(14, 10))
 
@@ -5554,7 +5932,7 @@ class LocalModelDialog(ctk.CTkToplevel):
             command=self._use_selected,
         )
         self.use_button.pack(side="right")
-        self.after(10, self._center)
+        self.after_idle(self._fit_to_content)
         self.after(80, self._check_runtime)
 
     def _selection_changed(self) -> None:
@@ -5646,11 +6024,28 @@ class LocalModelDialog(ctk.CTkToplevel):
         self.callback()
         self.destroy()
 
-    def _center(self) -> None:
+    def _fit_to_content(self) -> None:
+        if not self.winfo_exists():
+            return
+        self.update_idletasks()
+        reverse_100 = max(1, self._reverse_window_scaling(100))
+        window_scaling = 100.0 / reverse_100
+        width, height = _content_sized_dialog_dimensions(
+            self.winfo_reqwidth(),
+            self.winfo_reqheight(),
+            window_scaling=window_scaling,
+            screen_width_px=self.winfo_screenwidth(),
+            screen_height_px=self.winfo_screenheight(),
+            minimum_width=580,
+            minimum_height=540,
+        )
+        self.minsize(width, height)
         parent = self.master.winfo_toplevel()
-        x = parent.winfo_rootx() + (parent.winfo_width() - 580) // 2
-        y = parent.winfo_rooty() + (parent.winfo_height() - 540) // 2
-        self.geometry(f"580x540+{max(0, x)}+{max(0, y)}")
+        physical_width = round(width * window_scaling)
+        physical_height = round(height * window_scaling)
+        x = parent.winfo_rootx() + (parent.winfo_width() - physical_width) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - physical_height) // 2
+        self.geometry(f"{width}x{height}+{max(0, x)}+{max(0, y)}")
 
 
 def _friendly_date(value: str) -> str:

@@ -11,8 +11,13 @@ You need:
 - A 64-bit Windows, macOS, or Linux computer.
 - 64-bit Python 3.11, 3.12, or 3.13.
 - Internet access during the first setup.
-- Approximately 500 MB of free space for the application environment, plus
+- Approximately 1 GB of free space for the application environment, plus
   space for your projects and any optional local AI model.
+
+The depth-buffered antenna preview uses VTK. Its Windows download is about
+80 MB, and it adds roughly 80 MB to the private environment once installed
+(about 50 MB of VTK itself plus the plotting library it depends on). A complete
+environment measures around 750 MB.
 
 Windows 10 and 11 are the primary tested platforms. CST, HFSS, an API key, and
 a cloud account are not required to install or launch the Studio.
@@ -73,6 +78,23 @@ sudo apt install python3-tk
 ```
 
 On macOS, the Python installer from python.org includes Tk support.
+
+## Optional: CST Studio Suite
+
+CST is not needed to install, launch, train surrogates, or run inference and
+inverse design. It affects only the experimental antenna builder's export step:
+
+- **Export CST script** writes a parameterized `.bas` construction macro and
+  works on any platform with no CST present. You can move the file to a machine
+  that has CST.
+- **Create CST project** writes an unsolved native `.cst` project directly. It
+  needs Windows, the `pywin32` package that the Windows setup installs, and an
+  installed CST Studio Suite registered as the `CSTStudio.Application`
+  automation server.
+
+On CST Learning Edition, use **Create CST project**: macro import is greyed out
+in that edition, so the `.bas` route is not available to you. The Studio never
+starts a solver.
 
 ## Optional SnowBuddy local model
 

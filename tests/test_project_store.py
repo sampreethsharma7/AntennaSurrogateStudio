@@ -1,9 +1,16 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from studio.project_store import ProjectError, ProjectStore
+from studio.atomic_replace import ATOMIC_REPLACE_ATTEMPTS
+from studio.project_store import (
+    ProjectError,
+    ProjectStore,
+    atomic_write_json,
+)
 from studio.ui import project_resume_destination
 
 
@@ -17,11 +24,80 @@ class ProjectStoreTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def _replace_that_fails(self, failure_count: int):
+        actual_replace = os.replace
+        attempts = 0
+
+        def replace(source, destination):
+            nonlocal attempts
+            attempts += 1
+            if attempts <= failure_count:
+                raise PermissionError(5, "simulated transient file lock")
+            return actual_replace(source, destination)
+
+        return replace
+
+    def _atomic_temp_files(self, destination: Path) -> list[Path]:
+        return list(destination.parent.glob(f".{destination.name}.*.tmp"))
+
+    def test_atomic_write_retries_one_transient_permission_error(self):
+        destination = Path(self.temp_dir.name) / "retry-once.json"
+        replace = self._replace_that_fails(1)
+
+        with (
+            patch("studio.atomic_replace.os.replace", side_effect=replace) as mocked_replace,
+            patch("studio.atomic_replace.time.sleep") as sleep,
+        ):
+            atomic_write_json(destination, {"status": "saved"})
+
+        self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), {"status": "saved"})
+        self.assertEqual(mocked_replace.call_count, 2)
+        sleep.assert_called_once()
+        self.assertEqual(self._atomic_temp_files(destination), [])
+
+    def test_atomic_write_retries_two_transient_permission_errors(self):
+        destination = Path(self.temp_dir.name) / "retry-twice.json"
+        replace = self._replace_that_fails(2)
+
+        with (
+            patch("studio.atomic_replace.os.replace", side_effect=replace) as mocked_replace,
+            patch("studio.atomic_replace.time.sleep") as sleep,
+        ):
+            atomic_write_json(destination, {"status": "saved"})
+
+        self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), {"status": "saved"})
+        self.assertEqual(mocked_replace.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(self._atomic_temp_files(destination), [])
+
+    def test_atomic_write_persistent_permission_error_is_loud_and_cleans_temp(self):
+        destination = Path(self.temp_dir.name) / "persistent-lock.json"
+        destination.write_text('{"status": "previous"}\n', encoding="utf-8")
+
+        with (
+            patch(
+                "studio.atomic_replace.os.replace",
+                side_effect=PermissionError(5, "simulated persistent file lock"),
+            ) as mocked_replace,
+            patch("studio.atomic_replace.time.sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(PermissionError, "persistent file lock"):
+                atomic_write_json(destination, {"status": "not saved"})
+
+        self.assertEqual(
+            json.loads(destination.read_text(encoding="utf-8")),
+            {"status": "previous"},
+        )
+        self.assertEqual(mocked_replace.call_count, ATOMIC_REPLACE_ATTEMPTS)
+        self.assertEqual(sleep.call_count, ATOMIC_REPLACE_ATTEMPTS - 1)
+        self.assertEqual(self._atomic_temp_files(destination), [])
+
     def test_create_project_builds_portable_layout_and_recent_entry(self):
         project = self.store.create_project("8 Element Array", "A project")
 
         self.assertEqual(project.name, "8 Element Array")
         self.assertTrue((project.path / "project.json").exists())
+        self.assertTrue((project.path / "design").is_dir())
         self.assertTrue((project.path / "data" / "prepared").is_dir())
         self.assertTrue((project.path / "data" / "registered").is_dir())
         self.assertTrue((project.path / "data" / "templates").is_dir())
@@ -30,7 +106,8 @@ class ProjectStoreTests(unittest.TestCase):
         self.assertTrue((project.path / "inverse_design").is_dir())
         self.assertTrue((project.path / "inverse_design").is_dir())
         self.assertTrue((project.path / "assistant" / "chat_history.json").exists())
-        self.assertEqual(project.manifest["ui"]["last_page"], "data")
+        self.assertEqual(project.manifest["ui"]["last_page"], "design_start")
+        self.assertIsNone(project.manifest["design_start"]["choice"])
         self.assertEqual(project.manifest["dataset_registry"]["dataset_count"], 0)
         self.assertEqual(project.manifest["inference"]["run_count"], 0)
         self.assertEqual(project.manifest["inverse_design"]["run_count"], 0)
@@ -189,7 +266,7 @@ class ProjectStoreTests(unittest.TestCase):
     def test_resume_destination_follows_the_completed_workflow_stage(self):
         project = self.store.create_project("Stage Aware Resume")
         expected = {
-            "project_created": ("data", "Continue Data Prep"),
+            "project_created": ("design_start", "Begin Antenna Design"),
             "data_prepared": ("data", "Validate & Register Data"),
             "dataset_registered": ("training", "Continue Model Training"),
             "model_trained": ("results", "Review Training Results"),
@@ -207,6 +284,20 @@ class ProjectStoreTests(unittest.TestCase):
         destination, action = project_resume_destination(project)
         self.assertEqual(destination, "inference")
         self.assertIn("Run Inference", action)
+
+    def test_project_created_resume_follows_selected_design_start(self):
+        project = self.store.create_project("Entry choice")
+
+        project.manifest["design_start"]["choice"] = "existing_design"
+        self.assertEqual(
+            project_resume_destination(project),
+            ("data", "Continue Data Prep  →"),
+        )
+        project.manifest["design_start"]["choice"] = "generated_template"
+        self.assertEqual(
+            project_resume_destination(project),
+            ("antenna_builder", "Continue Antenna Builder  →"),
+        )
 
     def test_last_page_is_persisted_without_losing_project_state(self):
         project = self.store.create_project("Continuity")

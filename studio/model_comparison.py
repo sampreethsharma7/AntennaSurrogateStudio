@@ -269,7 +269,7 @@ def _comparison_run(view: TrainingResultsView) -> ComparableModelRun:
         validation_rmse=validation,
         test_rmse=view.metrics["RMSE"],
         mae=view.metrics["MAE"],
-        r_squared=view.metrics["R²"],
+        r_squared=view.pooled_r_squared,
         trained_at=view.trained_at,
     )
 

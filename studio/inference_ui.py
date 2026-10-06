@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import csv
 import math
+import re
+from dataclasses import dataclass
 from pathlib import Path
+from statistics import median
 from tkinter import filedialog, messagebox
 from typing import TYPE_CHECKING
 
 import customtkinter as ctk
 
+from studio.dataset_registry import DatasetRegistrationError, get_registered_dataset
 from studio.inference import (
     InferenceError,
     InferenceRequest,
@@ -20,15 +24,127 @@ from studio.inference import (
 from studio.model_book import ModelBook, ModelBookError, load_model_library
 from studio.project_store import Project, atomic_write_json, utc_now
 from studio.scientific_plot import ScientificCurve, ScientificPlotWorkbench
-from studio.theme import COLORS, FONTS
+from studio.theme import COLORS, FONTS, column_safe_width, widest_text_width
 
 if TYPE_CHECKING:
     from studio.ui import StudioApp
 
 
 INPUTS_PER_PAGE = 8
+# The INPUT column is measured against the real feature names at runtime and
+# clamped to this range, so a long name widens the column instead of wrapping.
+INPUT_LABEL_MIN_WIDTH = 105
+INPUT_LABEL_MAX_WIDTH = 190
 MIN_USABLE_PREDICTION_PLOT_WIDTH = 420
-PREDICTION_EXPORT_SCHEMA_VERSION = 1
+PREDICTION_EXPORT_SCHEMA_VERSION = 2
+
+
+@dataclass(frozen=True, slots=True)
+class TrainingFeatureStatistics:
+    minimum: float
+    median: float
+    maximum: float
+
+
+def _display_input_number(value: float) -> str:
+    if value == 0:
+        return "0"
+    if 1.0e-3 <= abs(value) < 1.0e6:
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return f"{value:.4g}"
+
+
+def load_training_feature_statistics(
+    book: ModelBook,
+) -> dict[str, TrainingFeatureStatistics]:
+    """Read input bounds and medians from the Model Book's immutable dataset."""
+
+    try:
+        dataset = get_registered_dataset(book.project_path, book.dataset_id)
+    except DatasetRegistrationError as exc:
+        raise InferenceError(
+            f"Training input ranges are unavailable. {exc}"
+        ) from exc
+    if dataset.fingerprint_sha256 != book.dataset_fingerprint:
+        raise InferenceError(
+            "Training input ranges are unavailable because the registered dataset "
+            "does not match the active Model Book."
+        )
+    values = {name: [] for name in book.feature_columns}
+    try:
+        with dataset.input_csv_path.open(newline="", encoding="utf-8-sig") as handle:
+            reader = csv.DictReader(handle)
+            if reader.fieldnames is None or any(
+                name not in reader.fieldnames for name in book.feature_columns
+            ):
+                raise InferenceError(
+                    "Training input ranges are unavailable because the registered "
+                    "input columns do not match the active Model Book."
+                )
+            for row in reader:
+                for name in book.feature_columns:
+                    value = float(row[name])
+                    if not math.isfinite(value):
+                        raise ValueError(name)
+                    values[name].append(value)
+    except (OSError, TypeError, ValueError) as exc:
+        raise InferenceError(
+            "Training input ranges could not be read from the registered dataset."
+        ) from exc
+    if any(not column for column in values.values()):
+        raise InferenceError("The registered training dataset contains no input rows.")
+    return {
+        name: TrainingFeatureStatistics(
+            minimum=min(column),
+            median=float(median(column)),
+            maximum=max(column),
+        )
+        for name, column in values.items()
+    }
+
+
+def extrapolation_warnings(
+    values: dict[str, float],
+    statistics: dict[str, TrainingFeatureStatistics],
+) -> list[dict[str, object]]:
+    warnings: list[dict[str, object]] = []
+    for name, value in values.items():
+        bounds = statistics.get(name)
+        if bounds is None or bounds.minimum <= value <= bounds.maximum:
+            continue
+        message = (
+            f"{name} = {_display_input_number(value)} is outside its training range "
+            f"{_display_input_number(bounds.minimum)} to "
+            f"{_display_input_number(bounds.maximum)}. The prediction is extrapolation."
+        )
+        warnings.append(
+            {
+                "type": "training_range_extrapolation",
+                "feature": name,
+                "value": value,
+                "training_minimum": bounds.minimum,
+                "training_maximum": bounds.maximum,
+                "message": message,
+            }
+        )
+    return warnings
+
+
+def _prediction_export_filename(
+    directory: Path,
+    book: ModelBook,
+    result: InferenceResult,
+) -> str:
+    tokens = ["prediction", book.book_id]
+    if result.run_id:
+        tokens.append(result.run_id)
+    stem = "_".join(re.sub(r"[^0-9A-Za-z_-]+", "-", token) for token in tokens)
+    candidate = directory / f"{stem}.json"
+    counter = 2
+    while candidate.exists():
+        candidate = directory / f"{stem}_{counter}.json"
+        counter += 1
+    return candidate.name
 
 
 def _ordered_items(
@@ -45,11 +161,18 @@ def _ordered_items(
 def prediction_export_payload(
     result: InferenceResult,
     book: ModelBook,
+    feature_statistics: dict[str, TrainingFeatureStatistics] | None = None,
 ) -> dict[str, object]:
     """Build a portable, explicitly ordered prediction export."""
 
     if not result.success or not result.predictions:
         raise ValueError("A successful prediction is required before export.")
+    statistics = (
+        load_training_feature_statistics(book)
+        if feature_statistics is None
+        else feature_statistics
+    )
+    warnings = extrapolation_warnings(result.input_values, statistics)
     return {
         "schema_version": PREDICTION_EXPORT_SCHEMA_VERSION,
         "export_type": "antenna_surrogate_studio_prediction",
@@ -69,6 +192,7 @@ def prediction_export_payload(
             {"name": name, "value": value}
             for name, value in _ordered_items(result.feature_order, result.input_values)
         ],
+        "warnings": warnings,
         "output_count": len(result.predictions),
         "predicted_outputs": [
             {"target": target, "value": value}
@@ -191,7 +315,7 @@ class RawPredictionDialog(ctk.CTkToplevel):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Cascadia Mono", 15),
+            font=FONTS["mono"],
             wrap="none",
         )
         self.textbox.grid(row=2, column=0, padx=24, pady=(0, 12), sticky="nsew")
@@ -225,6 +349,11 @@ class InferencePage(ctk.CTkFrame):
         self.load_error: str | None = None
         self.input_entries: dict[str, ctk.CTkEntry] = {}
         self.input_shells: dict[str, ctk.CTkFrame] = {}
+        self.input_name_labels: dict[str, ctk.CTkLabel] = {}
+        self.input_range_labels: dict[str, ctk.CTkLabel] = {}
+        self.input_statistics: dict[str, TrainingFeatureStatistics] = {}
+        self.input_statistics_error: str | None = None
+        self.current_extrapolation_warnings: list[dict[str, object]] = []
         self.input_page = 0
         self.prediction_in_progress = False
         self.last_result: InferenceResult | None = None
@@ -248,6 +377,8 @@ class InferencePage(ctk.CTkFrame):
     def reload(self) -> None:
         self.active_book = None
         self.load_error = None
+        self.input_statistics = {}
+        self.input_statistics_error = None
         if self.project is not None:
             try:
                 library = load_model_library(self.project.path)
@@ -279,6 +410,12 @@ class InferencePage(ctk.CTkFrame):
                         )
                     else:
                         self.active_book = entry.book
+                        try:
+                            self.input_statistics = load_training_feature_statistics(
+                                self.active_book
+                            )
+                        except InferenceError as exc:
+                            self.input_statistics_error = str(exc)
         new_workspace_key = (
             (self.project.path.resolve(), self.active_book.book_id)
             if self.project is not None and self.active_book is not None
@@ -373,7 +510,7 @@ class InferencePage(ctk.CTkFrame):
             text_color=COLORS["cyan"],
             font=FONTS["mono"],
             anchor="w",
-        ).grid(row=0, column=0, padx=16, pady=(14, 3), sticky="ew")
+        ).grid(row=0, column=0, padx=16, pady=(8, 2), sticky="ew")
         self.model_summary = ctk.CTkLabel(
             self.input_card,
             text="Select an active Model Book to begin.",
@@ -383,13 +520,10 @@ class InferencePage(ctk.CTkFrame):
             justify="left",
             wraplength=330,
         )
-        self.model_summary.grid(row=1, column=0, padx=16, pady=(0, 8), sticky="ew")
+        self.model_summary.grid(row=1, column=0, padx=16, pady=(0, 4), sticky="ew")
         self.input_host = ctk.CTkFrame(self.input_card, fg_color="transparent")
         self.input_host.grid(row=2, column=0, padx=12, sticky="nsew")
-        self.input_host.grid_columnconfigure(0, weight=1, uniform="input")
-        self.input_host.grid_columnconfigure(1, weight=1, uniform="input")
-        for row in range(4):
-            self.input_host.grid_rowconfigure(row, weight=1, uniform="input-row")
+        self.input_host.grid_columnconfigure(0, weight=1)
 
         self.input_pager = ctk.CTkFrame(self.input_card, fg_color="transparent")
         self.input_pager.grid(row=3, column=0, padx=14, pady=(5, 0), sticky="ew")
@@ -460,13 +594,13 @@ class InferencePage(ctk.CTkFrame):
             unselected_color=COLORS["control"],
             unselected_hover_color=COLORS["control_hover"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
         )
         self.prediction_plot_mode.grid(
             row=5,
             column=0,
             padx=16,
-            pady=(7, 0),
+            pady=(4, 0),
             sticky="ew",
         )
         self.prediction_plot_mode.set("Replace current curve")
@@ -474,7 +608,7 @@ class InferencePage(ctk.CTkFrame):
             row=6,
             column=0,
             padx=16,
-            pady=(8, 6),
+            pady=(4, 4),
             sticky="ew",
         )
         self.inverse_design_button = ctk.CTkButton(
@@ -495,7 +629,7 @@ class InferencePage(ctk.CTkFrame):
             row=7,
             column=0,
             padx=16,
-            pady=(0, 14),
+            pady=(0, 8),
             sticky="ew",
         )
 
@@ -551,7 +685,7 @@ class InferencePage(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             command=self._show_model_info,
         )
         self.model_info_button.grid(row=0, column=2, padx=(6, 8), pady=5)
@@ -602,7 +736,7 @@ class InferencePage(ctk.CTkFrame):
             inputs_used_card,
             text="INPUTS USED",
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
             anchor="w",
         ).grid(row=0, column=0, padx=10, pady=(6, 0), sticky="ew")
         self.inputs_used_value = ctk.CTkLabel(
@@ -685,7 +819,7 @@ class InferencePage(ctk.CTkFrame):
             card,
             text=label,
             text_color=COLORS["muted"],
-            font=("Cascadia Mono", 10),
+            font=FONTS["mono"],
         ).grid(row=0, column=0, padx=8, pady=(5, 0))
         value = ctk.CTkLabel(
             card,
@@ -785,23 +919,70 @@ class InferencePage(ctk.CTkFrame):
             child.destroy()
         self.input_entries.clear()
         self.input_shells.clear()
+        self.input_name_labels.clear()
+        self.input_range_labels.clear()
+        self.current_extrapolation_warnings = []
         self.input_pager.grid_remove()
 
     def _create_input_fields(self, feature_columns: list[str]) -> None:
-        for name in feature_columns:
+        saved_inputs = self._saved_input_values(feature_columns)
+        label_width = widest_text_width(
+            "body_small",
+            feature_columns,
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
+        )
+        value_width = 92
+        range_width = 118
+        self.input_headings = ctk.CTkFrame(
+            self.input_host,
+            fg_color=COLORS["surface_alt"],
+            corner_radius=8,
+        )
+        self.input_headings.grid(row=0, column=0, pady=(0, 2), sticky="ew")
+        for column, (label, weight, minimum) in enumerate(
+            (
+                ("INPUT", 0, label_width),
+                ("VALUE", 0, value_width),
+                ("RANGE", 1, range_width),
+            )
+        ):
+            self.input_headings.grid_columnconfigure(
+                column,
+                weight=weight,
+                minsize=minimum,
+            )
+            ctk.CTkLabel(
+                self.input_headings,
+                text=label,
+                text_color=COLORS["muted"],
+                font=FONTS["mono"],
+                anchor="w",
+            ).grid(row=0, column=column, padx=6, pady=2, sticky="ew")
+        for index, name in enumerate(feature_columns):
             shell = ctk.CTkFrame(
                 self.input_host,
-                fg_color=COLORS["surface_alt"],
-                corner_radius=10,
+                fg_color="transparent" if index % 2 == 0 else COLORS["surface_alt"],
+                corner_radius=8,
             )
-            shell.grid_columnconfigure(0, weight=1)
-            ctk.CTkLabel(
+            shell.grid_columnconfigure(0, weight=0, minsize=label_width)
+            shell.grid_columnconfigure(1, weight=0, minsize=value_width)
+            shell.grid_columnconfigure(2, weight=1, minsize=range_width)
+            name_label = ctk.CTkLabel(
                 shell,
                 text=name,
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
                 anchor="w",
-            ).grid(row=0, column=0, padx=10, pady=(6, 2), sticky="ew")
+                justify="left",
+                # CustomTkinter scales width and wraplength while the column's
+                # grid minsize stays raw, so both are converted; otherwise a
+                # long name widens its own row and staggers the columns.
+                width=column_safe_width(shell, label_width - 12),
+                wraplength=column_safe_width(shell, label_width - 12),
+            )
+            name_label.grid(row=0, column=0, padx=6, sticky="ew")
             entry = ctk.CTkEntry(
                 shell,
                 placeholder_text="Numeric value",
@@ -811,11 +992,63 @@ class InferencePage(ctk.CTkFrame):
                 border_color=COLORS["border"],
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
+                width=column_safe_width(shell, value_width - 8),
             )
-            entry.grid(row=1, column=0, padx=8, pady=(0, 7), sticky="ew")
+            entry.grid(row=0, column=1, padx=4, sticky="ew")
+            statistics = self.input_statistics.get(name)
+            range_text = "Training range unavailable"
+            if name in saved_inputs:
+                entry.insert(0, _display_input_number(saved_inputs[name]))
+            elif statistics is not None:
+                entry.insert(0, _display_input_number(statistics.median))
+            if statistics is not None:
+                range_text = (
+                    f"{_display_input_number(statistics.minimum)} to "
+                    f"{_display_input_number(statistics.maximum)}"
+                )
+            range_label = ctk.CTkLabel(
+                shell,
+                text=range_text,
+                text_color=COLORS["subtle"],
+                font=FONTS["caption"],
+                anchor="w",
+                width=column_safe_width(shell, range_width - 12),
+            )
+            range_label.grid(row=0, column=2, padx=6, sticky="ew")
             self.input_shells[name] = shell
+            self.input_name_labels[name] = name_label
             self.input_entries[name] = entry
+            self.input_range_labels[name] = range_label
         self._render_input_page()
+
+    def _saved_input_values(self, feature_columns: list[str]) -> dict[str, float]:
+        if self.project is None or self.active_book is None:
+            return {}
+        raw = self.project.manifest.get("inference", {}).get("ui_state", {})
+        if raw.get("model_book_id") != self.active_book.book_id:
+            return {}
+        values = raw.get("inputs")
+        if not isinstance(values, dict) or set(values) != set(feature_columns):
+            return {}
+        try:
+            parsed = {name: float(values[name]) for name in feature_columns}
+        except (TypeError, ValueError):
+            return {}
+        return parsed if all(math.isfinite(value) for value in parsed.values()) else {}
+
+    def _persist_input_values(self, values: dict[str, float]) -> None:
+        if self.project is None or self.active_book is None:
+            return
+        self.project = self.app.update_current_project(
+            {
+                "inference": {
+                    "ui_state": {
+                        "model_book_id": self.active_book.book_id,
+                        "inputs": dict(values),
+                    }
+                }
+            }
+        )
 
     def _render_input_page(self) -> None:
         names = list(self.input_entries)
@@ -827,11 +1060,10 @@ class InferencePage(ctk.CTkFrame):
         visible = names[start : start + INPUTS_PER_PAGE]
         for index, name in enumerate(visible):
             self.input_shells[name].grid(
-                row=index // 2,
-                column=index % 2,
-                padx=(0 if index % 2 == 0 else 4, 4 if index % 2 == 0 else 0),
-                pady=4,
-                sticky="nsew",
+                row=index + 1,
+                column=0,
+                pady=0,
+                sticky="ew",
             )
         if len(names) > INPUTS_PER_PAGE:
             self.input_page_label.configure(
@@ -854,26 +1086,53 @@ class InferencePage(ctk.CTkFrame):
         self._render_input_page()
 
     def _input_values(self) -> dict[str, float] | None:
+        self.current_extrapolation_warnings = []
         values: dict[str, float] = {}
         for name, entry in self.input_entries.items():
             raw = entry.get().strip()
             if not raw:
-                self.input_error.configure(text=f"Enter a value for {name}.")
+                self.input_error.configure(
+                    text=f"Enter a value for {name}.",
+                    text_color=COLORS["danger"],
+                )
                 entry.focus_set()
                 return None
             try:
                 value = float(raw)
             except ValueError:
-                self.input_error.configure(text=f"{name} must be a numeric value.")
+                self.input_error.configure(
+                    text=f"{name} must be a numeric value.",
+                    text_color=COLORS["danger"],
+                )
                 entry.focus_set()
                 return None
             if not math.isfinite(value):
                 self.input_error.configure(
-                    text=f"{name} must be a finite numeric value."
+                    text=f"{name} must be a finite numeric value.",
+                    text_color=COLORS["danger"],
                 )
                 entry.focus_set()
                 return None
             values[name] = value
+        self.current_extrapolation_warnings = extrapolation_warnings(
+            values,
+            self.input_statistics,
+        )
+        if self.current_extrapolation_warnings:
+            self.input_error.configure(
+                text="\n".join(
+                    str(item["message"])
+                    for item in self.current_extrapolation_warnings
+                ),
+                text_color=COLORS["warning"],
+            )
+        elif self.input_statistics_error:
+            self.input_error.configure(
+                text=self.input_statistics_error,
+                text_color=COLORS["warning"],
+            )
+        else:
+            self.input_error.configure(text="", text_color=COLORS["danger"])
         return values
 
     def _predict(self) -> None:
@@ -882,7 +1141,6 @@ class InferencePage(ctk.CTkFrame):
         values = self._input_values()
         if values is None:
             return
-        self.input_error.configure(text="")
         self._set_prediction_busy(True)
         try:
             result = submit_inference_request(
@@ -894,6 +1152,7 @@ class InferencePage(ctk.CTkFrame):
             )
             self.last_result = result
             if result.success:
+                self._persist_input_values(result.input_values)
                 self._show_success(result)
             else:
                 self._show_failure(
@@ -1049,12 +1308,26 @@ class InferencePage(ctk.CTkFrame):
     def _ensure_prediction_plot_visible(self) -> bool:
         """Recover plot width when the assistant leaves less than a usable canvas."""
 
+        if not self.app.snowbuddy_collapsed:
+            # A window resize may have made the docked layout viable after the
+            # assistant first chose its focus-only fallback. Re-evaluate that
+            # layout against the current workspace before closing it.
+            self.app._place_snowbuddy_panel()
         self.update_idletasks()
         canvas = self.response_plot.canvas
         if (
             canvas.winfo_ismapped()
             and canvas.winfo_width() >= MIN_USABLE_PREDICTION_PLOT_WIDTH
         ):
+            return False
+        if (
+            self.app.snowbuddy_display_mode == "docked"
+            and self.app._snowbuddy_can_dock()
+        ):
+            # Remapping after an earlier focus-only/narrow layout can lag one
+            # idle cycle even though the enforced dock width already reserves
+            # a usable plot. Preserve the assistant and redraw after mapping.
+            self.after_idle(self.response_plot.redraw)
             return False
         if self.app.snowbuddy_collapsed:
             return False
@@ -1143,7 +1416,11 @@ class InferencePage(ctk.CTkFrame):
             parent=self,
             title="Export Prediction",
             initialdir=str(self.project.path / "inference"),
-            initialfile=f"prediction_{self.active_book.book_id}.json",
+            initialfile=_prediction_export_filename(
+                self.project.path / "inference",
+                self.active_book,
+                result,
+            ),
             defaultextension=".json",
             filetypes=[
                 ("JSON prediction", "*.json"),
@@ -1160,7 +1437,11 @@ class InferencePage(ctk.CTkFrame):
             else:
                 atomic_write_json(
                     export_path,
-                    prediction_export_payload(result, self.active_book),
+                    prediction_export_payload(
+                        result,
+                        self.active_book,
+                        self.input_statistics,
+                    ),
                 )
         except (OSError, ValueError) as exc:
             messagebox.showerror(

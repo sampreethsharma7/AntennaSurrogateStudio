@@ -33,6 +33,7 @@ class SnowBuddyWorkflowNavigationTests(unittest.TestCase):
         training=None,
         library=None,
         last_page="data",
+        design_choice="existing_design",
     ):
         project = self.store.create_project(name)
         changes = {
@@ -41,6 +42,7 @@ class SnowBuddyWorkflowNavigationTests(unittest.TestCase):
                 "next_action": "Configure and train the first surrogate-model book.",
             },
             "ui": {"last_page": last_page},
+            "design_start": {"choice": design_choice},
         }
         if prep is not None:
             changes["data_prep"] = prep
@@ -144,6 +146,36 @@ class SnowBuddyWorkflowNavigationTests(unittest.TestCase):
                 )
                 for marker in markers:
                     self.assertIn(marker, reply)
+
+    def test_new_project_design_start_and_builder_have_specific_guidance(self):
+        project = self.project(
+            "design-start",
+            "project_created",
+            last_page="design_start",
+            design_choice=None,
+        )
+        reply = self.ask_offline(
+            project,
+            "What should I do next from here?",
+            "Visible page: Antenna Design",
+        )
+        self.assertIn("I already have a design", reply)
+        self.assertIn("Design with antenna agent", reply)
+
+        generated = self.store.update_project(
+            project,
+            {
+                "design_start": {"choice": "generated_template"},
+                "ui": {"last_page": "antenna_builder"},
+            },
+        )
+        reply = self.ask_offline(
+            generated,
+            "What should I do next from here?",
+            "Visible page: Experimental Antenna Builder\nBuilder status: awaiting_design\nDesign: null",
+        )
+        self.assertIn("Describe the supported antenna", reply)
+        self.assertIn("first validated design", reply)
 
     def test_bad_local_navigation_is_replaced_at_high_risk_gates(self):
         cases = [

@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import csv
 import math
-import os
 import re
 import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Iterable
+
+from studio.atomic_replace import replace_with_retry
 
 
 PARAM_BLOCK_RE = re.compile(r"#Parameters\s*=\s*\{([^}]*)\}")
@@ -1206,7 +1207,7 @@ def _write_csv_pair(
             )
         )
         for temp_path, destination in staged:
-            os.replace(temp_path, destination)
+            replace_with_retry(temp_path, destination)
     except Exception:
         for temp_path, _destination in staged:
             temp_path.unlink(missing_ok=True)
@@ -1338,7 +1339,7 @@ def _stage_and_replace_csv(
 ) -> None:
     temp_path, final_path = _stage_csv(destination, header, rows)
     try:
-        os.replace(temp_path, final_path)
+        replace_with_retry(temp_path, final_path)
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise
@@ -1359,7 +1360,7 @@ def _atomic_write_text(destination: Path, content: str) -> None:
     try:
         with handle:
             handle.write(content)
-        os.replace(temp_path, destination)
+        replace_with_retry(temp_path, destination)
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise

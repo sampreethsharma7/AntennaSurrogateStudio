@@ -1,3 +1,4 @@
+import copy
 import os
 import tempfile
 import tkinter as tk
@@ -11,10 +12,19 @@ from studio.inverse_design import (
     InverseDesignHistory,
     InverseDesignResult,
 )
-from studio.inverse_design_ui import CONFIGURATION_MIN_WIDTH, RESULT_MIN_WIDTH
+from studio.inverse_design_ui import (
+    CONFIGURATION_MIN_WIDTH,
+    INPUT_LABEL_MAX_WIDTH,
+    INPUT_LABEL_MIN_WIDTH,
+    RESULT_MIN_WIDTH,
+    configuration_width_for,
+)
+from studio.output_axis import OutputAxisMetadata
 from studio.project_store import ProjectStore
 from studio.scientific_plot import CURVE_MANAGER_MIN_WIDTH, PLOT_PANE_MIN_WIDTH
-from studio.ui import StudioApp
+from studio.theme import text_width, widest_text_width
+from laptop_viewport import pin_laptop_ui_scale
+from studio.ui import StudioApp, responsive_window_layout
 from tests.test_inference_page import create_active_book
 
 
@@ -38,6 +48,9 @@ class _ImmediateThread:
 class InverseDesignPageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # The design-pixel minima below describe a 1366x768 laptop, so the UI
+        # scale must come from that viewport rather than from the host screen.
+        pin_laptop_ui_scale(cls)
         test_root = Path(__file__).resolve().parents[1] / ".test_runs"
         test_root.mkdir(exist_ok=True)
         cls.temp_dir = tempfile.TemporaryDirectory(dir=test_root)
@@ -101,6 +114,127 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertEqual(self.page.objective_goal.get(), "Minimize")
         self.assertIn("Differential Evolution", self.page.footer_status.cget("text"))
         self.assertEqual(self.page.run_button.cget("state"), "normal")
+        self.assertEqual(self.page.input_widgets["P2"].lower.get(), "1")
+        self.assertEqual(self.page.input_widgets["P2"].upper.get(), "24")
+        self.assertEqual(self.page.input_widgets["P3"].fixed.get(), "3")
+        self.assertEqual(self.page.input_widgets["P4"].fixed.get(), "2")
+
+    def test_every_input_row_is_reachable_for_eight_and_twelve_inputs(self):
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(True)
+        self.app.set_snowbuddy_collapsed(True)
+        for dpi_scaling in (1.0, 1.25, 1.5):
+            layout = responsive_window_layout(
+                1366 / dpi_scaling,
+                768 / dpi_scaling,
+                dpi_scaling,
+            )
+            self.app.geometry(f"{layout.width}x{layout.height}+0+0")
+            for count in (8, 12):
+                with self.subTest(dpi_scaling=dpi_scaling, count=count):
+                    self.page._clear_form()
+                    names = [f"P{index}" for index in range(1, count + 1)]
+                    self.page._create_input_rows(names)
+                    self.app.update()
+
+                    self.assertEqual(len(self.page.input_widgets), count)
+                    self.assertTrue(
+                        all(
+                            widgets.frame.winfo_manager() == "grid"
+                            for widgets in self.page.input_widgets.values()
+                        )
+                    )
+                    canvas = self.page.input_rows_host._parent_canvas
+                    canvas.yview_moveto(1.0)
+                    self.app.update()
+                    last_row = self.page.input_widgets[names[-1]].frame
+                    viewport_top = canvas.winfo_rooty()
+                    viewport_bottom = viewport_top + canvas.winfo_height()
+                    self.assertGreaterEqual(last_row.winfo_rooty(), viewport_top - 2)
+                    self.assertLessEqual(
+                        last_row.winfo_rooty() + last_row.winfo_height(),
+                        viewport_bottom + 2,
+                    )
+
+        self.app.withdraw()
+
+    def test_columns_align_and_fixed_value_only_appears_for_fixed_rows(self):
+        self.app.geometry("1366x768+0+0")
+        self.app.deiconify()
+        names = ["P2", "SlotRadius", "ManufacturingKeepoutDistance"]
+        self.page._clear_form()
+        self.page._create_input_rows(names)
+        for name in names:
+            widgets = self.page.input_widgets[name]
+            widgets.mode.set("Variable")
+            self.page._input_mode_changed(name)
+        fixed = self.page.input_widgets[names[1]]
+        fixed.mode.set("Fixed")
+        self.page._input_mode_changed(names[1])
+        self.app.update()
+
+        self.assertEqual(
+            len({self.page.input_widgets[name].mode_control.winfo_rootx() for name in names}),
+            1,
+        )
+        variable = self.page.input_widgets[names[0]]
+        self.assertEqual(variable.fixed.winfo_manager(), "")
+        self.assertEqual(variable.lower.winfo_manager(), "grid")
+        self.assertEqual(variable.upper.winfo_manager(), "grid")
+        self.assertEqual(fixed.lower.winfo_manager(), "")
+        self.assertEqual(fixed.upper.winfo_manager(), "")
+        self.assertEqual(fixed.fixed.winfo_manager(), "grid")
+        self.assertEqual(int(fixed.fixed.grid_info()["columnspan"]), 2)
+        long_label = self.page.input_name_labels[names[-1]]
+        self.assertEqual(long_label.cget("text"), names[-1])
+        self.assertGreaterEqual(long_label.winfo_height(), long_label.winfo_reqheight())
+        # A Fixed row's single field carries its own "Value" placeholder, so the
+        # heading stays short enough to fit inside one numeric column.
+        self.assertEqual(self.page.input_heading_labels[2].cget("text"), "LOW")
+        self.assertEqual(fixed.fixed.cget("placeholder_text"), "Value")
+        for column, entry in ((2, variable.lower), (3, variable.upper)):
+            heading = self.page.input_heading_labels[column]
+            heading_center = heading.winfo_rootx() + heading.winfo_width() / 2
+            entry_center = entry.winfo_rootx() + entry.winfo_width() / 2
+            self.assertAlmostEqual(
+                heading_center,
+                entry_center,
+                delta=10,
+                msg=(
+                    f"column {column}: heading="
+                    f"{heading.winfo_rootx(), heading.winfo_width()} entry="
+                    f"{entry.winfo_rootx(), entry.winfo_width()}"
+                ),
+            )
+        self.app.withdraw()
+
+    def test_empty_plot_message_stays_inside_axes_on_both_prediction_pages(self):
+        for page_name in ("inference", "inverse_design"):
+            with self.subTest(page=page_name):
+                self.app.show_page(page_name)
+                self.app.geometry("1366x768+0+0")
+                self.app.deiconify()
+                self.app.update()
+                page = self.app.pages[page_name]
+                workbench = page.response_plot
+                saved_curves = copy.deepcopy(workbench.state.curves)
+                saved_selected_curve_id = workbench.state.selected_curve_id
+                workbench.state.clear_curves()
+                workbench.redraw()
+                self.app.update()
+                item = workbench.canvas.find_withtag("empty_plot_message")
+                self.assertEqual(len(item), 1)
+                left, top, right, bottom = workbench._plot_bounds
+                x1, y1, x2, y2 = workbench.canvas.bbox(item[0])
+                self.assertGreaterEqual(x1, left)
+                self.assertGreaterEqual(y1, top)
+                self.assertLessEqual(x2, right)
+                self.assertLessEqual(y2, bottom)
+                workbench.state.curves = saved_curves
+                workbench.state.selected_curve_id = saved_selected_curve_id
+                workbench.redraw()
+
+        self.app.withdraw()
 
     def test_form_builds_variable_fixed_target_and_generic_constraint_request(self):
         self._fill_valid_form()
@@ -186,7 +320,106 @@ class InverseDesignPageTests(unittest.TestCase):
             ["theta_2", "theta_3", "theta_4", "theta_5"],
         )
 
+    def test_round_coordinate_snaps_to_nearest_saved_point_and_is_disclosed(self):
+        self.page.active_book.output_axis = OutputAxisMetadata(
+            label="Frequency",
+            unit="GHz",
+            values=(
+                2.40026,
+                2.41736,
+                2.43446,
+                2.45156,
+                2.46866,
+                2.48576,
+                2.50286,
+                2.51996,
+            ),
+            source="target_columns",
+        )
+        self.page._configure_output_axis()
+        self.assertEqual(self.page.single_coordinate.get(), "2.4003")
+        self._fill_valid_form()
+        self.page.single_coordinate.delete(0, "end")
+        self.page.single_coordinate.insert(0, "2.4")
+
+        request = self.page.build_request()
+
+        self.assertEqual(request.objective.output_name, "theta_0")
+        self.assertEqual(request.objective.requested_coordinate, 2.4)
+        disclosure = self.page._coordinate_disclosures[0]
+        self.assertIn("Optimizing at 2.40026 GHz", disclosure)
+        self.assertIn("nearest saved point to 2.4 GHz", disclosure)
+        self.assertIn("grid spacing 17.1 MHz", disclosure)
+
+        result = InverseDesignResult(
+            success=True,
+            status=INVERSE_DESIGN_COMPLETED,
+            model_book_id=self.book.book_id,
+            run_id="inverse-snap",
+            best_inputs={"P2": 28.92837, "P3": 2.0, "P4": 3.0},
+            predicted_outputs={
+                f"theta_{index}": float(index + 1) for index in range(8)
+            },
+            objective={
+                "output_name": "theta_0",
+                "output_names": ["theta_0"],
+                "aggregation": "single",
+                "goal": "minimize",
+                "target_value": None,
+            },
+            objective_value=1.0,
+            feasible=True,
+        )
+        self.page._show_success(result)
+        self.assertIn(disclosure, self.page.result_summary.cget("text"))
+        self.assertIn("P2 = 28.9284", self.page.latest_inputs.cget("text"))
+
+    def test_range_endpoints_snap_and_out_of_range_is_rejected(self):
+        self.page.active_book.output_axis = OutputAxisMetadata(
+            label="Frequency",
+            unit="GHz",
+            values=(
+                2.40026,
+                2.41736,
+                2.43446,
+                2.45156,
+                2.46866,
+                2.48576,
+                2.50286,
+                2.51996,
+            ),
+            source="target_columns",
+        )
+        self.page._configure_output_axis()
+        self._fill_valid_form()
+        self.page.objective_scope.set("Mean over range")
+        self.page._objective_scope_changed("Mean over range")
+        self.page.range_start.delete(0, "end")
+        self.page.range_start.insert(0, "2.4")
+        self.page.range_end.delete(0, "end")
+        self.page.range_end.insert(0, "2.43")
+
+        request = self.page.build_request()
+
+        self.assertEqual(
+            request.objective.output_names,
+            ["theta_0", "theta_1", "theta_2"],
+        )
+        self.assertEqual(len(self.page._coordinate_disclosures), 2)
+
+        self.page.objective_scope.set("Single point")
+        self.page._objective_scope_changed("Single point")
+        self.page.single_coordinate.delete(0, "end")
+        self.page.single_coordinate.insert(0, "2.3")
+        with self.assertRaisesRegex(
+            ValueError,
+            r"outside the saved axis range 2\.40026 GHz to 2\.51996 GHz",
+        ):
+            self.page.build_request()
+
     def test_invalid_form_does_not_submit_and_shows_friendly_message(self):
+        first = next(iter(self.page.input_widgets.values()))
+        first.lower.delete(0, "end")
         with patch("studio.inverse_design_ui.submit_inverse_design_request") as submit:
             self.page.run_button.invoke()
 
@@ -274,6 +507,35 @@ class InverseDesignPageTests(unittest.TestCase):
         self.assertIn(
             self.page.response_plot.state.selected_curve.name,
             legend_text,
+        )
+
+    def test_successful_roles_and_bounds_persist_across_project_reopen(self):
+        self._fill_valid_form()
+        p2 = self.page.input_widgets["P2"]
+        p2.lower.delete(0, "end")
+        p2.lower.insert(0, "1.25")
+        p2.upper.delete(0, "end")
+        p2.upper.insert(0, "8.75")
+        request = self.page.build_request()
+        self.page._persist_input_configuration(request)
+
+        reopened = self.store.open_project(self.project.path, touch=False)
+        self.app.set_project(reopened, target_page="inverse_design")
+        self.app.update_idletasks()
+        self.page = self.app.inverse_design_page
+
+        self.assertEqual(self.page.input_widgets["P2"].mode.get(), "Variable")
+        self.assertEqual(self.page.input_widgets["P2"].lower.get(), "1.25")
+        self.assertEqual(self.page.input_widgets["P2"].upper.get(), "8.75")
+        self.assertEqual(self.page.input_widgets["P3"].mode.get(), "Fixed")
+        self.assertEqual(self.page.input_widgets["P3"].fixed.get(), "2")
+
+        self.app.update_current_project(
+            {
+                "inverse_design": {
+                    "ui_state": {"model_book_id": "test-reset", "inputs": {}}
+                }
+            }
         )
 
     def test_repeated_search_results_add_or_replace_curves_without_leaving_configuration(self):
@@ -628,6 +890,97 @@ class InverseDesignPageTests(unittest.TestCase):
         self.app.set_project(reopened)
         self.assertEqual(self.app.active_page, "inverse_design")
 
+    def test_input_table_gives_every_control_room_for_its_own_text(self):
+        """No control in the inputs table may be narrower than it needs.
+
+        Column widths were twice derived from a characters-times-constant
+        guess, once too wide and once too narrow, and the narrow guess wrapped
+        labels mid-word and clipped entry placeholders.  Widths are measured
+        now, so this asserts the outcome rather than the constants.
+        """
+
+        self.app.geometry("1366x768+0+0")
+        self.app.deiconify()
+        self.app.set_sidebar_collapsed(True)
+        self.app.set_snowbuddy_collapsed(True)
+        self.app.show_page("inverse_design")
+        self.page.config_section_control.set("Inputs")
+        self.page._show_config_section("Inputs")
+        self.app.update()
+
+        # Every row must show its whole name on one line.  The regression this
+        # guards against wrapped "SlotRadius" into "SlotRadi" / "us".
+        for name, label in self.page.input_name_labels.items():
+            self.assertEqual(label.cget("text"), name)
+            self.assertGreaterEqual(
+                label.winfo_width(),
+                text_width("body_small", name),
+                msg=f"{name} label is narrower than its own text",
+            )
+            self.assertEqual(label.winfo_height(), label.winfo_reqheight())
+
+        # Headings must fit, so none of them needs a hand-placed line break.
+        for heading in self.page.input_heading_labels:
+            self.assertNotIn("\n", heading.cget("text"))
+            self.assertGreaterEqual(
+                heading.winfo_width(), text_width("mono", heading.cget("text"))
+            )
+
+        # Bounds entries must show their placeholder; "Max" once rendered as
+        # "Ma" plus an overflow mark because the column was 66px wide.
+        for widgets in self.page.input_widgets.values():
+            for entry in (widgets.lower, widgets.upper, widgets.fixed):
+                if not entry.winfo_ismapped():
+                    continue
+                placeholder = str(entry.cget("placeholder_text"))
+                self.assertGreater(
+                    entry.winfo_width(),
+                    text_width("body_small", placeholder) + 12,
+                    msg=f"{placeholder} placeholder does not fit its entry",
+                )
+
+        # The rows must fit the width they were given rather than overflow it.
+        host_width = self.page.input_rows_host.winfo_width()
+        for widgets in self.page.input_widgets.values():
+            self.assertLessEqual(widgets.frame.winfo_width(), host_width)
+
+    def test_long_names_widen_the_pane_rather_than_the_columns(self):
+        """A long feature name grows the pane; it never squeezes a column."""
+
+        narrow = configuration_width_for(INPUT_LABEL_MIN_WIDTH)
+        wide = configuration_width_for(INPUT_LABEL_MAX_WIDTH)
+        self.assertEqual(narrow, CONFIGURATION_MIN_WIDTH)
+        self.assertGreater(wide, narrow)
+
+        # A moderately long name widens the column to fit its measured text.
+        moderate = widest_text_width(
+            "body_small",
+            ["SlotRadiusOuter"],
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
+        )
+        self.assertGreater(moderate, INPUT_LABEL_MIN_WIDTH)
+        self.assertGreaterEqual(
+            moderate, text_width("body_small", "SlotRadiusOuter")
+        )
+        measured = widest_text_width(
+            "body_small",
+            ["ArrayElementSpacing"],
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
+        )
+        # Past the cap the column stops growing and the label wraps instead,
+        # so one absurd name cannot push the whole pane off screen.
+        self.assertEqual(measured, INPUT_LABEL_MAX_WIDTH)
+
+        self.page._apply_configuration_min_width(configuration_width_for(measured))
+        self.assertEqual(
+            self.page._configuration_min_width, configuration_width_for(measured)
+        )
+        self.assertGreater(self.page._configuration_min_width, CONFIGURATION_MIN_WIDTH)
+
     def test_laptop_layout_keeps_configuration_and_actions_reachable(self):
         self.app.geometry("1366x768+0+0")
         self.app.deiconify()
@@ -638,6 +991,21 @@ class InverseDesignPageTests(unittest.TestCase):
         self.page._show_config_section("Constraints")
         for _ in range(4):
             self.page._add_constraint()
+        self.app.update()
+
+        # Both dividers are deliberately persistent user state: the clamp keeps
+        # whatever position it finds inside the allowed range rather than yanking
+        # it back when a project needs less room. Earlier tests in this class
+        # therefore leave the form wide and the plot at its floor, which made the
+        # widths below depend on execution order. State the starting point this
+        # test means instead: the form and the curve manager each at their own
+        # minimum, so the remaining laptop width belongs to the plot.
+        self.page.workspace_split.sash_place(
+            0, self.page._configuration_min_width, 1
+        )
+        self.app.update()
+        plot_split = self.page.response_plot.plot_split
+        plot_split.sash_place(0, plot_split.winfo_width() - 1, 1)
         self.app.update()
 
         footer_top = self.page.run_button.winfo_rooty()
@@ -670,10 +1038,14 @@ class InverseDesignPageTests(unittest.TestCase):
             CONFIGURATION_MIN_WIDTH,
         )
         first_input = next(iter(self.page.input_widgets.values()))
-        self.assertGreaterEqual(first_input.mode_control.winfo_width(), 165)
+        self.assertGreaterEqual(first_input.mode_control.winfo_width(), 140)
         self.assertGreaterEqual(first_input.lower.winfo_width(), 54)
         self.assertGreaterEqual(first_input.upper.winfo_width(), 54)
-        self.assertGreaterEqual(first_input.fixed.winfo_width(), 54)
+        self.assertEqual(first_input.fixed.winfo_manager(), "")
+        self.assertGreaterEqual(first_input.lower.winfo_width(), 54)
+        fixed_input = list(self.page.input_widgets.values())[1]
+        self.assertEqual(fixed_input.fixed.winfo_manager(), "grid")
+        self.assertGreaterEqual(fixed_input.fixed.winfo_width(), 108)
         self.assertGreaterEqual(self.page.config_section_control.winfo_width(), 450)
         self.assertEqual(
             int(float(self.page.configuration_intro.cget("wraplength"))),

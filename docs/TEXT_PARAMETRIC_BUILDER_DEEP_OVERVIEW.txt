@@ -1,0 +1,1601 @@
+ANTENNA SURROGATE STUDIO
+TEXT-PARAMETRIC BUILDER: DEEP TECHNICAL AND DESIGN OVERVIEW
+======================================================================
+
+Document status: Implementation snapshot
+Prepared: September 2026
+Current verification: the full repository suite passes
+                     (python -m unittest discover -s tests)
+
+
+1. EXECUTIVE OVERVIEW
+======================================================================
+
+The text-parametric builder moves Antenna Surrogate Studio (ASS) one step
+earlier in the antenna-development workflow. Instead of requiring the user to
+arrive with a finished CST model and a known parameter set, it can produce a
+controlled parametric starting design from natural-language instructions.
+
+The intended workflow is:
+
+    natural-language concept
+      -> constrained antenna design agent
+      -> validated solver-neutral parametric design
+      -> synchronized parameter table and interactive 3D preview
+      -> CST construction script or native unsolved CST project
+      -> selected design variables
+      -> Latin hypercube sampling (LHS)
+      -> CST simulation data
+      -> surrogate training
+      -> inference and inverse design
+
+The central technical decision is that natural language does not directly
+write CST commands or own geometry. The selected LLM planner receives the
+current design plus a runtime capability manifest and must return a
+schema-constrained sequence of registered planning-tool calls, a clarification,
+or a refusal. A deterministic executor validates those calls and compiles
+recipes and modifiers into primitive geometry and EM tools. A solver-neutral
+design graph becomes the single source of truth for validation, the parameter
+table, the 3D preview, persistence, LHS transfer, and CST generation.
+
+The current implementation supports three antenna recipes:
+
+    1. inset-fed rectangular microstrip patch;
+    2. probe-fed circular microstrip patch;
+    3. center-fed half-wave dipole.
+
+All three may be replicated as a single element, a 1 x N or N x 1 linear
+array, or an M x N planar array when the applicable spacing rules pass.
+
+One reusable geometry modifier is installed:
+
+    corner_circle_cutouts_v1
+
+It applies four subtractive circular cutouts to the rectangular patch. Each
+circle is centered exactly on a patch vertex. Its default radius is one quarter
+of patch width:
+
+    CornerRadiusRatio = 0.25
+    CornerRadius = PatchW * CornerRadiusRatio
+
+This modifier is composed from parameter creation, cylinder creation, and
+Boolean subtraction. It is not implemented as a separate hard-coded
+"fractal-patch antenna" family.
+
+The builder is deliberately experimental. It creates an inspectable and
+parameterized starting model, not a simulated, tuned, certified, or
+manufacturing-ready antenna.
+
+
+2. WHAT THE FEATURE FEELS LIKE TO THE USER
+======================================================================
+
+After a project is created, ASS opens Antenna Design and presents two paths:
+
+    I already have a design
+    Design with antenna agent
+
+The existing-design path continues to the established Data Prep workflow. The
+antenna-agent path opens a blank Parametric Antenna Builder with no assumed
+family, frequency, material, parameters, or geometry. The first validated
+conversation creates revision zero in place.
+
+The builder has two main panes.
+
+The left pane contains:
+
+    - a multiline Design Request composer;
+    - an Apply button and Ctrl+Enter shortcut;
+    - separate Provider and Model selectors for Local Ollama, Gemini, Groq,
+      or OpenRouter, plus model refresh and an OpenRouter Free-only filter;
+    - an always-visible local/privacy or cloud-transmission notice;
+    - Parameters and Conversation tabs;
+    - editable validated parameters;
+    - Vary checkboxes for parameters that can be sent to LHS.
+
+The Design Request composer grows as the request wraps or gains lines, up to a
+bounded height, and then scrolls. Enter inserts a new line. Ctrl+Enter applies
+the complete request. This makes multi-step antenna descriptions readable
+before they are submitted.
+
+The right pane contains:
+
+    - the deterministic 3D geometry preview;
+    - full horizontal and vertical orbit controls;
+    - right/middle-drag pan;
+    - wheel zoom;
+    - Reset view;
+    - material, frequency, element, and port summaries;
+    - feed and array limitations relevant to the active design.
+
+The footer provides:
+
+    - return to Antenna Design;
+    - Export CST script;
+    - Create CST project;
+    - Send selected to LHS.
+
+Every accepted instruction modifies one live design state. The design keeps a
+stable design_id and increments its revision. A later instruction does not
+silently create an unrelated model unless the instruction explicitly changes
+antenna family or asks to clear/reset/start over.
+
+
+3. HANDS-ON EXAMPLES
+======================================================================
+
+3.1 Inset-fed rectangular patch
+--------------------------------
+
+    Create an inset-fed rectangular patch at 2.45 GHz on FR4.
+    Make the substrate 1.6 mm thick.
+    Change the patch width to 38 mm.
+    Turn it into a 1x4 linear array with 0.55 lambda spacing.
+
+The first sentence selects the rectangular-patch recipe. The remaining
+sentences update the same canonical state. Frequency, material, substrate,
+patch, feed, array, board, ports, preview, and export all remain synchronized.
+
+3.2 Circular patch
+------------------
+
+    Create a circular patch at 5.8 GHz on Rogers RT5880.
+    Change the probe radius to 0.8 mm.
+    Turn it into a 1x2 array with 0.6 lambda spacing.
+
+"Probe radius" is intentionally distinct from "patch radius" and from the
+dipole's "conductor radius." The planner rejects cross-family parameter names
+rather than guessing.
+
+3.3 Dipole
+----------
+
+    Create a simple dipole at 915 MHz.
+    Change the conductor radius to 0.8 mm.
+    Turn it into a 1x3 linear array with 0.5 lambda spacing.
+
+The dipole has no substrate. Its parameter table therefore changes to arm
+length, wire radius, feed gap, frequency, and array controls.
+
+3.4 Rectangular patch with circular corner cutouts
+-------------------------------------------------
+
+    Clear this and make a rectangular patch antenna with circular fractals at
+    each corner.
+    Make sure each circle is centered on a rectangular patch corner.
+    Use radius = 1/4 of patch width.
+
+The implementation interprets this as four subtractive circular corner
+cutouts. More precisely, it is a single-iteration corner-cut geometry rather
+than a mathematically recursive fractal. The phrase "the rectangular edge
+serves as center" is resolved as "each patch vertex is the center of one
+circle," because a complete edge cannot be a single point center.
+
+For the default 2.45 GHz FR4 patch:
+
+    PatchW = 37.2343 mm
+    CornerRadiusRatio = 0.25
+    CornerRadius = 9.308575 mm
+
+Changing PatchW to 40 mm automatically changes CornerRadius to 10 mm. The
+modifier survives later edits and array replication because the design is
+rebuilt from the base recipe and then the active modifier is reapplied.
+
+
+4. ARCHITECTURE AT A GLANCE
+======================================================================
+
+    User instruction
+        |
+        v
+    AntennaDesignAgent
+        - classify supported intent
+        - inspect installed recipes/modifiers/tools
+        - extract allowlisted values
+        - construct an AgentPlan
+        |
+        v
+    Base recipe
+        - compose registered primitives
+        - create parameters/materials/geometry/ports/setup
+        |
+        v
+    Optional modifier skills
+        - compose additional registered primitives
+        - preserve reusable relationships
+        |
+        v
+    AntennaDesign canonical graph
+        - solver-neutral parameters and expressions
+        - materials
+        - primitive geometry
+        - Boolean relationships
+        - ports
+        - array specification
+        - simulation setup
+        - metadata and validation records
+        |
+        +--------------------+--------------------+
+        |                    |                    |
+        v                    v                    v
+    Parameter UI         3D preview          Persistence/LHS
+        |
+        v
+    Solver adapter
+        |
+        v
+    CST History List/VBA or native unsolved .cst project
+
+The key invariant is that preview, export, sampling, and persistence do not
+maintain separate geometric interpretations. They consume the same canonical
+state.
+
+
+5. THE CANONICAL SOLVER-NEUTRAL DESIGN STATE
+======================================================================
+
+studio/antenna_design.py defines AntennaDesign. The schema version is 2.
+
+An AntennaDesign contains:
+
+    schema_version
+        Version gate for safe persistence and migration.
+
+    design_id
+        Stable identity for the live conversational design.
+
+    revision
+        Incremented on every accepted update.
+
+    recipe_id, family, display_name
+        The installed recipe and its user-facing classification.
+
+    parameters
+        DesignParameter objects with internal keys, CST-facing names, labels,
+        values, units, optional expressions, editability, sweepability,
+        integer constraints, limits, and suggested LHS factors.
+
+    materials
+        Solver-neutral material definitions, including dielectric properties
+        and optional conductor conductivity.
+
+    geometry
+        Primitive objects with stable IDs, primitive type, material ID,
+        dimensions, axis, transform, component, and semantic tags.
+
+    booleans
+        Union and subtraction relationships between geometry-object IDs.
+
+    ports
+        Port type, endpoints, impedance, name, and array element index.
+
+    array
+        Rows, columns, physical spacing, and row/column vectors.
+
+    simulation
+        Frequency range, boundary type, and solver family.
+
+    metadata
+        Extensible key/value state such as substrate material and active
+        modifiers.
+
+    validation
+        Explicit pass/fail records for each deterministic validation stage.
+
+The state intentionally contains no CST commands. A serialized design does not
+contain "Solid.Subtract," "With Brick," or any other solver instruction.
+
+5.1 Expressions
+---------------
+
+Parameters and geometry dimensions may contain safe arithmetic expressions.
+The expression evaluator supports:
+
+    - numeric constants;
+    - parameter names;
+    - unary plus and minus;
+    - addition, subtraction, multiplication, and division.
+
+It does not execute Python, function calls, attributes, or arbitrary code.
+
+Examples include:
+
+    ElementSpacing = 299.792458 / FreqGHz * SpacingLambda
+    FeedStub = 3 * SubH
+    CornerRadius = PatchW * CornerRadiusRatio
+    DipoleLength = 2 * ArmLength + FeedGap
+
+Expressions are resolved in dependency order. Unresolved or cyclic expressions
+fail validation.
+
+5.2 Rebuild semantics
+---------------------
+
+An edit does not mutate one CST object in place. The agent collects the current
+editable values, applies the update, rebuilds the deterministic recipe, reapplies
+active modifiers, replays persistent LLM-composed operation groups, validates
+the result, and publishes the next revision.
+
+This has several benefits:
+
+    - no accumulated construction-history drift;
+    - deterministic geometry for the same input values;
+    - a single path for text edits and table edits;
+    - invalid edits never partially damage the live design;
+    - modifier relationships survive subsequent parameter changes.
+    - validated ad-hoc Boolean compositions survive subsequent parameter
+      changes and project reopen.
+
+The cost is that external hand edits made directly inside an exported CST file
+are not automatically imported back into the builder.
+
+5.3 Persistent composed-operation groups
+-----------------------------------------
+
+Every successful direct primitive phase is captured separately from the base
+recipe as an immutable ordered group. A group stores parameter creation,
+geometry, transforms, and Boolean calls using the same registered schemas that
+were originally executed. Boolean targets additionally carry a semantic
+selector: geometry role plus one-based array row and column.
+
+During rebuild, the agent resolves that selector against the newly generated
+recipe geometry before replaying the group. This avoids treating an old object
+ID as the authoritative identity. Generated cutter IDs remain local
+dependencies inside the group and are revalidated for uniqueness and order.
+
+Replay uses the normal primitive executor and whole-design validator. A missing
+tool, family mismatch, unresolved target, out-of-bounds cutter, or invalid
+result rejects the requested edit. The previous immutable design remains the
+published state. Operation groups are included in AntennaDesign serialization,
+so the same behavior continues after project save/reopen.
+
+
+6. TOOL REGISTRY AND PRIMITIVE CAPABILITIES
+======================================================================
+
+studio/antenna_tools.py owns ToolRegistry. The registry stores primitive tools,
+recipes, and modifiers. A capability declares its required tool names, and
+registration fails if a required tool is missing.
+
+Installed primitive tools are:
+
+Parameter/design tools
+    parameter.create
+    design.metadata.set
+
+Material and EM tools
+    material.define
+    material.assign
+    em.port.create
+    em.frequency.setup
+
+Geometry tools
+    geometry.box
+    geometry.rectangle_sheet
+    geometry.cylinder
+    geometry.circle_sheet
+
+Transformation tools
+    geometry.translate
+    geometry.rotate
+    geometry.duplicate
+
+Boolean tools
+    boolean.union
+    boolean.subtract
+
+Array tool
+    array.configure
+
+Each tool accepts an AntennaDesign and a structured argument dictionary and
+returns a new AntennaDesign. Tools validate basic types, finite values,
+identifiers, referenced objects, and operation constraints before adding state.
+
+Capabilities are discovered from modules under studio/antenna_capabilities.
+External Python packages can also expose a registration callable through the
+entry-point group:
+
+    antenna_surrogate_studio.antenna_capabilities
+
+This is the progressive extension boundary. A new tool, recipe, or modifier
+can register without changing the core agent or canonical graph, provided its
+data can be represented by the existing schema. Schema expansion is still
+needed for fundamentally new concepts such as periodic boundaries, field
+monitors, lumped elements, or mesh-control regions.
+
+
+7. RECIPE LAYER
+======================================================================
+
+Recipes are higher-level compositions of primitives. They provide validated
+defaults and repeatable construction sequences. They are accelerators, not the
+fundamental geometry backend.
+
+7.1 Shared behavior
+-------------------
+
+Every recipe:
+
+    - normalizes numeric and choice values;
+    - creates named design parameters;
+    - computes physical spacing from free-space wavelength;
+    - records the array layout;
+    - sets a simulation frequency range of 0.65*f0 to 1.35*f0;
+    - uses expanded-open boundaries;
+    - chooses the time-domain solver family;
+    - creates one independent discrete port per element;
+    - validates before returning the design.
+
+The wavelength conversion is:
+
+    lambda0_mm = 299.792458 / frequency_GHz
+    element_spacing_mm = lambda0_mm * spacing_lambda
+
+Array rows and columns are each limited to 1 through 16, with no more than 64
+total elements. Spacing must be 0.2 through 2.0 free-space wavelengths.
+
+Element centers are symmetrically distributed around the origin:
+
+    coordinate(i) = (i - (count - 1)/2) * ElementSpacing
+
+7.2 Inset-fed rectangular patch: inset_patch_v2
+------------------------------------------------
+
+The recipe begins with conventional transmission-line starting estimates.
+Given free-space wavelength lambda0, relative permittivity er, and substrate
+height h:
+
+    W = lambda0/2 * sqrt(2/(er + 1))
+
+An effective permittivity and fringing extension are calculated, then the
+physical patch length is estimated from the effective wavelength. These are
+starting dimensions only. They are not a replacement for full-wave tuning.
+
+Default 2.45 GHz FR4 values include:
+
+    FreqGHz       2.45 GHz
+    SubH          1.6 mm
+    CopperT       0.035 mm
+    PatchL        28.8093 mm
+    PatchW        37.2343 mm
+    FeedW         3.0 mm
+    Inset         8.6428 mm
+    Gap           1.0 mm
+    Margin        7.0 mm
+    SpacingLambda 0.55
+
+The patch conductor is constructed from four boxes per element:
+
+    - upper patch body;
+    - lower-left patch section;
+    - lower-right patch section;
+    - feed strip.
+
+The four pieces are unioned into one conductor. The split construction makes
+the inset notch explicit and parameterized.
+
+Derived parameters include:
+
+    FeedStub = 3 * SubH
+    BoardW = PatchW + (ArrayCols - 1)*ElementSpacing + 2*Margin
+    BoardL = PatchL + FeedStub + (ArrayRows - 1)*ElementSpacing + 2*Margin
+
+Validation includes:
+
+    - Inset < PatchL/2;
+    - FeedW + 2*Gap < PatchW;
+    - column spacing > PatchW when columns > 1;
+    - row spacing > PatchL when rows > 1.
+
+The port is a 50-ohm discrete vertical port between the ground and the feed
+strip at the outer end of the feed stub.
+
+7.3 Probe-fed circular patch: circular_patch_v1
+------------------------------------------------
+
+The circular-patch recipe estimates a starting radius from frequency,
+permittivity, and substrate thickness using a simplified effective-permittivity
+approximation. The probe offset defaults to approximately 0.33 of patch radius.
+
+Default 2.45 GHz FR4 values resolve to approximately:
+
+    PatchRadius   21.0503 mm
+    FeedOffset    6.9466 mm
+    ProbeRadius   0.6 mm
+    SubH          1.6 mm
+    CopperT       0.035 mm
+    Margin        7.0 mm
+    SpacingLambda 0.55
+
+Each element contains:
+
+    - one cylindrical circular-patch conductor;
+    - one cylindrical probe conductor;
+    - one discrete port from ground level to substrate top at the probe center.
+
+Validation includes:
+
+    FeedOffset + ProbeRadius < PatchRadius
+
+and array spacing must exceed the patch diameter.
+
+The earlier "conductor radius" parsing bug is intentionally prevented. On a
+circular patch, "conductor radius" is rejected with guidance to use "probe
+radius." A bare occurrence inside "conductor radius" can no longer accidentally
+shrink PatchRadius.
+
+7.4 Center-fed dipole: dipole_v1
+--------------------------------
+
+The default total conducting length is based on approximately 0.475 lambda.
+The default feed gap is 0.01 lambda and the default wire radius is lambda/300:
+
+    FeedGap = 0.01 * lambda0
+    ArmLength = (0.475*lambda0 - FeedGap)/2
+    WireRadius = lambda0/300
+
+At 2.45 GHz this gives approximately:
+
+    ArmLength  28.4497 mm
+    FeedGap     1.2236 mm
+    WireRadius  0.4079 mm
+
+Each element consists of two z-directed cylinders and one discrete port across
+the feed gap. There is no substrate.
+
+Validation includes:
+
+    - FeedGap > 2*WireRadius;
+    - row spacing > total dipole length when rows > 1;
+    - column spacing > conductor diameter when columns > 1.
+
+
+8. MODIFIER LAYER: CIRCULAR CORNER CUTOUTS
+======================================================================
+
+studio/antenna_modifiers.py separates reusable geometric variations from base
+antenna recipes.
+
+The installed modifier declares:
+
+    modifier_id: corner_circle_cutouts_v1
+    applicable family: rectangular_inset_patch
+    required tools:
+        parameter.create
+        geometry.cylinder
+        boolean.subtract
+        design.metadata.set
+
+It adds:
+
+    CornerRadiusRatio
+        Editable and sweepable. Default 0.25. Allowed range 0.01 to 0.49.
+
+    CornerRadius
+        Derived, not directly editable.
+        Expression: PatchW * CornerRadiusRatio.
+
+For each array element, the modifier identifies the composed patch conductor,
+creates four z-directed cylinder tools, centers them on the four patch vertices,
+and subtracts them from the unioned conductor.
+
+The modifier metadata is saved in active_modifiers. On subsequent text or table
+edits, the agent rebuilds the base recipe and reapplies every active modifier.
+
+The modifier checks that the resolved cutout radius remains below half the
+patch length. Added copper lobes are not silently substituted; requests using
+"add," "lobe," or "union" with this intent fail explicitly.
+
+Electromagnetic interpretation:
+
+    - Four equal cutouts preserve geometric symmetry.
+    - They remove substantial copper and alter edge current paths.
+    - A radius of PatchW/4 is large, not a subtle perturbation.
+    - The original rectangular-patch analytical length is not retuned after
+      copper removal.
+    - Resonance, impedance, bandwidth, and modal behavior can shift
+      significantly.
+    - The model therefore demonstrates parametric composition; it does not
+      promise a 2.45 GHz match without CST tuning.
+
+Calling this geometry "fractal" is convenient user language, but one set of
+four corner cuts is not a recursive fractal construction. A future recursive
+modifier could expose iteration count, scale factor, and placement rules.
+
+
+9. AGENT AND NATURAL-LANGUAGE BEHAVIOR
+======================================================================
+
+studio/antenna_llm_planner.py contains the shared planner exchange, local Qwen,
+Gemini, Groq GPT-OSS, and OpenRouter Nemotron transports, and strict plan schema. studio/antenna_agent.py contains
+the registered planning-tool executor.
+
+9.1 What it currently does
+--------------------------
+
+For every submitted text instruction, the planner receives:
+
+    - the complete current serialized AntennaDesign;
+    - the thirteen currently registered planning tools and their exact JSON
+      argument schemas;
+    - every installed recipe, alias, and parameter definition;
+    - every installed modifier, its family applicability, and parameters;
+    - the deterministic primitive-tool inventory and which entries are safe for
+      direct LLM planning;
+    - semantic geometry objects with stable IDs, roles, tags, materials,
+      resolved bounds, and radiating-element centers;
+    - the active recipe and modifier IDs.
+
+The model response has exactly four top-level fields: schema_version, status,
+message, and calls. Status is execute, clarify, or refuse. Execute requires at
+least one call. Clarify and refuse forbid calls. Every call is selected from:
+
+    design.reset
+    recipe.select
+    parameter.set
+    modifier.apply
+    modifier.remove
+    parameter.create
+    geometry.rectangle_sheet
+    geometry.circle_sheet
+    geometry.cylinder
+    geometry.translate
+    geometry.duplicate
+    boolean.subtract
+    boolean.union
+
+The structured-output schema uses a separate exact argument schema for each
+tool. The executor repeats the checks before mutation, including exact argument
+names, installed recipe/modifier IDs, parameter ownership, value types,
+modifier applicability, semantic target roles, object references, value types,
+and call order. It then recomputes analytical starting dimensions when a
+dimension driver changes while preserving dimensions that were explicitly set
+in the same plan. A primitive phase executes transactionally after any recipe
+or modifier actions; a failure publishes none of the proposed state.
+
+An AgentPlan records:
+
+    - chosen recipe ID;
+    - intent (create or modify);
+    - parameter updates;
+    - planned tool names;
+    - active modifier IDs;
+    - the LLM-selected registered calls;
+    - the planner message.
+
+AgentResult adds the validated design, executed ToolCall sequence, and a
+user-facing change summary.
+
+9.2 What "agentic" means here
+-----------------------------
+
+The implementation is agentic in a controlled, auditable sense:
+
+    - it inspects a runtime capability registry;
+    - an LLM reasons over the current design and runtime capability schemas;
+    - it produces an explicit ordered registered-tool plan;
+    - a deterministic executor validates and executes that plan;
+    - it validates the result;
+    - it refuses unavailable capabilities.
+
+It is not a general free-form geometry agent. The LLM may directly compose only
+the small registered subset listed above. For example, it can synthesize:
+
+    parameter.create -> cylinder -> boolean.subtract
+
+or:
+
+    two parameters -> rectangle_sheet -> boolean.subtract
+
+from prose. The schema fixes cutter material and conductor-layer z extents,
+requires planner-created/Boolean-tool tags, restricts transforms to objects
+created earlier in the same plan, and constrains Boolean targets to semantic
+radiating-patch conductors from the current state. Ports, feeds, substrates,
+grounds, arbitrary code, solver commands, and unregistered primitives remain
+outside the planning surface. This is the trust boundary for the current
+release.
+
+9.3 Unsupported language and safe failure
+-----------------------------------------
+
+If ambiguity would change geometry, the planner must return clarify with one
+specific question and no calls. If installed capabilities cannot represent the
+request, it must return refuse with no calls. The executor independently rejects
+unknown tool names, extra/missing arguments, cross-family parameters, invented
+object references, invalid call order, unused cutter geometry, cutter bounds
+outside the patch, and invalid final geometry. No failure path publishes a
+partial design. The LLM improves conversational interpretation, but units and
+values must still map to installed parameter fields or validated newly created
+parameters and pass deterministic constraints.
+
+
+10. SCHEMA-CONSTRAINED PLANNER BACKENDS
+======================================================================
+
+Natural-language instructions use a selected local Ollama model, optional
+Gemini model through Google's generateContent API, optional Groq model through
+Groq's OpenAI-compatible API, or optional OpenRouter model. One provider-neutral
+PlannerExchange constructs the system instruction, serialized current design,
+runtime capability manifest, callable-tool list, and ToolPlan JSON Schema.
+All transports receive that exact exchange. Cloud transports do not receive extra
+tools, examples, model-specific instructions, or deterministic phrase handling.
+The schema is built at runtime from registered planning-tool definitions, so a
+validated capability can change what any model sees without changing the
+planner protocol.
+
+Local Ollama requests are non-streaming with temperature zero and place the JSON
+Schema in Ollama's format field. Gemini 3.8 requests use application/json
+response mode. The exact thirteen-branch ToolPlan schema remains in the shared
+planning context, but it is not sent as Gemini responseJsonSchema because the
+API rejects that union before generation. Gemini output therefore reaches the
+same exact-schema parser after generation. No branch, property constraint, or
+tool definition is relaxed. Groq first requests strict JSON Schema output with
+the unchanged ToolPlan schema. If the provider rejects that exact request, the
+transport retries with JSON-object output and the same strict local parser.
+Every response then passes through the same strict
+parser, capability guard, transactional executor, validators, and bounded
+repair paths. Audit metadata records Qwen as provider-constrained plus
+post-generation validation, Gemini as post-generation strict parsing and
+validation, Groq as either provider strict-schema plus post-generation
+validation or JSON-object plus post-generation strict validation, and Nemotron
+as post-generation strict parsing without provider schema enforcement.
+
+The local Ollama planner requests a 16,384-token context. Live testing showed why this is a
+functional requirement: the local model's 2,048-token default truncated the
+combined design and capability manifest and caused supported requests to be
+refused. The larger context preserves the complete planning input.
+
+The model returns explicit registered planning-tool calls rather than code or a
+free-form state replacement. Recipes and modifiers compile high-level calls to
+the existing deterministic ToolCall sequence. The selected geometry/Boolean
+calls execute through those same registered primitive handlers. The same
+validators run before the new canonical state is accepted. The LLM cannot
+return arbitrary geometry data outside a tool schema, execute CST, start a
+solver, access files, or install a new capability.
+
+There are two bounded repair paths. Malformed or schema-invalid output is sent
+back once with the parser error. A schema-valid execute plan that fails the
+registered executor is sent back once with the exact rejected plan and error,
+which can correct dependency order or remove an invented parameter. Neither
+failed attempt publishes a partial design. A deterministic capability-mismatch
+guard also refuses explicit solver-start requests and known uninstalled antenna
+families if a small model tries to substitute a supported recipe. Runtime recipe
+aliases override that family guard when a validated extension is installed.
+
+If the design changes while any model is working, the stale response is
+discarded. This prevents a delayed translation from overwriting newer user
+work.
+
+Gemini is explicitly labeled cloud in the builder because the request, current
+design state, and runtime tool manifest are transmitted to Google. The API key
+is loaded from GEMINI_API_KEY in the process environment or an ignored local
+.env file. It is carried in the x-goog-api-key HTTP header and is never placed
+in the request body, canonical design, project manifest, conversation, or audit
+log. A missing key produces a clear error while Local Ollama remains usable.
+
+Groq is also explicitly labeled cloud. Its API key is loaded from GROQ_API_KEY
+in the process environment or ignored local .env and is sent only in the
+Authorization header. The validated comparison model is openai/gpt-oss-120b. The transport
+caps completion reservation at 1,024 tokens to limit Groq token-per-minute
+accounting; this does not change the shared input or schema. The controlled
+live fixture still exceeded the current account's 8,000 TPM limit.
+
+OpenRouter is labeled as a cloud provider. The validated comparison model is
+nvidia/nemotron-3-ultra-550b-a55b:free. The transport does not require
+response_format, so it receives no provider-specific schema control. The
+unchanged shared instructions request one JSON object, and all output passes
+through the strict local ToolPlan parser. The key is loaded from
+OPENROUTER_API_KEY, with OPEN_ROUTER_API_KEY accepted as a compatibility alias
+for the existing local setting, and is sent only in the Authorization header.
+
+Provider and model selection are separate configuration fields. Local Ollama
+uses GET /api/tags; Gemini uses models.list and keeps only generateContent
+models; Groq uses its OpenAI-compatible models endpoint; OpenRouter uses its
+models endpoint and architecture/pricing metadata. Obvious embedding, audio,
+speech, guard, moderation, reranking, image-only, and non-text-output entries
+are filtered where metadata permits. Validated model IDs are labeled Tested;
+all other discovered compatible IDs are labeled Untested. OpenRouter's Free-only
+control keeps zero-priced or :free models. Discovery failure retains the last
+valid selection and reports the provider failure. Provider, model, and filter
+are persisted with the project.
+
+Every planning attempt may append one credential-free JSON Lines record to the
+project's design/planner_ab.jsonl. A record contains the planner backend and
+model, exact user request, returned plan attempts, validation outcome, executor
+repair attempt, and final deterministic tool sequence. This makes model
+comparisons inspectable without creating a second executor or changing tool schemas.
+
+The controlled four-backend comparison used one identical live inset-patch state containing a
+persisted centered circular slot. Each backend received these requests in
+sequence, with state retained only after a successful edit:
+
+    1. Change the circular slot radius to 5 mm. Keep everything else unchanged.
+    2. Move the existing circular slot 6 mm to the right of the patch center.
+    3. Remove the circular slot and keep the rest of the antenna unchanged.
+
+Qwen3:8b did not complete any requested edit. For the radius request it emitted
+twelve schema-valid writes of installed recipe parameters to their existing
+values and omitted slot_radius_mm. The executor accepted this no-op and advanced
+the revision even though the slot stayed at 3 mm. This is a semantic false
+positive: schema and deterministic design validation alone cannot prove that a
+plan fulfilled the request. For movement it attempted geometry.translate
+against existing geometry, which the executor correctly rejects because
+translation is currently limited to geometry created in the same primitive
+phase. For removal it proposed an invalid reverse-order Boolean composition
+with reused object IDs. The two rejected attempts preserved revision 2 and the
+valid state produced by the earlier no-op rebuild.
+
+Gemini 3.8 Flash also completed no edit, but it identified the actual capability
+gaps. Its first radius plan tried parameter.create for the existing composed
+parameter; after executor feedback it explicitly refused because parameter.set
+currently accepts only installed recipe/modifier parameters. For movement it
+explicitly refused after recognizing the same-phase transform restriction. For
+removal it directly refused because no operation-group deletion tool exists.
+No deterministic tool executed and the original design remained unchanged in
+all three cases.
+
+Groq produced no model output. Its strict-schema request was rejected and its
+unchanged JSON fallback exceeded the current account's 8,000 TPM limit before
+generation. Those are provider/account outcomes and are not ranked as planning
+quality.
+
+Nemotron directly refused the radius edit because no tool can edit a persisted
+planner-created parameter. Its initial movement plan tried the unavailable
+existing-object translation, then used executor feedback to compose an
+accepted geometric workaround: union a copper cylinder into the old hole and
+subtract a new cylinder at x = 6 mm. The canonical state remained valid at
+revision 2 with two composed-operation groups and one physically active 3 mm
+slot at the new position. On the removal request it safely asked whether to
+fill the active moved slot or remove all historical slot operations. No
+provider/API failure or schema repair occurred; the move used one executor
+repair.
+
+This comparison indicates planning-quality differences, but also establishes
+that all three requested feature lifecycle operations are absent from the
+current tool surface. It additionally exposes a clause-coverage gap: a
+schema-valid, design-valid no-op can be accepted without satisfying the request.
+The fair next architectural work would be general tools for editing a composed
+parameter, transforming an existing composed feature, and removing an operation
+group, plus provider-neutral request-fulfilment evaluation. None of those
+changes was added during this A/B pass.
+
+The corner-cutout request demonstrates call ordering: the model applies
+corner_circle_cutouts_v1 before setting corner_radius_ratio, because that
+parameter only exists while the modifier is active. A request such as
+"conductor radius 0.8 mm" on a circular patch is rejected because conductor
+radius belongs to the dipole recipe; the circular patch exposes probe radius.
+
+The direct primitive evaluation was run against qwen3:8b with these requests:
+
+    - one centered circular slot of radius 3 mm;
+    - two radius-2-mm slots at x = -5 mm and x = +5 mm;
+    - one centered rectangular slot 6 mm by 1 mm.
+
+All three produced genuine primitive plans with named size parameters and
+Boolean subtraction against the semantic patch target. No dedicated center-slot,
+two-slot, or rectangular-slot modifier was added. The CST adapter emitted the
+new parameters, cutters, and Solid.Subtract history operations.
+
+No external text-to-CAD package or text-to-LLM plugin is a runtime dependency.
+The earthtojake/text-to-cad repository motivated the workflow discussion, but
+its implementation was not copied or integrated. This builder is native ASS
+code designed around ASS persistence, CST export, and LHS integration.
+
+
+11. VALIDATION MODEL
+======================================================================
+
+Validation is layered and explicit.
+
+Stage 1: parameter_update
+    - parameter keys are unique;
+    - exported names are unique;
+    - expressions resolve;
+    - values are finite;
+    - minimum/maximum constraints hold;
+    - integer parameters are integral.
+
+Stage 2: primitive_geometry
+    - primitive type is supported;
+    - geometry IDs are unique;
+    - material references exist;
+    - dimensions resolve to finite values;
+    - every primitive has positive extent;
+    - Boolean operations are union/subtract;
+    - Boolean targets and tools exist.
+
+Stage 3: antenna_recipe
+    - array counts and spacing are valid;
+    - one port exists per element;
+    - port endpoints differ;
+    - impedance is positive;
+    - recipe-specific structural tags and object counts match.
+
+Stage 4: simulation_setup
+    - the frequency range is positive and ordered.
+
+Adapter gate: cst_adapter
+    - all preceding validation passed.
+
+Validation confirms structural correctness, not electromagnetic correctness.
+Visible geometry is not considered certified merely because it renders.
+
+
+12. INTERACTIVE 3D PREVIEW
+======================================================================
+
+The preview is generated by a deterministic evaluator over the canonical graph:
+
+    canonical primitives
+      -> transforms
+      -> Boolean operations in canonical/CST order
+      -> resulting preview meshes
+
+The evaluator uses Shapely for exact planar union and subtraction across the
+current patch copper layers. Boxes, rectangular sheets, circles, and z-axis
+cylinders become planar extrusions; inset-feed pieces are unioned into one
+conductor before meshing. Non-Boolean boxes and cylinders retain native 3D mesh
+generation with translation and X/Y/Z rotation. Materials determine display
+color. Ground, dielectric, and conductor objects remain visually distinct.
+
+The canvas implements an orbital camera:
+
+    horizontal drag -> yaw
+    vertical drag   -> unrestricted pitch/orbit
+    right/middle drag -> pan
+    mouse wheel     -> zoom
+    Reset view      -> default orientation, pan, and scale
+
+The viewer preserves evaluated millimetre dimensions, including Z. It no longer
+exaggerates substrate thickness. Canonical port endpoints are projected as red,
+numbered arrows, so port removal and placement changes are visible.
+
+The same path resolves corner cutouts, arbitrary center or offset circular
+slots, rectangular slots, circular edge unions, and recipe arrays. Boolean tool
+solids are consumed exactly as they are by CST. If a Boolean is not a compatible
+common-axis planar extrusion, the viewer suppresses the affected inputs and
+shows an explicit warning naming the operation. It does not display a false
+uncut solid. This is a bounded evaluator for the registered antenna primitives,
+not a general CAD kernel.
+
+The preview is for geometry inspection. It does not display mesh cells,
+currents, fields, S-parameters, radiation patterns, gain, efficiency, or
+manufacturing tolerances.
+
+
+13. CST ADAPTER
+======================================================================
+
+studio/cst_antenna_adapter.py is the only layer that emits CST-specific
+operations.
+
+13.1 Output
+-----------
+
+The adapter produces a CST History List/VBA construction macro containing:
+
+    - geometry/frequency/time units;
+    - StoreParameter calls for editable and derived parameters;
+    - dielectric material definitions;
+    - Brick and Cylinder creation;
+    - X/Y/Z rotations and translations where present;
+    - Solid.Add and Solid.Subtract operations;
+    - independent DiscretePort definitions;
+    - frequency range;
+    - expanded-open boundaries;
+    - HF Time Domain solver selection.
+
+The macro deliberately does not call Solver.Start.
+
+Export CST script writes:
+
+    <chosen_name>.bas
+    <chosen_name>_design.json
+
+The JSON record contains the complete canonical state, validation records,
+conversation, topology, element/port counts, adapter ID, and an explicit
+solver_started=false marker.
+
+13.2 Native CST creation
+------------------------
+
+On Windows, pywin32 connects to CST through:
+
+    CSTStudio.Application
+
+The builder creates a new MWS project, adds the generated history, and saves a
+new .cst file. Existing files are never overwritten. The .bas construction
+script and JSON design record are saved first, so they survive even if COM or
+CST project creation fails.
+
+Native creation runs outside the UI thread. Completion and failure are returned
+to the GUI without freezing the main interface.
+
+13.3 Meaningful parameter names
+-------------------------------
+
+Examples preserved in CST include:
+
+    FreqGHz, SubH, CopperT, PatchL, PatchW, FeedW, Inset, Gap,
+    PatchRadius, FeedOffset, ProbeRadius, ArmLength, WireRadius,
+    FeedGap, SpacingLambda, ElementSpacing, BoardW, BoardL,
+    CornerRadiusRatio, CornerRadius.
+
+This makes the generated project suitable for parameter sweeps.
+
+13.4 Fixed topology caveat
+--------------------------
+
+ArrayRows and ArrayCols are recorded as parameters, but changing them inside an
+already generated CST project cannot create or delete history objects. Array
+count changes require regenerating the construction script/project from ASS.
+Continuous dimensions such as PatchW or CornerRadiusRatio remain normal CST
+parameters after generation.
+
+
+14. LHS AND SURROGATE-STUDIO INTEGRATION
+======================================================================
+
+The Vary column selects sweepable CST-facing parameter names. Send selected to
+LHS opens the existing Data Prep sample generator and preloads LHSVariable
+objects with suggested bounds.
+
+Examples of default multiplicative ranges are:
+
+    PatchL, PatchW, frequency, spacing: 0.9 to 1.1 of nominal
+    SubH, FeedW:                       0.8 to 1.2 of nominal
+    Inset, Gap:                        0.75 to 1.25 of nominal
+    CornerRadiusRatio:                 0.8 to 1.2 of nominal
+
+For CornerRadiusRatio = 0.25, LHS receives 0.20 through 0.30.
+
+Derived CornerRadius is not sampled independently because it must remain tied
+to PatchW and CornerRadiusRatio. This avoids inconsistent radius values.
+
+ArrayRows and ArrayCols are not sweepable because element count changes alter
+topology and require script regeneration.
+
+The LHS generator creates input samples only. ASS does not yet run every CST
+sample automatically from this builder. The user still needs to execute the
+sweep/simulations, collect response data, and return it through Data Prep.
+
+A future improvement should validate constraints across every generated LHS
+row, especially when coupled parameters are varied together. Nominal-state
+validation cannot guarantee that all combinations of PatchW, PatchL, Inset,
+Gap, and CornerRadiusRatio preserve connectivity and feasible geometry.
+
+
+15. PROJECT PERSISTENCE AND RECOVERY
+======================================================================
+
+Builder data is project-local:
+
+    design/antenna_state.json
+    design/builder_conversation.json
+    design/planner_ab.jsonl
+
+The state file preserves schema version, experimental status, and the complete
+solver-neutral design. The conversation file preserves user/builder messages.
+
+The project manifest records the Antenna Design choice, current page, builder
+state path, conversation path, planner backend, audit path, acceptance/export
+status, and latest generated artifact paths. Reopening a project restores the
+design, conversation, and planner selection.
+
+Persistence uses atomic JSON writing where applicable. A malformed saved state
+fails with a clear message instead of being partially loaded.
+
+
+16. ANTENNA-DESIGNER ASSESSMENT
+======================================================================
+
+16.1 What is already valuable
+-----------------------------
+
+The builder removes repetitive model setup. It is especially useful for:
+
+    - creating a clean first CST model with meaningful variables;
+    - exploring substrate and frequency changes quickly;
+    - teaching the relationship between topology and parameters;
+    - creating consistent array element placement;
+    - moving candidate variables directly into sampling;
+    - retaining an auditable text-to-parameter history;
+    - avoiding thousands of separately saved CST models during data design.
+
+For surrogate modeling, the most valuable property is not natural language by
+itself. It is the consistent chain from named geometric variables to CST and
+then to the LHS table. That reduces mismatched names and manually reconstructed
+models.
+
+16.2 What it does not establish
+-------------------------------
+
+The builder does not establish that a design is resonant, matched, efficient,
+stable across the sweep, manufacturable, or suitable for a specific regulatory
+band. Analytical dimensions only seed the design.
+
+The user must still inspect and, when necessary, modify:
+
+    - port construction and reference plane;
+    - ground and feed realization;
+    - substrate dispersion and conductor loss;
+    - boundary distance;
+    - mesh refinement around gaps, probes, and cutouts;
+    - frequency monitors and field monitors;
+    - convergence criteria;
+    - array excitation magnitude/phase;
+    - mutual coupling and scan behavior;
+    - fabrication rules and tolerances.
+
+16.3 Port-model limitations
+---------------------------
+
+The inset-fed patch uses a simple vertical discrete port at the feed-stub end.
+It does not create a calibrated microstrip waveguide port or connector model.
+
+The circular patch uses a simplified metal probe and discrete port. It does not
+construct a coaxial outer conductor, dielectric, ground clearance/antipad, or
+de-embedding arrangement. The antenna designer must review this carefully in
+CST. A realistic coax/probe-feed skill is a high-priority future capability.
+
+The dipole uses a lumped/discrete gap port. This is appropriate for a simple
+starting model but does not represent a balun, cable, common-mode current, or
+physical feed fixture.
+
+16.4 Material-model limitation
+------------------------------
+
+The canonical graph records copper conductivity, but the current CST adapter
+maps conductor materials to PEC. Therefore conductor loss, surface roughness,
+plating, and finite conductivity are not represented in the generated CST
+model. Dielectrics use constant epsilon_r and constant loss tangent at the
+design frequency. Wideband dispersion is not modeled.
+
+This matters for efficiency and bandwidth studies. A finite-conductivity CST
+material adapter should be added before positioning the builder as a
+loss-accurate workflow.
+
+16.5 Array limitation
+---------------------
+
+Arrays replicate geometry and create independent ports. They do not synthesize
+a corporate feed, series feed, power divider, phase shifter, matching network,
+or excitation table. This is useful for active-element and mutual-coupling
+studies, but it is not a complete physical array antenna.
+
+16.6 Corner-cutout design insight
+--------------------------------
+
+Four symmetric corner cutouts reduce conductor area and alter current paths
+without intentionally breaking symmetry. Depending on size, they can shift the
+dominant resonance and change input impedance and bandwidth. Because all four
+corners are modified equally, the geometry is not the conventional two-corner
+truncation normally used to perturb degenerate modes for circular polarization.
+
+PatchW/4 is a strong perturbation. The default 2.45 GHz analytical patch should
+be treated as a starting point for a sweep over at least PatchL, PatchW, Inset,
+Gap, and CornerRadiusRatio. Current continuity around the inset and lower corner
+cuts should be checked throughout the sweep.
+
+
+17. TRUST, SAFETY, AND FAILURE BEHAVIOR
+======================================================================
+
+The design favors refusal over invention.
+
+    - Unknown recipe: rejected.
+    - Unsupported antenna family: rejected.
+    - Parameter from another family: rejected with ownership guidance.
+    - Invalid array: rejected.
+    - Invalid geometry relationship: rejected before publishing state.
+    - Unsupported added corner lobes: rejected.
+    - Arbitrary CST command in a structured patch: rejected.
+    - Existing native CST filename: rejected; no overwrite.
+    - Malformed or schema-invalid LLM plan: rejected.
+    - Unregistered tool or invalid arguments: rejected.
+    - Clarification/refusal response: no state mutation.
+    - Stale LLM plan: discarded.
+    - Solver execution: never started by export or native project creation.
+
+This makes the feature safer for public release than a system that allows an
+LLM to emit unrestricted VBA or manipulate CST directly.
+
+
+18. TEST AND VERIFICATION COVERAGE
+======================================================================
+
+The complete repository suite passes; run it with
+`python -m unittest discover -s tests`.
+
+Focused builder coverage includes:
+
+    - registry discovery of primitives, recipes, and modifiers;
+    - external capability registration;
+    - execution through primitive tool calls;
+    - one stable design ID and increasing revisions;
+    - all three recipe families;
+    - layered validation records;
+    - unsupported-family refusal;
+    - cross-family parameter refusal;
+    - circular-patch probe containment;
+    - array geometry and port replication;
+    - solver-neutral serialization round trip;
+    - deterministic preview construction;
+    - CST parameter names and independent ports;
+    - no solver-start command;
+    - project-state and conversation persistence;
+    - LHS transfer;
+    - runtime tool-schema delivery and strict LLM plan parsing;
+    - runtime semantic geometry targets and bounds;
+    - centered circle, symmetric two-circle, and centered rectangle composition
+      from planner-exposed primitives;
+    - persistent replay after conversational and parameter-table rebuilds;
+    - semantic target resolution by role and array element;
+    - composed-operation project save/reopen round trips;
+    - explicit topology-incompatibility and failed-replay rollback;
+    - named primitive parameters preserved in CST output;
+    - rejection of invented targets, feed targets, base-geometry transforms,
+      out-of-bounds cutters, and partial state;
+    - clarification/refusal with no state mutation;
+    - registered planning-tool execution and argument rejection;
+    - one bounded schema repair and one bounded executor-feedback repair;
+    - identical Qwen/Gemini exchange content with explicit decoding-mode
+      metadata and strict Gemini post-generation schema repair;
+    - identical Groq exchange content, unchanged strict-schema request,
+      provider-rejection fallback, and credential-safe transport behavior;
+    - identical OpenRouter Nemotron exchange content, no provider schema
+      enforcement, and strict local parsing with bounded repairs;
+    - small-model family-substitution and solver-start capability guard;
+    - native CST export threading and artifact preservation;
+    - multiline adaptive composer behavior;
+    - full vertical preview orbit;
+    - 1366 x 768 layout reachability;
+    - exact four-corner cutout placement;
+    - radius expression PatchW/4;
+    - modifier persistence after patch-width edits;
+    - modifier preview/CST/LHS consistency;
+    - explicit rejection of added corner lobes;
+    - SnowBuddy GUI documentation hashes and contract.
+
+Native CST 2026 projects were previously created successfully for the three
+base families through the COM path. The corner modifier is covered at the CST
+history/script level; final engineering use should still include opening the
+generated corner-cut project in CST and visually checking its History List,
+Boolean results, port, and mesh.
+
+
+19. SOURCE FILE MAP
+======================================================================
+
+studio/antenna_design.py
+    Canonical schema, safe expressions, resolved dimensions, bounds, and
+    serialization.
+
+studio/antenna_tools.py
+    Tool definitions, registry, primitive handlers, capability discovery, and
+    extension entry points.
+
+studio/antenna_recipes.py
+    Material library, analytical starting equations, recipe parameters, three
+    antenna recipes, array replication, and recipe-local validation.
+
+studio/antenna_modifiers.py
+    Active-modifier metadata and circular-corner-cutout composition.
+
+studio/antenna_agent.py
+    Registered planning-tool definitions, schema-enforced execution,
+    recipe/modifier orchestration, plans, results, and safe failures.
+
+studio/antenna_llm_planner.py
+    Loopback Ollama request, runtime structured-output schema, strict plan
+    parsing, and execute/clarify/refuse response model.
+
+studio/antenna_validation.py
+    Layered canonical and adapter-input validation.
+
+studio/cst_antenna_adapter.py
+    CST History List/VBA emission and adapter gate.
+
+studio/antenna_builder.py
+    UI-facing LLM-planner facade, CST/native export,
+    persistence, migration, and LHS conversion.
+
+studio/antenna_geometry.py
+    Canonical primitive/transform/Boolean evaluation and preview mesh generation.
+
+studio/planner_model_discovery.py
+    Provider model-list requests, compatibility filtering, Tested metadata, and
+    OpenRouter Free-only filtering.
+
+studio/antenna_builder_ui.py
+    Antenna Design page, adaptive composer, dynamic parameter UI, conversation,
+    interactive preview, exports, background CST work, and workflow navigation.
+
+studio/antenna_capabilities/builtin.py
+    Built-in recipe and modifier registration.
+
+studio/ui.py
+    Studio navigation, page installation, project routing, and SnowBuddy live
+    context integration.
+
+studio/project_store.py
+    New-project manifest defaults and Antenna Design/builder workflow state.
+
+studio/sample_generator_ui.py
+    Accepts preloaded template parameters from the builder.
+
+tests/test_antenna_agent_architecture.py
+    Registry, tools, plans, recipes, modifiers, validation, arrays, CST, and
+    serialization tests.
+
+tests/test_antenna_builder.py
+    End-to-end state, preview, CST package, LHS, and persistence tests.
+
+tests/test_antenna_builder_page.py
+    Real GUI behavior, layout, dynamic controls, exports, preview interaction,
+    and workflow-transfer tests.
+
+docs/ANTENNA_AGENT_ARCHITECTURE.md
+    Compact architecture and extension reference.
+
+snowbuddy/BLIND_GUI_READ.md
+    Contractual nonvisual description of the shipped GUI behavior.
+
+
+20. HOW TO ADD A NEW CAPABILITY
+======================================================================
+
+20.1 Add a primitive only when necessary
+----------------------------------------
+
+Prefer existing primitives. For example, a slotted patch may need no new
+primitive if boxes/cylinders and subtraction can express it. Add a primitive
+when the geometry or EM concept cannot be represented cleanly, such as a
+polygon, curve sweep, coaxial port assembly, periodic boundary, or mesh region.
+
+A primitive needs:
+
+    - a stable tool name;
+    - a structured argument contract;
+    - deterministic handler;
+    - canonical representation;
+    - validation;
+    - preview support;
+    - each solver adapter's representation or explicit rejection;
+    - focused tests.
+
+20.2 Add a modifier for reusable variations
+--------------------------------------------
+
+Use a modifier when a variation applies on top of an existing family, such as:
+
+    - slots in a patch;
+    - corner truncations;
+    - shorting pins;
+    - a superstrate;
+    - repeated defect patterns;
+    - parasitic directors;
+    - a ground slot.
+
+A modifier declares its ID, aliases, applicable families, required tools,
+parameter definitions, defaults, deterministic application, and validation.
+
+20.3 Add a recipe for a genuinely different base topology
+----------------------------------------------------------
+
+Use a recipe when material stack, feed principle, primary conductor layout, or
+structural validation is fundamentally different. A new recipe should compose
+primitives rather than bypass them.
+
+20.4 Register and certify
+-------------------------
+
+Expose register_capabilities(registry), register the capability, and test:
+
+    primitive validity
+      -> parameter/update correctness
+      -> structural recipe/modifier validity
+      -> preview consistency
+      -> solver-adapter generation
+      -> native solver sanity where available
+      -> sampling transfer where relevant
+
+
+21. CANDID LIMITATIONS AND TECHNICAL DEBT
+======================================================================
+
+The current limitations should be treated as product boundaries, not hidden
+implementation details.
+
+    1. Local natural-language edits require Ollama and the selected model.
+       qwen3:8b is the validated local default; qwen3:1.7b may fail complex
+       plans safely. Gemini, Groq, and OpenRouter require network access plus
+       user-supplied API keys and send design planning context to their selected
+       provider.
+
+    2. The LLM may plan five high-level actions and eight selected primitives.
+       Materials, ports, solver setup, arbitrary transforms, and other
+       deterministic primitives remain intentionally unavailable to it.
+
+    3. Only three base antenna families and one modifier are certified.
+
+    4. The material library is limited to FR4, Rogers RO4003C, and Rogers
+       RT5880, with constant dielectric properties.
+
+    5. Conductors export as PEC even though conductivity is stored.
+
+    6. Ports are simplified discrete excitations; connectors, baluns,
+       waveguide ports, coax clearances, and de-embedding are absent.
+
+    7. Arrays have independent ports and no physical feed network.
+
+    8. The preview is not a general Boolean/mesh engine. Planner-composed
+       generic slot holes are present in canonical/CST output but are not yet
+       carved into the preview mesh.
+
+    9. The CST adapter emits rotation and translation transforms, but it
+       rejects any canonical primitive outside its supported set.
+
+   10. Array topology cannot be changed by editing ArrayRows/ArrayCols inside
+       an already generated CST history; regeneration is required.
+
+   11. No automatic CST sweep execution or result ingestion is connected to
+       the builder yet.
+
+   12. No EM result closes the loop to retune analytical starting dimensions.
+
+   13. No general undo/redo history is exposed, although design revisions and
+       conversation are recorded.
+
+   14. No every-sample geometry feasibility check is applied to an entire LHS
+       table.
+
+   15. The corner-cutout validator checks radius bounds but does not yet prove
+       conductor connectivity or minimum copper-web dimensions.
+
+   16. Direct import and parameter extraction from an existing .cst project is
+       outside this implementation.
+
+
+22. RECOMMENDED ROADMAP
+======================================================================
+
+Priority 1: release hardening
+-----------------------------
+
+    - Open the corner-cutout export in CST and inspect Boolean history, port,
+      mesh, and parameter sweeps.
+    - Add a generated-design acceptance checklist in the UI/export record.
+    - Keep the experimental label and unsolved-project behavior.
+    - Add a short in-product list of supported requests and unsupported scope.
+
+Priority 2: electromagnetic credibility
+----------------------------------------
+
+    - Add finite-conductivity copper export.
+    - Add configurable air/boundary padding.
+    - Add a validated microstrip waveguide-port option.
+    - Add a realistic coax/probe-feed skill with ground clearance.
+    - Add mesh-control and monitor representations.
+    - Add CST sanity tests that open the project and inspect model properties.
+
+Priority 3: sampling robustness
+-------------------------------
+
+    - Preflight every LHS row against parameter and relational constraints.
+    - Report invalid combinations before CST execution.
+    - Distinguish topology parameters from continuous sweep parameters.
+    - Preserve derived-expression dependencies in exported sample manifests.
+
+Priority 4: stronger agent planning
+-----------------------------------
+
+    - Add a user-inspectable plan trace before accepting complex compositions.
+    - Expose planner-created parameters in the editable table and LHS selection
+      without weakening recipe-owned parameter validation.
+    - Add general operation-group lifecycle tools for editing a persisted
+      composed parameter, moving a persisted feature, and removing a composed
+      operation without dedicated slot-specific behavior.
+    - Add provider-neutral semantic fulfilment evaluation so a valid no-op plan
+      cannot be mistaken for executing the requested feature change.
+    - Continue controlled model comparisons using the same manifest, ToolPlan
+      schema, executor, and validators.
+    - Keep arbitrary solver commands outside the planning surface.
+
+Priority 5: carefully chosen antenna capabilities
+-------------------------------------------------
+
+Good next modifiers:
+
+    - rectangular slots and U-slots;
+    - circular slots;
+    - two-corner truncation for circular-polarization studies;
+    - defected ground slots;
+    - shorting pins/posts.
+
+Good next recipes:
+
+    - rectangular probe-fed patch;
+    - simple monopole over a finite ground;
+    - printed dipole with substrate;
+    - simple slot antenna.
+
+Each should be added only with structural, preview, CST, and solver-sanity
+evidence. Breadth should not outrun trust.
+
+Priority 6: solver portability
+------------------------------
+
+    - Keep AntennaDesign unchanged where possible.
+    - Add separate HFSS, FEKO, or openEMS adapters.
+    - Make adapter capability gaps explicit.
+    - Add solver-neutral port and boundary concepts before mapping them to
+      solver-specific commands.
+
+
+23. PRODUCT POSITIONING INSIGHT
+======================================================================
+
+The strongest public description is:
+
+    "An experimental constrained antenna design agent that turns supported
+    text instructions into validated parametric starting models, lets the user
+    inspect and edit the same live design, exports meaningful CST parameters,
+    and transfers selected variables into ASS sampling."
+
+It should not be described as:
+
+    - arbitrary text-to-CAD;
+    - automatic antenna synthesis;
+    - an EM-validated design generator;
+    - a replacement for CST modeling expertise;
+    - a system that supports any requested topology.
+
+Its differentiating value inside ASS is continuity. The output is not merely a
+CAD object. It is a named parametric model already connected to the data and
+surrogate workflow.
+
+
+24. VERIFYING A BUILD YOURSELF
+======================================================================
+
+Nothing here needs a CST licence except the last four items. Treat it as the
+acceptance pass to run before trusting a generated model.
+
+    [ ] Run the repository suite: python -m unittest discover -s tests
+    [ ] Start a new project and exercise both Antenna Design paths.
+    [ ] Run the four hands-on examples in section 3.
+    [ ] Reopen the project and verify state and conversation restoration.
+    [ ] Export .bas and inspect the paired design JSON.
+    [ ] Transfer selected variables to LHS and inspect the bounds.
+    [ ] Create a named .cst project and confirm CST shows meaningful
+        parameter names.
+    [ ] Inspect every port and conductor Boolean.
+    [ ] Confirm no solver begins automatically.
+    [ ] Add the field or farfield monitors you need; the export has none.
+
+
+25. FINAL ASSESSMENT
+======================================================================
+
+The text-parametric builder now has the correct backbone for progressive
+growth:
+
+    - natural language is separated from geometry;
+    - recipes are compositions rather than the geometry backend;
+    - modifiers prove reusable composition beyond whole-antenna constructors;
+    - one solver-neutral state drives every downstream representation;
+    - CST is an adapter rather than the core model;
+    - unsupported requests fail without invented geometry;
+    - LHS and the existing surrogate pipeline remain intact;
+    - extension points exist for independently registered capabilities.
+
+The architecture is ahead of the capability breadth, which is the right order
+for this stage. The next gains should come from electromagnetic credibility,
+sample-level validation, and a more general but still schema-constrained tool
+planner. Adding many antenna names before those steps would make the feature
+look broader while reducing trust.
+
+For antenna designers, the feature is already useful as a rapid, inspectable,
+parameter-consistent starting-model generator. Its results should be treated as
+the beginning of the CST design loop, never as the end of it.

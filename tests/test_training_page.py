@@ -4,9 +4,12 @@ import tempfile
 import threading
 import time
 import tkinter as tk
+import traceback
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+import customtkinter as ctk
 
 from studio.dataset_registry import register_dataset
 from studio.dataset_validation import validate_dataset
@@ -27,7 +30,7 @@ from studio.training_ui import (
     TRAIN_BUTTON_LABEL,
 )
 from studio.theme import COLORS
-from studio.ui import StudioApp
+from studio.ui import CreateProjectDialog, ProjectCard, StudioApp
 
 
 GUI_MAY_BE_AVAILABLE = (
@@ -84,6 +87,15 @@ class ModelTrainingPageTests(unittest.TestCase):
         cls.project = cls.store.open_project(cls.project.path, touch=False)
         cls.app.set_project(cls.project, target_page="training")
         cls.app.update_idletasks()
+        # Tk's default handler prints a callback traceback and carries on, so an
+        # exception raised inside an `after` callback used to surface only as a
+        # confusing assertion on stale state.  Record them and fail on them.
+        cls.callback_errors: list[str] = []
+        cls.app.report_callback_exception = (
+            lambda exc_type, exc_value, exc_tb: cls.callback_errors.append(
+                "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+            )
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -94,17 +106,108 @@ class ModelTrainingPageTests(unittest.TestCase):
 
     def setUp(self):
         self.page = self.app.training_page
+        self._quiesce()
+        self.callback_errors.clear()
+        # Re-read the project so the page holds a current manifest snapshot.
+        # `Project.manifest` is a plain dict captured when the object is built,
+        # so without this every test inherits whichever snapshot a sibling
+        # happened to leave behind, and `latest_run_number` becomes a function
+        # of execution order rather than of this test's own actions.
+        self.project = self.store.open_project(self.__class__.project.path, touch=False)
+        self.page.set_project(self.project)
         self.page._reset_ui_state()
         self.app.show_page("training", persist=False)
         self.app.update_idletasks()
 
+    def tearDown(self):
+        stranded = self._quiesce()
+        errors = list(self.callback_errors)
+        self.callback_errors.clear()
+        if errors:
+            self.fail(
+                "Exception raised inside a Tk callback:\n\n" + "\n\n".join(errors)
+            )
+        # Say so rather than letting the next test inherit it.
+        self.assertEqual(stranded, [], "Training worker threads outlived the test")
+
+    def _quiesce(self) -> list[str]:
+        """Leave no training work in flight for the next test to inherit.
+
+        The class shares one StudioApp, so a worker thread, a queued result or
+        a scheduled poll outlives the test that created it.  A pending poll is
+        the worst of these: `_schedule_training_poll` is a no-op while
+        `_training_poll_after_id` is set, so a stale id suppresses the next
+        test's poll entirely.
+        """
+
+        page = self.app.training_page
+        deadline = time.monotonic() + 30.0
+        live: list[str] = []
+        while time.monotonic() < deadline:
+            live = [
+                thread.name
+                for thread in threading.enumerate()
+                if thread.name.startswith("studio-training-")
+            ]
+            if not live:
+                break
+            self.app.update()
+            time.sleep(0.01)
+        if page._training_poll_after_id is not None:
+            try:
+                page.after_cancel(page._training_poll_after_id)
+            except tk.TclError:
+                pass
+            page._training_poll_after_id = None
+        while not page._training_events.empty():
+            page._training_events.get_nowait()
+        # Run any callback a prior test deferred, so it cannot land midway
+        # through the next one.
+        self.app.update_idletasks()
+        self.app.update()
+        return live
+
     def _wait_for_training(self, timeout: float = 15.0) -> None:
+        # The busy flag alone is not proof that the run finished: handing the
+        # page a different project mid-run also clears it, retires the job id
+        # and drops the result.  Pin the job so that abandonment is reported
+        # as itself instead of as a confusing assertion on stale state.
+        job_id = self.page._training_job_id
         deadline = time.monotonic() + timeout
         while self.page.training_in_progress and time.monotonic() < deadline:
             self.app.update()
             time.sleep(0.01)
         self.app.update()
+        self.assertEqual(
+            self.page._training_job_id,
+            job_id,
+            "The training run was abandoned before it completed, which happens "
+            "when the page is handed a different project while the run is in "
+            "flight.",
+        )
         self.assertFalse(self.page.training_in_progress, "Training did not finish in time")
+
+    def test_recent_model_saved_project_card_keeps_status_badge_visible(self):
+        project = self.store.create_project("Recent Saved Model With Long Name")
+        project = self.store.update_project(
+            project,
+            {"workflow": {"stage": "model_saved"}},
+        )
+        card = ProjectCard(
+            self.app.start_page.recent_frame,
+            project,
+            command=lambda: None,
+        )
+        card.grid(row=9, column=0)
+        self.app.update_idletasks()
+
+        self.assertEqual(card.status_badge.cget("text"), "Model saved")
+        self.assertEqual(card.status_badge.winfo_manager(), "pack")
+        self.assertLessEqual(
+            card.status_badge.winfo_rooty() + card.status_badge.winfo_height(),
+            card.winfo_rooty() + card.winfo_height(),
+        )
+        card.destroy()
 
     @staticmethod
     def _successful_result(
@@ -197,6 +300,96 @@ class ModelTrainingPageTests(unittest.TestCase):
                 "Ensemble AI Engine",
             ],
         )
+
+    def test_dropdown_selection_finishes_before_first_train_click(self):
+        result = self._successful_result(run_number=12)
+        with patch(
+            "studio.ui.submit_model_training_request",
+            return_value=result,
+        ) as submit_request, patch("studio.ui.messagebox.showinfo"):
+            self.page._model_selected("XGBoost")
+            self.app.update()
+            self.page.train_button.invoke()
+            self._wait_for_training()
+
+        submit_request.assert_called_once()
+        request = submit_request.call_args.args[0]
+        self.assertEqual(request.model_name, "xgboost")
+
+    def test_start_create_project_button_opens_and_reuses_visible_dialog(self):
+        self.app.show_page("start", persist=False)
+        self.app.deiconify()
+        self.app.start_page.create_project_button.invoke()
+        self.app.update()
+
+        dialog = self.app.create_project_window
+        self.assertIsNotNone(dialog)
+        self.assertEqual(dialog.state(), "normal")
+        self.assertEqual(dialog.grab_current(), dialog)
+        self.app.start_page.create_project_button.invoke()
+        self.app.update()
+        self.assertIs(self.app.create_project_window, dialog)
+
+        dialog.destroy()
+        self.app.update()
+        self.app.withdraw()
+        # Drain input the desktop delivered while this window was visible, so
+        # it cannot be dispatched inside a later test's event pumping.
+        self.app.update()
+
+    def test_start_keeps_create_and_open_available_with_active_project(self):
+        self.app.show_page("start", persist=False)
+        self.app.start_page.refresh()
+
+        self.assertEqual(
+            self.app.start_page.continue_project_button.winfo_manager(),
+            "pack",
+        )
+        self.assertEqual(
+            self.app.start_page.create_project_button.winfo_manager(),
+            "pack",
+        )
+        self.assertEqual(
+            self.app.start_page.open_project_button.winfo_manager(),
+            "pack",
+        )
+        self.assertEqual(
+            self.app.start_page.hero_actions.pack_slaves(),
+            [
+                self.app.start_page.continue_project_button,
+                self.app.start_page.create_project_button,
+                self.app.start_page.open_project_button,
+            ],
+        )
+
+    def test_create_project_dialog_actions_fit_at_common_display_scaling(self):
+        original_window_scaling = self.app.window_layout.window_scaling_factor
+        original_widget_scaling = self.app.window_layout.widget_scaling_factor
+        self.app.deiconify()
+        try:
+            for dpi_scaling in (1.0, 1.25, 1.5):
+                with self.subTest(dpi_scaling=dpi_scaling):
+                    ctk.set_window_scaling(1.0 / dpi_scaling)
+                    ctk.set_widget_scaling(min(dpi_scaling, 1.08) / dpi_scaling)
+                    dialog = CreateProjectDialog(self.app, lambda *_args: None)
+                    self.app.update()
+                    bottom_margin = (
+                        dialog.winfo_rooty()
+                        + dialog.winfo_height()
+                        - dialog.create_button.winfo_rooty()
+                        - dialog.create_button.winfo_height()
+                    )
+                    self.assertGreaterEqual(bottom_margin, 20)
+                    self.assertGreater(dialog.create_button.winfo_width(), 0)
+                    self.assertGreater(dialog.create_button.winfo_height(), 0)
+                    dialog.destroy()
+                    self.app.update()
+        finally:
+            ctk.set_window_scaling(original_window_scaling)
+            ctk.set_widget_scaling(original_widget_scaling)
+            self.app.withdraw()
+            # See the note in the create-project dialog test above.
+            self.app.update()
 
     def test_ensemble_selection_locks_auto_high_and_builds_request(self):
         self.page._model_changed("Ensemble AI Engine")
@@ -669,6 +862,119 @@ class ModelTrainingPageTests(unittest.TestCase):
             str(self.page.latest_run_var),
         )
 
+    def test_a_stale_project_snapshot_cannot_retract_a_finished_run(self):
+        """`Project.manifest` is a copy, so a held snapshot can predate a run.
+
+        The page keeps its own `self.project`, and the post-training rewrite
+        can fail, so a later refresh can be handed a manifest that was captured
+        before the run existed.  Reporting that older value would retract a run
+        whose model and artifacts are already on disk.
+        """
+
+        stale = self.store.open_project(self.__class__.project.path, touch=False)
+        stale.manifest.pop("model_training", None)
+
+        with (
+            patch(
+                "studio.ui.submit_model_training_request",
+                return_value=self._successful_result(run_number=3),
+            ),
+            patch("studio.ui.messagebox.showinfo"),
+        ):
+            self.page.train_button.invoke()
+            self._wait_for_training()
+        self.assertEqual(self.page.latest_run_number, 3)
+
+        # Exactly what a refresh against a pre-run snapshot does.
+        self.page.set_project(stale)
+        self.assertEqual(self.page.latest_run_number, 3)
+        self.assertEqual(self.page.latest_run_var.get(), "Latest Run: Run 3")
+
+        # A genuinely different project still reports its own state.
+        other = self.store.create_project("Unrelated Project For Snapshot Test")
+        self.page.set_project(other)
+        self.assertIsNone(self.page.latest_run_number)
+
+    def test_abandoning_a_run_for_another_project_disarms_its_poll(self):
+        """A retired job must not leave its poll armed.
+
+        `_schedule_training_poll` is a no-op while an id is held, so an armed
+        poll belonging to an abandoned run suppresses the next run's own poll
+        and its result is never collected.
+        """
+
+        started = threading.Event()
+        release = threading.Event()
+
+        def blocking_backend(_request, *, project_path):
+            started.set()
+            release.wait(10.0)
+            return self._successful_result(run_number=7)
+
+        with patch("studio.ui.submit_model_training_request", side_effect=blocking_backend):
+            self.page.train_button.invoke()
+            self.assertTrue(started.wait(10.0), "The worker never started")
+            self.assertTrue(self.page.training_in_progress)
+            self.assertIsNotNone(self.page._training_poll_after_id)
+            abandoned_job = self.page._training_job_id
+
+            other = self.store.create_project("Unrelated Project For Poll Test")
+            self.page.set_project(other)
+
+            self.assertFalse(self.page.training_in_progress)
+            self.assertNotEqual(self.page._training_job_id, abandoned_job)
+            self.assertIsNone(self.page._training_poll_after_id)
+            release.set()
+
+    def test_completed_run_survives_a_failed_project_record_write(self):
+        """A transient manifest write failure must not discard the finished run.
+
+        The manifest rewrite sits between clearing the busy flag and recording
+        the run, so an OSError there used to abandon the rest of the completion
+        path.  Tk swallowed the exception, so the page went quiet with no
+        results, no message and no latest-run update.
+        """
+
+        with (
+            patch(
+                "studio.ui.submit_model_training_request",
+                return_value=self._successful_result(run_number=3),
+            ),
+            patch.object(
+                self.app,
+                "update_current_project",
+                side_effect=OSError(13, "file in use by another process"),
+            ),
+            patch("studio.ui.messagebox.showinfo") as show_info,
+            patch("studio.ui.messagebox.showwarning") as show_warning,
+        ):
+            self.page.train_button.invoke()
+            self._wait_for_training()
+
+        self.assertEqual(self.page.latest_run_number, 3)
+        self.assertEqual(self.page.latest_run_var.get(), "Latest Run: Run 3")
+        self.assertEqual(show_warning.call_args.args[0], "Project record not updated")
+        self.assertIn("file in use by another process", show_warning.call_args.args[1])
+        # The run still completes and is reported, rather than going silent.
+        self.assertEqual(show_info.call_args.args[0], "Auto Search Completed")
+        self.assertEqual(self.page.train_button.cget("state"), "normal")
+
+    def test_successful_training_stays_on_training_page(self):
+        self.app.show_page("training", persist=False)
+        with (
+            patch(
+                "studio.ui.submit_model_training_request",
+                return_value=self._successful_result(run_number=4),
+            ),
+            patch("studio.ui.messagebox.showinfo") as show_info,
+        ):
+            self.page.train_button.invoke()
+            self._wait_for_training()
+
+        self.assertEqual(self.app.active_page, "training")
+        self.assertIn("View Training Results", show_info.call_args.args[1])
+        self.assertEqual(self.page.results_button.cget("state"), "normal")
+
     def test_clicking_train_in_custom_mode_creates_the_correct_request(self):
         self.page._training_mode_changed("Custom")
         self.page.fit_intercept.set(False)
@@ -749,7 +1055,7 @@ class ModelTrainingPageTests(unittest.TestCase):
         self.assertIn("Validation RMSE:", show_info.call_args.args[1])
         self.assertIn("Test MAE:", show_info.call_args.args[1])
         self.assertIn("Test RMSE:", show_info.call_args.args[1])
-        self.assertIn("Test R²:", show_info.call_args.args[1])
+        self.assertIn("Test Pooled R²:", show_info.call_args.args[1])
         result = self.page.last_training_result
         self.assertTrue(result.success)
         self.assertTrue(result.model_artifact_path.is_file())

@@ -26,6 +26,7 @@ from studio.theme import COLORS
 from studio.training_results import (
     CUSTOM_VALIDATION_RMSE_TOLERANCE,
     EXPECTED_PREDICTION_COLUMNS,
+    PredictionResult,
     TrainingResultsError,
     load_latest_training_results,
     metric_card_data,
@@ -173,7 +174,7 @@ class TrainingResultsAnalysisTests(unittest.TestCase):
         view = load_latest_training_results(self.project.path)
         cards = {card["name"]: card for card in metric_card_data(view)}
 
-        self.assertEqual(cards["R²"]["value"], trained.metrics["R²"])
+        self.assertEqual(cards["Pooled R²"]["value"], view.pooled_r_squared)
         self.assertEqual(cards["RMSE"]["value"], trained.metrics["RMSE"])
         self.assertEqual(cards["MAE"]["value"], trained.metrics["MAE"])
         self.assertEqual(
@@ -182,8 +183,26 @@ class TrainingResultsAnalysisTests(unittest.TestCase):
         )
         self.assertIsNone(view.target_unit)
         self.assertNotIn("GHz", cards["RMSE"]["display_value"])
-        self.assertIn("Higher is better", cards["R²"]["direction"])
+        self.assertIn("Higher is better", cards["Pooled R²"]["direction"])
         self.assertIn("Lower is better", cards["RMSE"]["direction"])
+
+    def test_pooled_r_squared_uses_same_flattened_population_as_error_metrics(self):
+        register_test_dataset(self.project)
+        self._train_auto("medium")
+        view = load_latest_training_results(self.project.path)
+        view.predictions = [
+            PredictionResult("1", "a", 0.0, 0.0, 0.0, 0.0),
+            PredictionResult("2", "a", 1.0, 1.0, 0.0, 0.0),
+            PredictionResult("1", "b", 100.0, 100.0, 0.0, 0.0),
+            PredictionResult("2", "b", 101.0, 100.0, 1.0, 1.0),
+        ]
+        view.metrics["R²"] = 0.0
+
+        actual = [row.actual_value for row in view.predictions]
+        mean = sum(actual) / len(actual)
+        expected = 1.0 - 1.0 / sum((value - mean) ** 2 for value in actual)
+        self.assertAlmostEqual(view.pooled_r_squared, expected)
+        self.assertNotEqual(view.pooled_r_squared, view.metrics["R²"])
 
     def test_prediction_data_residuals_and_largest_error_come_from_csv(self):
         register_test_dataset(self.project)
@@ -619,7 +638,7 @@ class TrainingResultsPageTests(unittest.TestCase):
         )
         self.assertEqual(
             set(page.comparison_metric_chart.metric_values),
-            {"Validation RMSE", "Test RMSE", "MAE", "R²"},
+            {"Validation RMSE", "Test RMSE", "MAE", "Pooled R²"},
         )
         for values in page.comparison_metric_chart.metric_values.values():
             self.assertEqual(set(values), {"linear_regression", "xgboost"})
@@ -633,8 +652,10 @@ class TrainingResultsPageTests(unittest.TestCase):
             better = min(values, key=values.get)
             worse = max(values, key=values.get)
             self.assertGreater(bars[better], bars[worse])
-        r_squared = page.comparison_metric_chart.metric_values["R²"]
-        r_squared_bars = page.comparison_metric_chart.metric_bar_values["R²"]
+        r_squared = page.comparison_metric_chart.metric_values["Pooled R²"]
+        r_squared_bars = page.comparison_metric_chart.metric_bar_values[
+            "Pooled R²"
+        ]
         self.assertGreater(
             r_squared_bars[max(r_squared, key=r_squared.get)],
             r_squared_bars[min(r_squared, key=r_squared.get)],
@@ -690,6 +711,60 @@ class TrainingResultsPageTests(unittest.TestCase):
         self.assertEqual(self.page.result.run_id, "run-0002")
         self.assertEqual(self.page.active_section, "fit")
         self.assertIsInstance(self.page.current_chart, ScientificPlotWorkbench)
+        self.assertEqual(len(self.page._run_choice_ids), 2)
+        run_one_label = next(
+            label
+            for label, run_id in self.page._run_choice_ids.items()
+            if run_id == "run-0001"
+        )
+        self.page.run_selector.set(run_one_label)
+        self.page._run_selected(run_one_label)
+        self.assertEqual(self.page.result.run_id, "run-0001")
+        self.assertIn("SELECTED", self.page.run_badge.cget("text"))
+
+    def test_results_navigation_reloads_runs_created_after_project_open(self):
+        project = self.store.create_project("Results Navigation Refresh")
+        register_test_dataset(project)
+        project = self.store.open_project(project.path, touch=False)
+        self.app.set_project(project, target_page="training")
+        self.assertIsNone(self.app.results_page.result)
+
+        completed = submit_model_training_request(
+            auto_request("medium"), project_path=project.path
+        )
+        self.assertTrue(completed.success)
+
+        self.app.show_page("results")
+        self.app.update_idletasks()
+
+        self.assertIsNotNone(self.app.results_page.result)
+        self.assertEqual(self.app.results_page.result.run_id, completed.run_id)
+        self.assertIn("LATEST", self.app.results_page.run_badge.cget("text"))
+
+    def test_reload_clears_failed_attempt_and_shows_later_success(self):
+        project = self.store.create_project("Results Failure Recovery")
+        register_test_dataset(project)
+        first = submit_model_training_request(
+            auto_request("high"), project_path=project.path
+        )
+        self.assertTrue(first.success)
+        project = self.store.open_project(project.path, touch=False)
+        self.page.set_project(project)
+        self.page.show_training_failure()
+        self.assertIsNotNone(self.page.failure_state)
+        self.assertIn("did not complete", self.page.empty_label.cget("text"))
+
+        completed = submit_model_training_request(
+            auto_request("medium"), project_path=project.path
+        )
+        self.assertTrue(completed.success)
+        self.page.reload()
+        self.app.update_idletasks()
+
+        self.assertIsNone(self.page.failure_state)
+        self.assertIsNotNone(self.page.result)
+        self.assertEqual(self.page.result.run_id, completed.run_id)
+        self.assertIn("LATEST", self.page.run_badge.cget("text"))
 
     def test_predictions_section_is_plot_only_with_csv_access(self):
         self.page.show_section("fit")

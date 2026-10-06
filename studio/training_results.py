@@ -113,6 +113,33 @@ class TrainingResultsView:
         )
 
     @property
+    def pooled_r_squared(self) -> float:
+        """Return R² across every held-out sample/output value as one pool.
+
+        The saved training metric remains the estimator's mean per-output R².
+        Pooling here makes the headline score use the same sample/output
+        aggregation as the displayed RMSE and MAE.
+        """
+
+        if not self.predictions:
+            raise TrainingResultsError(
+                "Pooled R² is unavailable because no saved predictions exist."
+            )
+        actual_values = [row.actual_value for row in self.predictions]
+        actual_mean = math.fsum(actual_values) / len(actual_values)
+        residual_sum_squares = math.fsum(
+            (row.actual_value - row.predicted_value) ** 2
+            for row in self.predictions
+        )
+        total_sum_squares = math.fsum(
+            (actual_value - actual_mean) ** 2
+            for actual_value in actual_values
+        )
+        if total_sum_squares == 0.0:
+            return 1.0 if residual_sum_squares == 0.0 else 0.0
+        return float(1.0 - residual_sum_squares / total_sum_squares)
+
+    @property
     def largest_error_prediction(self) -> PredictionResult:
         return max(
             self.predictions,
@@ -505,10 +532,10 @@ def metric_card_data(view: TrainingResultsView) -> list[dict[str, Any]]:
     """Return the four fixed, plain-language metric-card definitions."""
 
     unit_suffix = f" {view.target_unit}" if view.target_unit else ""
-    r_squared = view.metrics["R²"]
+    r_squared = view.pooled_r_squared
     r_squared_meaning = (
-        f"The model explains {r_squared * 100:.1f}% of the variation in the "
-        "held-out test data."
+        f"The model explains {r_squared * 100:.1f}% of the variation across "
+        "all held-out sample/output values."
         if r_squared >= 0
         else (
             "The negative value means the held-out predictions perform worse "
@@ -517,7 +544,7 @@ def metric_card_data(view: TrainingResultsView) -> list[dict[str, Any]]:
     )
     return [
         {
-            "name": "R²",
+            "name": "Pooled R²",
             "value": r_squared,
             "display_value": f"{r_squared:.6g}",
             "meaning": r_squared_meaning,

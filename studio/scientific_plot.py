@@ -718,7 +718,7 @@ class PlotSettingsDialog(ctk.CTkToplevel):
                 text_color=COLORS["ink"],
                 fg_color=COLORS["primary"],
                 hover_color=COLORS["primary_hover"],
-                font=("Segoe UI", 14),
+                font=FONTS["caption"],
                 width=92,
             ).pack(side="left", padx=(0, 7))
 
@@ -757,7 +757,7 @@ class PlotSettingsDialog(ctk.CTkToplevel):
             text_color=COLORS["ink"],
             fg_color=COLORS["primary"],
             hover_color=COLORS["primary_hover"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
         )
         self.show_legend_checkbox.grid(
             row=9,
@@ -911,7 +911,7 @@ class PlotSettingsDialog(ctk.CTkToplevel):
             parent,
             text=label,
             text_color=COLORS["muted"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         ).grid(row=row, column=0, padx=(14, 7), pady=4, sticky="w")
         entry = ctk.CTkEntry(
@@ -920,7 +920,7 @@ class PlotSettingsDialog(ctk.CTkToplevel):
             fg_color=COLORS["control"],
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
         )
         entry.grid(row=row, column=1, padx=(0, 14), pady=4, sticky="ew")
         entry.insert(0, value)
@@ -938,7 +938,7 @@ class PlotSettingsDialog(ctk.CTkToplevel):
             parent,
             text=label,
             text_color=COLORS["muted"],
-            font=("Segoe UI", 14),
+            font=FONTS["caption"],
             anchor="w",
         ).grid(row=row, column=0, padx=(14, 7), pady=4, sticky="w")
         menu = ctk.CTkOptionMenu(
@@ -953,8 +953,8 @@ class PlotSettingsDialog(ctk.CTkToplevel):
             dropdown_hover_color=COLORS["control_hover"],
             dropdown_text_color=COLORS["ink"],
             text_color=COLORS["ink"],
-            font=("Segoe UI", 14),
-            dropdown_font=("Segoe UI", 14),
+            font=FONTS["caption"],
+            dropdown_font=FONTS["caption"],
         )
         menu.grid(row=row, column=1, padx=(0, 14), pady=4, sticky="ew")
         menu.set(selected)
@@ -1110,7 +1110,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             unselected_color=COLORS["control"],
             unselected_hover_color=COLORS["control_hover"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 14),
+            font=FONTS["button"],
             command=self._set_mode,
         )
         self.mode_control.grid(row=0, column=0, padx=6, pady=5)
@@ -1134,7 +1134,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
                 border_width=1,
                 border_color=COLORS["border"],
                 text_color=COLORS["ink"],
-                font=("Segoe UI Semibold", 14),
+                font=FONTS["button"],
                 command=command,
             )
             button.grid(row=0, column=column, padx=(0, 4), pady=5)
@@ -1150,7 +1150,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             toolbar,
             text=self.hover_details,
             text_color=COLORS["muted"],
-            font=("Cascadia Mono", 12),
+            font=FONTS["mono"],
             anchor="e",
         )
         self.hover_label.grid(row=0, column=8, padx=8, sticky="ew")
@@ -1220,21 +1220,25 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
         manager.grid_columnconfigure(0, weight=1)
         manager.grid_rowconfigure(2, weight=1)
         header = ctk.CTkFrame(manager, fg_color="transparent")
-        header.grid(row=0, column=0, padx=10, pady=(9, 4), sticky="ew")
-        header.grid_columnconfigure(0, weight=1)
+        header.grid(row=0, column=0, padx=2, pady=(9, 4), sticky="ew")
+        header.grid_columnconfigure(0, weight=1, minsize=100, uniform="plot_counts")
+        header.grid_columnconfigure(1, weight=1, minsize=100, uniform="plot_counts")
         self.curve_count_label = ctk.CTkLabel(
             header,
             text="CURVES · 0",
             text_color=COLORS["cyan"],
-            font=("Cascadia Mono", 12),
+            font=FONTS["mono"],
             anchor="w",
+            width=100,
         )
         self.curve_count_label.grid(row=0, column=0, sticky="w")
         self.marker_count_label = ctk.CTkLabel(
             header,
             text="MARKERS · 0",
             text_color=COLORS["muted"],
-            font=("Cascadia Mono", 11),
+            font=FONTS["mono"],
+            anchor="e",
+            width=100,
         )
         self.marker_count_label.grid(row=0, column=1, sticky="e")
         self.manager_context = ctk.CTkFrame(manager, fg_color="transparent")
@@ -1302,7 +1306,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["ink"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             state="disabled",
             command=self._rename_selected_dialog,
         )
@@ -1316,7 +1320,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             border_width=1,
             border_color=COLORS["border"],
             text_color=COLORS["danger"],
-            font=("Segoe UI Semibold", 12),
+            font=FONTS["button"],
             state="disabled",
             command=self.delete_selected,
         )
@@ -1328,7 +1332,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
             fg_color="transparent",
             hover_color=COLORS["control_hover"],
             text_color=COLORS["muted"],
-            font=("Segoe UI", 12),
+            font=FONTS["caption"],
             state="disabled",
             command=self.clear_annotations,
         )
@@ -1581,7 +1585,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
                 fg_color="transparent",
                 hover_color=COLORS["control_hover"],
                 text_color=COLORS["ink"],
-                font=("Segoe UI Semibold", 14),
+                font=FONTS["button"],
                 command=lambda curve_id=curve.curve_id: self.select_curve(curve_id),
             ).grid(row=0, column=1, padx=(0, 4), pady=3, sticky="ew")
         if count > CURVES_PER_PAGE:
@@ -1745,12 +1749,21 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
 
         visible_curves = [curve for curve in self.state.curves if curve.visible]
         if not visible_curves:
+            plot_width = max(1.0, right - left)
+            placeholder = (
+                "Run a prediction to add a scientific response curve."
+                if plot_width >= 390
+                else "Run a prediction to add a response curve."
+            )
             canvas.create_text(
                 (left + right) / 2,
                 (top + bottom) / 2,
-                text="Run a prediction to add a scientific response curve.",
+                text=placeholder,
                 fill=muted,
                 font=FONTS["body_small"],
+                width=max(40, int(plot_width - 28)),
+                justify="center",
+                tags=("empty_plot_message",),
             )
         for curve in visible_curves:
             point_indices = (
@@ -1820,7 +1833,7 @@ class ScientificPlotWorkbench(ctk.CTkFrame):
                 marker_y - 8,
                 text=f"{marker.label}  X={engineering_tick(marker.x)}  Y={engineering_tick(marker.y)}",
                 fill=color,
-                font=("Cascadia Mono", 11),
+                font=FONTS["mono"],
                 anchor="sw",
             )
 

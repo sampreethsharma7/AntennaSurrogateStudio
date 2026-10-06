@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import math
-import os
 import shutil
 import tempfile
 import warnings
@@ -13,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+from studio.atomic_replace import replace_with_retry
 from studio.dataset_registry import (
     DatasetRegistrationError,
     RegisteredDataset,
@@ -611,6 +611,28 @@ class ModelTrainingResult:
     run_number: int | None = None
     run_id: str | None = None
     run_directory: Path | None = None
+
+
+def pooled_r_squared_from_prediction_records(
+    predictions: list[dict[str, str | float]],
+) -> float | None:
+    """Return R² over all held-out sample/output values as one population."""
+
+    if not predictions:
+        return None
+    actual_values = [float(row["actual_value"]) for row in predictions]
+    predicted_values = [float(row["predicted_value"]) for row in predictions]
+    actual_mean = math.fsum(actual_values) / len(actual_values)
+    residual_sum_squares = math.fsum(
+        (actual - predicted) ** 2
+        for actual, predicted in zip(actual_values, predicted_values, strict=True)
+    )
+    total_sum_squares = math.fsum(
+        (actual - actual_mean) ** 2 for actual in actual_values
+    )
+    if total_sum_squares == 0.0:
+        return 1.0 if residual_sum_squares == 0.0 else 0.0
+    return float(1.0 - residual_sum_squares / total_sum_squares)
 
 
 @dataclass(slots=True)
@@ -2293,7 +2315,7 @@ def _save_training_artifacts(
             raise ModelTrainingError(
                 f"Training run folder already exists: {final_run_directory}"
             )
-        os.replace(staging, final_run_directory)
+        replace_with_retry(staging, final_run_directory)
     finally:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)
@@ -2490,7 +2512,7 @@ def _preserve_legacy_training_result(
             },
         )
         atomic_write_json(staging / RUN_MANIFEST_NAME, legacy_record)
-        os.replace(staging, final_directory)
+        replace_with_retry(staging, final_directory)
     finally:
         if staging.exists():
             shutil.rmtree(staging, ignore_errors=True)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import statistics
 import threading
 import tkinter as tk
 from dataclasses import dataclass
@@ -11,6 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 import customtkinter as ctk
 
+from studio.inference import InferenceError
+from studio.inference_ui import (
+    TrainingFeatureStatistics,
+    load_training_feature_statistics,
+)
 from studio.inverse_design import (
     INVERSE_DESIGN_COMPLETED,
     InverseDesignError,
@@ -28,17 +34,67 @@ from studio.scientific_plot import (
     PLOT_PANE_MIN_WIDTH,
     ScientificPlotWorkbench,
 )
-from studio.theme import COLORS, FONTS
+from studio.theme import COLORS, FONTS, column_safe_width, widest_text_width
 
 if TYPE_CHECKING:
     from studio.ui import StudioApp
 
 
-INPUTS_PER_PAGE = 5
 MAX_CONSTRAINTS = 4
-INPUT_COLUMN_MIN_WIDTHS = (105, 170, 56, 56, 56)
-CONFIGURATION_MIN_WIDTH = 520
-CONFIGURATION_DEFAULT_WIDTH = 520
+COORDINATE_ENTRY_MIN_WIDTH = 110
+# Column widths are content-derived, never guessed from character counts.
+# INPUT is measured against the real feature names at runtime and clamped
+# here; ROLE holds the "Variable | Fixed" segmented button; the two numeric
+# columns hold a bounds entry each.
+INPUT_LABEL_MIN_WIDTH = 120
+INPUT_LABEL_MAX_WIDTH = 190
+ROLE_COLUMN_MIN_WIDTH = 150
+NUMERIC_COLUMN_MIN_WIDTH = 88
+INPUT_COLUMN_MIN_WIDTHS = (
+    INPUT_LABEL_MIN_WIDTH,
+    ROLE_COLUMN_MIN_WIDTH,
+    NUMERIC_COLUMN_MIN_WIDTH,
+    NUMERIC_COLUMN_MIN_WIDTH,
+)
+# Per-column grid padding inside one input row, plus the row frame's own
+# corner inset.  Measured against a built row, not estimated.
+INPUT_ROW_HORIZONTAL_PADDING = 30
+# Width the scrollbar itself takes, budgeted so the pane is wide enough to
+# hold a full row beside it.
+INPUT_SCROLLBAR_ALLOWANCE = 24
+# Card padding plus the section's own inset.
+CONFIGURATION_CHROME_WIDTH = 18
+# A little slack so a rounding difference never costs a pixel of content.
+CONFIGURATION_SAFETY_MARGIN = 6
+# Horizontal padding for each input column.  The heading row and every data
+# row use this same tuple so their columns line up exactly.
+INPUT_COLUMN_PADDING = (5, 3, 2, 2)
+# How much of its own width the scrollable host withholds from its rows.  The
+# heading row sits outside that host, so it is inset by the same amount to end
+# up exactly as wide as the rows it labels.  This is smaller than the
+# scrollbar's own width above, which is why the two are separate numbers.
+INPUT_HEADING_SCROLL_INSET = 17
+
+
+def configuration_width_for(label_width: int) -> int:
+    """Pane width that shows an input row with ``label_width`` uncut."""
+
+    return (
+        int(label_width)
+        + ROLE_COLUMN_MIN_WIDTH
+        + NUMERIC_COLUMN_MIN_WIDTH * 2
+        + INPUT_ROW_HORIZONTAL_PADDING
+        + INPUT_SCROLLBAR_ALLOWANCE
+        + CONFIGURATION_CHROME_WIDTH
+        + CONFIGURATION_SAFETY_MARGIN
+    )
+
+
+CONFIGURATION_MIN_WIDTH = configuration_width_for(INPUT_LABEL_MIN_WIDTH)
+CONFIGURATION_DEFAULT_WIDTH = CONFIGURATION_MIN_WIDTH
+# Prose in the card wraps rather than clipping when the pane is at its
+# minimum; card padding is already excluded.
+CONFIGURATION_TEXT_WRAP_WIDTH = CONFIGURATION_MIN_WIDTH - 40
 # Include the workbench's plot/manager minima, its sash, and the result-card
 # padding.  Tk can otherwise satisfy the outer pane while silently compressing
 # both inner panes below their own readable widths.
@@ -66,6 +122,14 @@ MODEL_LABELS = {
     "neural_network": "Neural Network",
     "ensemble_ai_engine": "Ensemble AI Engine",
 }
+
+
+def _display_numeric_value(value: float) -> str:
+    if value == 0:
+        return "0"
+    if 1.0e-3 <= abs(value) < 1.0e6:
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return f"{value:.4g}"
 
 
 @dataclass(slots=True)
@@ -99,13 +163,17 @@ class InverseDesignPage(ctk.CTkFrame):
         self.project: Project | None = None
         self.active_book: ModelBook | None = None
         self.load_error: str | None = None
+        self.input_statistics: dict[str, TrainingFeatureStatistics] = {}
         self.optimization_in_progress = False
         self.last_result: InverseDesignResult | None = None
+        self._pending_request: InverseDesignRequest | None = None
         self._workspace_key: tuple[Path, str] | None = None
-        self.input_page = 0
         self.input_widgets: dict[str, InputWidgets] = {}
+        self.input_name_labels: dict[str, ctk.CTkLabel] = {}
         self.constraint_widgets: list[ConstraintWidgets] = []
+        self._coordinate_disclosures: list[str] = []
         self._clamping_workspace_sash = False
+        self._configuration_min_width = CONFIGURATION_MIN_WIDTH
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -123,6 +191,7 @@ class InverseDesignPage(ctk.CTkFrame):
     def reload(self) -> None:
         self.active_book = None
         self.load_error = None
+        self.input_statistics = {}
         if self.project is not None:
             try:
                 library = load_model_library(self.project.path)
@@ -153,6 +222,12 @@ class InverseDesignPage(ctk.CTkFrame):
                     )
                 else:
                     self.active_book = entry.book
+                    try:
+                        self.input_statistics = load_training_feature_statistics(
+                            self.active_book
+                        )
+                    except InferenceError:
+                        self.input_statistics = {}
         new_key = (
             (self.project.path.resolve(), self.active_book.book_id)
             if self.project is not None and self.active_book is not None
@@ -163,7 +238,6 @@ class InverseDesignPage(ctk.CTkFrame):
             return
         self._workspace_key = new_key
         self.last_result = None
-        self.input_page = 0
         self._refresh()
         self._restore_saved_results()
 
@@ -316,7 +390,7 @@ class InverseDesignPage(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["caption"],
             anchor="w",
-            wraplength=350,
+            wraplength=CONFIGURATION_TEXT_WRAP_WIDTH,
         )
         self.configuration_intro.grid(
             row=1, column=0, padx=14, pady=(0, 7), sticky="ew"
@@ -381,47 +455,60 @@ class InverseDesignPage(ctk.CTkFrame):
             text_color=COLORS["muted"],
             font=FONTS["caption"],
             anchor="w",
+            justify="left",
+            wraplength=CONFIGURATION_TEXT_WRAP_WIDTH,
         )
         self.input_explanation.grid(
             row=0, column=0, padx=2, pady=(2, 5), sticky="ew"
         )
-        headings = ctk.CTkFrame(section, fg_color=COLORS["surface_alt"], corner_radius=8)
-        headings.grid(row=1, column=0, pady=(0, 4), sticky="ew")
+        self.input_headings = ctk.CTkFrame(
+            section,
+            fg_color=COLORS["surface_alt"],
+            corner_radius=8,
+        )
+        self.input_headings.grid(
+            row=1,
+            column=0,
+            padx=(0, INPUT_HEADING_SCROLL_INSET),
+            pady=(0, 4),
+            sticky="ew",
+        )
+        self.input_heading_labels: list[ctk.CTkLabel] = []
         for column, (label, weight) in enumerate(
-            (("INPUT", 2), ("ROLE", 2), ("LOW", 1), ("HIGH", 1), ("FIXED", 1))
+            # A Fixed row replaces both bounds with one field whose own
+            # placeholder reads "Value", so the headings stay short enough to
+            # sit inside a numeric column without widening it.
+            (("INPUT", 0), ("ROLE", 0), ("LOW", 1), ("HIGH", 1))
         ):
-            headings.grid_columnconfigure(
+            self.input_headings.grid_columnconfigure(
                 column,
                 weight=weight,
                 minsize=INPUT_COLUMN_MIN_WIDTHS[column],
             )
-            ctk.CTkLabel(
-                headings,
+            heading = ctk.CTkLabel(
+                self.input_headings,
                 text=label,
                 text_color=COLORS["muted"],
                 font=FONTS["mono"],
-            ).grid(row=0, column=column, padx=4, pady=5, sticky="w")
-        self.input_rows_host = ctk.CTkFrame(section, fg_color="transparent")
+                anchor="w" if column < 2 else "center",
+                justify="left" if column < 2 else "center",
+            )
+            heading.grid(
+                row=0,
+                column=column,
+                padx=INPUT_COLUMN_PADDING[column],
+                pady=3,
+                sticky="ew",
+            )
+            self.input_heading_labels.append(heading)
+        self.input_rows_host = ctk.CTkScrollableFrame(
+            section,
+            fg_color="transparent",
+            corner_radius=0,
+            border_width=0,
+        )
         self.input_rows_host.grid(row=2, column=0, sticky="nsew")
         self.input_rows_host.grid_columnconfigure(0, weight=1)
-        self.input_pager = ctk.CTkFrame(section, fg_color="transparent")
-        self.input_pager.grid(row=3, column=0, pady=(4, 0), sticky="ew")
-        self.input_pager.grid_columnconfigure(1, weight=1)
-        self.input_previous = self._small_button(
-            self.input_pager, "‹", lambda: self._change_input_page(-1)
-        )
-        self.input_previous.grid(row=0, column=0)
-        self.input_page_label = ctk.CTkLabel(
-            self.input_pager,
-            text="Inputs 1–1 of 1",
-            text_color=COLORS["muted"],
-            font=FONTS["caption"],
-        )
-        self.input_page_label.grid(row=0, column=1)
-        self.input_next = self._small_button(
-            self.input_pager, "›", lambda: self._change_input_page(1)
-        )
-        self.input_next.grid(row=0, column=2)
 
     def _build_objective_section(self) -> None:
         section = ctk.CTkFrame(self.section_host, fg_color="transparent")
@@ -472,7 +559,9 @@ class InverseDesignPage(ctk.CTkFrame):
         self.single_coordinate.grid(row=1, column=0, sticky="ew")
         self.range_coordinate_shell = ctk.CTkFrame(section, fg_color="transparent")
         self.range_coordinate_shell.grid(row=3, column=0, sticky="ew")
-        self.range_coordinate_shell.grid_columnconfigure((0, 1), weight=1)
+        self.range_coordinate_shell.grid_columnconfigure(
+            (0, 1), weight=1, minsize=COORDINATE_ENTRY_MIN_WIDTH
+        )
         start_shell = self._field_shell(self.range_coordinate_shell, "RANGE START")
         start_shell.grid(row=0, column=0, padx=(0, 4), sticky="ew")
         self.range_start = self._numeric_entry(start_shell, "Inclusive start")
@@ -683,7 +772,9 @@ class InverseDesignPage(ctk.CTkFrame):
 
     def _field_shell(self, parent: ctk.CTkFrame, label: str) -> ctk.CTkFrame:
         shell = ctk.CTkFrame(parent, fg_color="transparent")
-        shell.grid_columnconfigure(0, weight=1)
+        shell.grid_columnconfigure(
+            0, weight=1, minsize=COORDINATE_ENTRY_MIN_WIDTH
+        )
         ctk.CTkLabel(
             shell,
             text=label,
@@ -721,20 +812,41 @@ class InverseDesignPage(ctk.CTkFrame):
 
         self._clamp_workspace_sash()
 
+    def _apply_configuration_min_width(self, required: int) -> None:
+        """Widen the configuration pane so the widest input row stays whole.
+
+        Long feature names are rare, so the pane minimum starts small and grows
+        only when the measured label column needs it.  Taking the extra width
+        out of the columns instead is what clipped the table previously.
+        """
+
+        target = max(CONFIGURATION_MIN_WIDTH, int(required))
+        if target == self._configuration_min_width:
+            return
+        self._configuration_min_width = target
+        try:
+            self.workspace_split.paneconfigure(
+                self.configuration_card, minsize=target
+            )
+        except (AttributeError, tk.TclError):
+            return
+        self._clamp_workspace_sash()
+
     def _clamp_workspace_sash(self) -> None:
         if self._clamping_workspace_sash or len(self.workspace_split.panes()) < 2:
             return
         total_width = int(self.workspace_split.winfo_width())
         if total_width <= 1:
             return
+        minimum_configuration = self._configuration_min_width
         sash_width = int(float(self.workspace_split.cget("sashwidth")))
         maximum_configuration = total_width - RESULT_MIN_WIDTH - sash_width
-        if maximum_configuration < CONFIGURATION_MIN_WIDTH:
-            target = CONFIGURATION_MIN_WIDTH
+        if maximum_configuration < minimum_configuration:
+            target = minimum_configuration
         else:
             current = int(self.workspace_split.sash_coord(0)[0])
             target = max(
-                CONFIGURATION_MIN_WIDTH,
+                minimum_configuration,
                 min(current, maximum_configuration),
             )
         current = int(self.workspace_split.sash_coord(0)[0])
@@ -836,10 +948,11 @@ class InverseDesignPage(ctk.CTkFrame):
         for widgets in self.input_widgets.values():
             widgets.frame.destroy()
         self.input_widgets.clear()
+        self.input_name_labels.clear()
         for widgets in self.constraint_widgets:
             widgets.frame.destroy()
         self.constraint_widgets.clear()
-        self.input_pager.grid_remove()
+        self._coordinate_disclosures = []
         self.constraint_empty.grid()
         self.add_constraint_button.configure(state="normal")
         for entry in (
@@ -877,31 +990,65 @@ class InverseDesignPage(ctk.CTkFrame):
             (self.range_end, max(values)),
         ):
             entry.delete(0, "end")
-            entry.insert(0, f"{value:.12g}")
+            entry.insert(0, _display_numeric_value(value))
 
     def _create_input_rows(self, features: list[str]) -> None:
+        saved_inputs = self._saved_input_configuration(features)
+        self.input_name_labels.clear()
+        label_width = widest_text_width(
+            "body_small",
+            features,
+            padding=12,
+            minimum=INPUT_LABEL_MIN_WIDTH,
+            maximum=INPUT_LABEL_MAX_WIDTH,
+        )
+        aligned_column_widths = (
+            label_width,
+            ROLE_COLUMN_MIN_WIDTH,
+            NUMERIC_COLUMN_MIN_WIDTH,
+            NUMERIC_COLUMN_MIN_WIDTH,
+        )
+        for column, width in enumerate(aligned_column_widths):
+            self.input_headings.grid_columnconfigure(column, minsize=width)
+        self._apply_configuration_min_width(configuration_width_for(label_width))
         for index, name in enumerate(features):
             frame = ctk.CTkFrame(
                 self.input_rows_host,
                 fg_color="transparent" if index % 2 == 0 else COLORS["surface_alt"],
                 corner_radius=8,
             )
-            for column, weight in enumerate((2, 2, 1, 1, 1)):
+            for column, weight in enumerate((0, 0, 1, 1)):
                 frame.grid_columnconfigure(
                     column,
                     weight=weight,
-                    minsize=INPUT_COLUMN_MIN_WIDTHS[column],
+                    minsize=aligned_column_widths[column],
                 )
-            ctk.CTkLabel(
+            name_label = ctk.CTkLabel(
                 frame,
                 text=name,
                 text_color=COLORS["ink"],
                 font=FONTS["body_small"],
                 anchor="w",
                 justify="left",
-                wraplength=95,
-            ).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-            mode = ctk.StringVar(value="Variable" if index == 0 else "Fixed")
+                # Every row asks for the same rendered width, so one long name
+                # cannot widen its own row's first column and stagger the rest.
+                # Both width and wraplength are scaled by CustomTkinter, so
+                # both go through the same conversion; a raw wraplength wraps
+                # late and widens this row's first column on its own.
+                width=column_safe_width(
+                    frame, label_width - INPUT_COLUMN_PADDING[0] * 2
+                ),
+                wraplength=column_safe_width(
+                    frame, label_width - INPUT_COLUMN_PADDING[0] * 2
+                ),
+            )
+            name_label.grid(
+                row=0, column=0, padx=INPUT_COLUMN_PADDING[0], pady=2, sticky="ew"
+            )
+            saved = saved_inputs.get(name, {})
+            mode = ctk.StringVar(
+                value=str(saved.get("mode") or ("Variable" if index == 0 else "Fixed"))
+            )
             control = ctk.CTkSegmentedButton(
                 frame,
                 values=["Variable", "Fixed"],
@@ -913,60 +1060,133 @@ class InverseDesignPage(ctk.CTkFrame):
                 unselected_hover_color=COLORS["control_hover"],
                 text_color=COLORS["ink"],
                 font=FONTS["caption"],
-                width=INPUT_COLUMN_MIN_WIDTHS[1],
+                width=column_safe_width(
+                    frame, ROLE_COLUMN_MIN_WIDTH - INPUT_COLUMN_PADDING[1] * 2
+                ),
                 variable=mode,
                 command=lambda _value, feature=name: self._input_mode_changed(feature),
             )
-            control.grid(row=0, column=1, padx=3, pady=3, sticky="ew")
+            control.grid(
+                row=0, column=1, padx=INPUT_COLUMN_PADDING[1], pady=1, sticky="ew"
+            )
             lower = self._numeric_entry(frame, "Min")
             upper = self._numeric_entry(frame, "Max")
             fixed = self._numeric_entry(frame, "Value")
+            # Each entry stretches to its column.  The requested width only has
+            # to stay under the column minsize, because CustomTkinter scales it
+            # while the minsize stays raw; a larger request would widen the
+            # column and pull the heading out of line.
             for entry in (lower, upper, fixed):
-                entry.configure(width=INPUT_COLUMN_MIN_WIDTHS[2])
-            lower.grid(row=0, column=2, padx=2, pady=3, sticky="ew")
-            upper.grid(row=0, column=3, padx=2, pady=3, sticky="ew")
-            fixed.grid(row=0, column=4, padx=2, pady=3, sticky="ew")
+                entry.configure(
+                    width=column_safe_width(
+                        frame,
+                        NUMERIC_COLUMN_MIN_WIDTH - INPUT_COLUMN_PADDING[2] * 2,
+                    )
+                )
+            lower.grid(
+                row=0, column=2, padx=INPUT_COLUMN_PADDING[2], pady=1, sticky="ew"
+            )
+            upper.grid(
+                row=0, column=3, padx=INPUT_COLUMN_PADDING[3], pady=1, sticky="ew"
+            )
+            fixed.grid(
+                row=0,
+                column=2,
+                columnspan=2,
+                padx=INPUT_COLUMN_PADDING[2],
+                pady=1,
+                sticky="ew",
+            )
             self.input_widgets[name] = InputWidgets(
                 frame, mode, control, lower, upper, fixed
             )
+            self.input_name_labels[name] = name_label
+            feature_statistics = self.input_statistics.get(name)
+            defaults = {
+                "lower": feature_statistics.minimum if feature_statistics else None,
+                "upper": feature_statistics.maximum if feature_statistics else None,
+                "fixed": feature_statistics.median if feature_statistics else None,
+            }
+            for entry, key in (
+                (lower, "lower"),
+                (upper, "upper"),
+                (fixed, "fixed"),
+            ):
+                value = saved.get(key, defaults[key])
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    entry.insert(0, _display_numeric_value(float(value)))
             self._input_mode_changed(name)
         self._render_input_page()
+
+    def _saved_input_configuration(
+        self,
+        features: list[str],
+    ) -> dict[str, dict[str, object]]:
+        if self.project is None or self.active_book is None:
+            return {}
+        raw = self.project.manifest.get("inverse_design", {}).get("ui_state", {})
+        if raw.get("model_book_id") != self.active_book.book_id:
+            return {}
+        inputs = raw.get("inputs")
+        if not isinstance(inputs, dict) or set(inputs) != set(features):
+            return {}
+        restored: dict[str, dict[str, object]] = {}
+        for name in features:
+            item = inputs.get(name)
+            if not isinstance(item, dict) or item.get("mode") not in {"Variable", "Fixed"}:
+                return {}
+            restored[name] = dict(item)
+        return restored
+
+    def _persist_input_configuration(self, request: InverseDesignRequest) -> None:
+        if self.project is None or self.active_book is None:
+            return
+        inputs: dict[str, dict[str, object]] = {}
+        for name in self.active_book.feature_columns:
+            if name in request.variable_bounds:
+                lower, upper = request.variable_bounds[name]
+                inputs[name] = {
+                    "mode": "Variable",
+                    "lower": lower,
+                    "upper": upper,
+                }
+            else:
+                inputs[name] = {
+                    "mode": "Fixed",
+                    "fixed": request.fixed_inputs[name],
+                }
+        self.project = self.app.update_current_project(
+            {
+                "inverse_design": {
+                    "ui_state": {
+                        "model_book_id": self.active_book.book_id,
+                        "inputs": inputs,
+                    }
+                }
+            }
+        )
 
     def _input_mode_changed(self, name: str) -> None:
         widgets = self.input_widgets[name]
         variable = widgets.mode.get() == "Variable"
-        widgets.lower.configure(state="normal" if variable else "disabled")
-        widgets.upper.configure(state="normal" if variable else "disabled")
-        widgets.fixed.configure(state="disabled" if variable else "normal")
+        if variable:
+            widgets.fixed.grid_remove()
+            widgets.lower.configure(state="normal")
+            widgets.upper.configure(state="normal")
+            widgets.lower.grid()
+            widgets.upper.grid()
+        else:
+            widgets.lower.grid_remove()
+            widgets.upper.grid_remove()
+            widgets.fixed.configure(state="normal")
+            widgets.fixed.grid()
 
     def _render_input_page(self) -> None:
-        names = list(self.input_widgets)
-        page_count = max(1, (len(names) + INPUTS_PER_PAGE - 1) // INPUTS_PER_PAGE)
-        self.input_page = min(self.input_page, page_count - 1)
-        for widgets in self.input_widgets.values():
-            widgets.frame.grid_remove()
-        start = self.input_page * INPUTS_PER_PAGE
-        visible = names[start : start + INPUTS_PER_PAGE]
-        for row, name in enumerate(visible):
-            self.input_widgets[name].frame.grid(row=row, column=0, pady=2, sticky="ew")
-        if len(names) > INPUTS_PER_PAGE:
-            self.input_page_label.configure(
-                text=f"Inputs {start + 1}–{start + len(visible)} of {len(names)}"
-            )
-            self.input_previous.configure(
-                state="normal" if self.input_page > 0 else "disabled"
-            )
-            self.input_next.configure(
-                state="normal" if self.input_page + 1 < page_count else "disabled"
-            )
-            self.input_pager.grid()
-        else:
-            self.input_pager.grid_remove()
-
-    def _change_input_page(self, offset: int) -> None:
-        pages = max(1, (len(self.input_widgets) + INPUTS_PER_PAGE - 1) // INPUTS_PER_PAGE)
-        self.input_page = max(0, min(self.input_page + offset, pages - 1))
-        self._render_input_page()
+        for row, name in enumerate(self.input_widgets):
+            self.input_widgets[name].frame.grid(row=row, column=0, pady=1, sticky="ew")
+        canvas = getattr(self.input_rows_host, "_parent_canvas", None)
+        if canvas is not None:
+            canvas.yview_moveto(0.0)
 
     def _show_config_section(self, name: str) -> None:
         for section_name, section in self.config_sections.items():
@@ -1001,7 +1221,9 @@ class InverseDesignPage(ctk.CTkFrame):
         )
         frame.grid(row=index, column=0, pady=3, sticky="ew")
         frame.grid_columnconfigure(0, weight=5)
-        frame.grid_columnconfigure((1, 2), weight=4)
+        frame.grid_columnconfigure(
+            (1, 2), weight=4, minsize=COORDINATE_ENTRY_MIN_WIDTH
+        )
         scope = ctk.CTkOptionMenu(
             frame,
             values=["Single point", "Mean over range"],
@@ -1023,8 +1245,8 @@ class InverseDesignPage(ctk.CTkFrame):
         coordinate_start.grid(row=0, column=1, padx=3, pady=(6, 3), sticky="ew")
         coordinate_end.grid(row=0, column=2, padx=3, pady=(6, 3), sticky="ew")
         axis_values = list(self.active_book.output_axis.values)
-        coordinate_start.insert(0, f"{axis_values[0]:.12g}")
-        coordinate_end.insert(0, f"{axis_values[-1]:.12g}")
+        coordinate_start.insert(0, _display_numeric_value(axis_values[0]))
+        coordinate_end.insert(0, _display_numeric_value(axis_values[-1]))
         operator = ctk.CTkOptionMenu(
             frame,
             values=list(CONSTRAINT_LABELS),
@@ -1146,67 +1368,140 @@ class InverseDesignPage(ctk.CTkFrame):
             )
         )
 
-    def _objective_outputs(self) -> tuple[str, list[str]]:
+    def _axis_coordinate_text(self, value: float) -> str:
+        axis = (
+            self.active_book.output_axis
+            if self.active_book and self.active_book.output_axis
+            else None
+        )
+        unit = axis.unit if axis else None
+        return f"{value:.6g}{f' {unit}' if unit else ''}"
+
+    def _axis_spacing_text(self) -> str:
+        coordinates = sorted({coordinate for coordinate, _name in self._axis_pairs()})
+        if len(coordinates) < 2:
+            return "not available"
+        spacing = float(
+            statistics.median(
+                right - left for left, right in zip(coordinates, coordinates[1:])
+            )
+        )
+        axis = (
+            self.active_book.output_axis
+            if self.active_book and self.active_book.output_axis
+            else None
+        )
+        unit = axis.unit if axis else None
+        if unit == "GHz" and spacing < 1.0:
+            return f"{spacing * 1000:.4g} MHz"
+        if unit == "MHz" and spacing < 1.0:
+            return f"{spacing * 1000:.4g} kHz"
+        if unit == "kHz" and spacing < 1.0:
+            return f"{spacing * 1000:.4g} Hz"
+        return f"{spacing:.4g}{f' {unit}' if unit else ' coordinate units'}"
+
+    def _snap_output_coordinate(
+        self,
+        requested: float,
+        *,
+        label: str,
+    ) -> tuple[float, str]:
+        pairs = self._axis_pairs()
+        coordinates = sorted(coordinate for coordinate, _name in pairs)
+        minimum = coordinates[0]
+        maximum = coordinates[-1]
+        lower_snap_limit = minimum
+        upper_snap_limit = maximum
+        if len(coordinates) > 1:
+            lower_snap_limit -= (coordinates[1] - minimum) / 2.0
+            upper_snap_limit += (maximum - coordinates[-2]) / 2.0
+        if requested < lower_snap_limit or requested > upper_snap_limit:
+            raise ValueError(
+                f"{label} {self._axis_coordinate_text(requested)} is outside the "
+                f"saved axis range {self._axis_coordinate_text(minimum)} to "
+                f"{self._axis_coordinate_text(maximum)}."
+            )
+        coordinate, name = min(
+            pairs,
+            key=lambda pair: abs(pair[0] - requested),
+        )
+        if not math.isclose(coordinate, requested, rel_tol=0.0, abs_tol=1.0e-12):
+            if label == "Requested objective coordinate":
+                prefix = f"Optimizing at {self._axis_coordinate_text(coordinate)}"
+            else:
+                prefix = f"{label} snapped to {self._axis_coordinate_text(coordinate)}"
+            self._coordinate_disclosures.append(
+                f"{prefix} -- nearest saved point to "
+                f"{self._axis_coordinate_text(requested)} "
+                f"(grid spacing {self._axis_spacing_text()})."
+            )
+        return coordinate, name
+
+    def _objective_outputs(
+        self,
+    ) -> tuple[str, list[str], dict[str, float | None]]:
         pairs = self._axis_pairs()
         if self.objective_scope.get() == "Single point":
             requested = self._float_entry(
                 self.single_coordinate,
-                "an exact saved output coordinate",
+                "an output coordinate",
             )
-            match = next(
-                (
-                    name
-                    for coordinate, name in pairs
-                    if math.isclose(coordinate, requested, rel_tol=1e-10, abs_tol=1e-12)
-                ),
-                None,
+            _coordinate, match = self._snap_output_coordinate(
+                requested,
+                label="Requested objective coordinate",
             )
-            if match is None:
-                raise ValueError(
-                    f"No saved output exists at coordinate {requested:.12g}."
-                )
-            return "single", [match]
+            return "single", [match], {
+                "requested_coordinate": requested,
+                "requested_range_start": None,
+                "requested_range_end": None,
+            }
         start = self._float_entry(self.range_start, "an output-range start")
         end = self._float_entry(self.range_end, "an output-range end")
         if start > end:
             raise ValueError("Output-range start cannot exceed output-range end.")
-        names = [name for coordinate, name in pairs if start <= coordinate <= end]
+        snapped_start, _start_name = self._snap_output_coordinate(
+            start,
+            label="Objective range start",
+        )
+        snapped_end, _end_name = self._snap_output_coordinate(
+            end,
+            label="Objective range end",
+        )
+        names = [
+            name
+            for coordinate, name in pairs
+            if snapped_start <= coordinate <= snapped_end
+        ]
         if len(names) < 2:
             raise ValueError(
                 "Mean over range requires at least two saved output coordinates."
             )
-        return "mean", names
+        return "mean", names, {
+            "requested_coordinate": None,
+            "requested_range_start": start,
+            "requested_range_end": end,
+        }
 
     def _constraint_outputs(
         self,
         widgets: ConstraintWidgets,
         index: int,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[str, list[str], dict[str, float | None]]:
         pairs = self._axis_pairs()
         if widgets.scope.get() == "Single point":
             requested = self._float_entry(
                 widgets.coordinate_start,
                 f"constraint {index} output coordinate",
             )
-            match = next(
-                (
-                    name
-                    for coordinate, name in pairs
-                    if math.isclose(
-                        coordinate,
-                        requested,
-                        rel_tol=1e-10,
-                        abs_tol=1e-12,
-                    )
-                ),
-                None,
+            _coordinate, match = self._snap_output_coordinate(
+                requested,
+                label=f"Constraint {index} coordinate",
             )
-            if match is None:
-                raise ValueError(
-                    f"Constraint {index} has no saved output at coordinate "
-                    f"{requested:.12g}."
-                )
-            return "single", [match]
+            return "single", [match], {
+                "requested_coordinate": requested,
+                "requested_range_start": None,
+                "requested_range_end": None,
+            }
         start = self._float_entry(
             widgets.coordinate_start,
             f"constraint {index} range start",
@@ -1219,16 +1514,33 @@ class InverseDesignPage(ctk.CTkFrame):
             raise ValueError(
                 f"Constraint {index} range start cannot exceed its range end."
             )
-        names = [name for coordinate, name in pairs if start <= coordinate <= end]
+        snapped_start, _start_name = self._snap_output_coordinate(
+            start,
+            label=f"Constraint {index} range start",
+        )
+        snapped_end, _end_name = self._snap_output_coordinate(
+            end,
+            label=f"Constraint {index} range end",
+        )
+        names = [
+            name
+            for coordinate, name in pairs
+            if snapped_start <= coordinate <= snapped_end
+        ]
         if len(names) < 2:
             raise ValueError(
                 f"Constraint {index} mean requires at least two saved output coordinates."
             )
-        return "mean", names
+        return "mean", names, {
+            "requested_coordinate": None,
+            "requested_range_start": start,
+            "requested_range_end": end,
+        }
 
     def build_request(self) -> InverseDesignRequest:
         if self.active_book is None:
             raise ValueError(self.load_error or "Select an active Model Book first.")
+        self._coordinate_disclosures = []
         variable_bounds: dict[str, tuple[float, float]] = {}
         fixed_inputs: dict[str, float] = {}
         for name, widgets in self.input_widgets.items():
@@ -1241,7 +1553,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 fixed_inputs[name] = self._float_entry(
                     widgets.fixed, f"a fixed value for {name}"
                 )
-        aggregation, output_names = self._objective_outputs()
+        aggregation, output_names, requested_coordinates = self._objective_outputs()
         goal = GOAL_LABELS[self.objective_goal.get()]
         target = (
             self._float_entry(self.target_value, "an objective target value")
@@ -1254,10 +1566,15 @@ class InverseDesignPage(ctk.CTkFrame):
             target,
             aggregation=aggregation,
             output_names=output_names,
+            **requested_coordinates,
         )
         constraints: list[OutputConstraint] = []
         for index, widgets in enumerate(self.constraint_widgets, start=1):
-            constraint_aggregation, constraint_outputs = self._constraint_outputs(
+            (
+                constraint_aggregation,
+                constraint_outputs,
+                constraint_requested_coordinates,
+            ) = self._constraint_outputs(
                 widgets,
                 index,
             )
@@ -1281,6 +1598,7 @@ class InverseDesignPage(ctk.CTkFrame):
                         ),
                         aggregation=constraint_aggregation,
                         output_names=constraint_outputs,
+                        **constraint_requested_coordinates,
                     )
                 )
             else:
@@ -1295,6 +1613,7 @@ class InverseDesignPage(ctk.CTkFrame):
                         value=first,
                         aggregation=constraint_aggregation,
                         output_names=constraint_outputs,
+                        **constraint_requested_coordinates,
                     )
                 )
         return InverseDesignRequest(
@@ -1313,6 +1632,7 @@ class InverseDesignPage(ctk.CTkFrame):
         except (KeyError, TypeError, ValueError) as exc:
             self.footer_status.configure(text=str(exc), text_color=COLORS["danger"])
             return
+        self._pending_request = request
         self._set_busy(True)
         project_path = self.project.path
 
@@ -1345,6 +1665,9 @@ class InverseDesignPage(ctk.CTkFrame):
         self.last_result = result
         self._set_busy(False)
         if result.success:
+            if self._pending_request is not None:
+                self._persist_input_configuration(self._pending_request)
+            self._pending_request = None
             self._show_success(result)
             if self.project is not None:
                 try:
@@ -1355,6 +1678,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 except Exception:
                     pass
             return
+        self._pending_request = None
         failure_message = result.error_message or "No completed result is available."
         self.result_title.configure(text="Inverse design did not complete")
         self.result_summary.configure(
@@ -1416,6 +1740,9 @@ class InverseDesignPage(ctk.CTkFrame):
             ),
             check_duplicate=not restoring,
             refresh_plot=not restoring,
+            coordinate_disclosures=(
+                () if restoring else tuple(self._coordinate_disclosures)
+            ),
         )
 
     @staticmethod
@@ -1486,6 +1813,7 @@ class InverseDesignPage(ctk.CTkFrame):
         replace_selected: bool,
         check_duplicate: bool = True,
         refresh_plot: bool = True,
+        coordinate_disclosures: tuple[str, ...] = (),
     ) -> None:
         aggregation = str(objective.get("aggregation") or "single")
         output_names = list(objective.get("output_names") or [])
@@ -1541,6 +1869,7 @@ class InverseDesignPage(ctk.CTkFrame):
                 )
                 + matching_name
             )
+        summary_parts.extend(coordinate_disclosures)
         self.result_summary.configure(
             text=" · ".join(summary_parts),
             text_color=COLORS["muted"],
@@ -1579,7 +1908,8 @@ class InverseDesignPage(ctk.CTkFrame):
             else str(iterations)
         )
         input_text = " · ".join(
-            f"{name} = {value:.7g}" for name, value in best_inputs.items()
+            f"{name} = {_display_numeric_value(value)}"
+            for name, value in best_inputs.items()
         )
         constraint_text = (
             f" · {len(constraint_evaluations)}/{len(constraint_evaluations)} "

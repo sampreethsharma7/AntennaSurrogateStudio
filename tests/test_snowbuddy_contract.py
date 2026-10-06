@@ -9,7 +9,19 @@ BLIND_GUI = ROOT / "snowbuddy" / "BLIND_GUI_READ.md"
 
 
 def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash a GUI source independently of the checkout's line endings.
+
+    `.gitattributes` declares `*.py text eol=lf`, so every fresh clone holds LF
+    and the recorded hashes have to describe that. Hashing raw bytes recorded
+    whatever the local working copy happened to hold instead, which another
+    checkout cannot reproduce: one source hashed cabc9f36 on a stale CRLF copy
+    and c2c24eaa in CI, with byte-identical content once the endings were
+    normalized. Reading in text mode folds CRLF and lone CR to LF, so the
+    contract describes the source and not the clone.
+    """
+
+    normalized = path.read_text(encoding="utf-8")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 class SnowBuddyContractTests(unittest.TestCase):
@@ -21,6 +33,8 @@ class SnowBuddyContractTests(unittest.TestCase):
 
         self.assertIn("Grounding hierarchy", character)
         self.assertIn("Start page", blind_gui)
+        self.assertIn("Antenna Design page", blind_gui)
+        self.assertIn("Experimental Parametric Antenna Builder page", blind_gui)
         self.assertIn("Data Prep page", blind_gui)
         self.assertIn("Model Training page", blind_gui)
         self.assertIn("Training Results page", blind_gui)
@@ -37,6 +51,14 @@ class SnowBuddyContractTests(unittest.TestCase):
         ui_match = re.search(r"UI source SHA-256: ([0-9a-f]{64})", content)
         sample_generator_ui_match = re.search(
             r"Sample Generator UI source SHA-256: ([0-9a-f]{64})",
+            content,
+        )
+        antenna_builder_ui_match = re.search(
+            r"Antenna Builder UI source SHA-256: ([0-9a-f]{64})",
+            content,
+        )
+        vtk_preview_ui_match = re.search(
+            r"VTK Preview UI source SHA-256: ([0-9a-f]{64})",
             content,
         )
         results_ui_match = re.search(
@@ -63,6 +85,14 @@ class SnowBuddyContractTests(unittest.TestCase):
         self.assertIsNotNone(
             sample_generator_ui_match,
             "BLIND_GUI_READ.md must record studio/sample_generator_ui.py SHA-256.",
+        )
+        self.assertIsNotNone(
+            antenna_builder_ui_match,
+            "BLIND_GUI_READ.md must record studio/antenna_builder_ui.py SHA-256.",
+        )
+        self.assertIsNotNone(
+            vtk_preview_ui_match,
+            "BLIND_GUI_READ.md must record studio/antenna_vtk_preview.py SHA-256.",
         )
         self.assertIsNotNone(
             results_ui_match,
@@ -97,6 +127,16 @@ class SnowBuddyContractTests(unittest.TestCase):
             sample_generator_ui_match.group(1),
             sha256(ROOT / "studio" / "sample_generator_ui.py"),
             "studio/sample_generator_ui.py changed without updating BLIND_GUI_READ.md.",
+        )
+        self.assertEqual(
+            antenna_builder_ui_match.group(1),
+            sha256(ROOT / "studio" / "antenna_builder_ui.py"),
+            "studio/antenna_builder_ui.py changed without updating BLIND_GUI_READ.md.",
+        )
+        self.assertEqual(
+            vtk_preview_ui_match.group(1),
+            sha256(ROOT / "studio" / "antenna_vtk_preview.py"),
+            "studio/antenna_vtk_preview.py changed without updating BLIND_GUI_READ.md.",
         )
         self.assertEqual(
             results_ui_match.group(1),

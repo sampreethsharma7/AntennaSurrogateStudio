@@ -12,10 +12,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from studio.atomic_replace import (
+    ATOMIC_REPLACE_ATTEMPTS,
+    ATOMIC_REPLACE_INITIAL_BACKOFF_SECONDS,
+    replace_with_retry,
+)
+
 
 PROJECT_SCHEMA_VERSION = 1
 WELCOME_SESSION_LIMIT = 50
 PROJECT_SUBDIRECTORIES = (
+    "design",
     "data/raw",
     "data/prepared",
     "data/registered",
@@ -68,7 +75,7 @@ def atomic_write_json(path: Path, payload: Any) -> None:
         with handle:
             json.dump(payload, handle, indent=2, ensure_ascii=False)
             handle.write("\n")
-        os.replace(temp_path, path)
+        replace_with_retry(temp_path, path)
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise
@@ -228,7 +235,15 @@ class ProjectStore:
                 "next_action": "Load and prepare antenna data.",
             },
             "ui": {
-                "last_page": "data",
+                "last_page": "design_start",
+            },
+            "design_start": {
+                "choice": None,
+            },
+            "antenna_builder": {
+                "schema_version": 1,
+                "status": "not_started",
+                "template_id": None,
             },
             "data_prep": {},
             "dataset_registry": {

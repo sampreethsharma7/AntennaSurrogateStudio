@@ -101,6 +101,11 @@ class ModelBookTests(unittest.TestCase):
         self.assertEqual(saved.version, MODEL_BOOK_VERSION)
         self.assertEqual(loaded.to_dict(), saved.to_dict())
         self.assertEqual(loaded_by_name.book_id, saved.book_id)
+        self.assertIsNotNone(saved.pooled_test_r_squared)
+        self.assertEqual(
+            saved.pooled_test_r_squared,
+            loaded.pooled_test_r_squared,
+        )
         self.assertTrue(saved.model_artifact_path.is_file())
         self.assertTrue(saved.manifest_path.is_file())
         self.assertGreater(saved.model_artifact_path.stat().st_size, 0)
@@ -128,6 +133,10 @@ class ModelBookTests(unittest.TestCase):
         self.assertEqual(book.source_run_id, run.run_id)
         self.assertEqual(book.dataset_id, run.dataset_id)
         self.assertEqual(set(book.test_metrics), {"MAE", "RMSE", "R²"})
+        self.assertEqual(
+            manifest["performance"]["pooled_test_r_squared"],
+            book.pooled_test_r_squared,
+        )
         self.assertIn("RMSE", book.validation_metrics)
         self.assertTrue(book.dataset_fingerprint)
         self.assertTrue(book.created_at)
