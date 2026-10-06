@@ -210,17 +210,25 @@ class EngineeringProtocolTests(unittest.TestCase):
         manifest = create_default_agent().capability_manifest(None)
         exchange = build_agent_step_exchange(instruction="Inspect installed capabilities.", current_design=None,
                                             capability_manifest=manifest, remaining_budgets=AgentLoopBudgets())
-        # Deliberately re-frozen for AgentStep contract v3. Contract v3 prevents
+        # Deliberately re-frozen for the element-spacing basis. Each array
+        # recipe now exposes "spacing_mode" (lambda | fixed_mm) and the physical
+        # "element_spacing_mm", so the planner can hold spacing either
+        # electrically or physically and sweep frequency only when geometry does
+        # not depend on it. The payload diff was verified to be purely additive:
+        # the two keys join the parameter.set enum in the output and plan
+        # schemas, and their two definitions join the manifest's parameter list.
+        # Nothing was removed or reworded, and system_instruction is unchanged.
+        #
+        # The previous freeze was for AgentStep contract v3, which prevents
         # refused requests from proposing active semantic project memory and adds
-        # the matching provider-neutral instruction. The output schema, embedded
-        # user content, and ToolPlan remain unchanged; the strict AgentStep parser
-        # enforces the status-dependent rule after decoding.
+        # the matching provider-neutral instruction. The strict AgentStep parser
+        # still enforces that status-dependent rule after decoding.
         fixtures = (
-            (exchange.user_content, "26ec12dc412004106e74b25b02d66b02c42b4272702dde2b09dc4e66e28ca2a8"),
+            (exchange.user_content, "8e8091b824f5ca1e1d8e156e11647c1ae590937a310d3b84f2c5b9d9da70aa04"),
             (exchange.system_instruction, "a6cabca28cde746fb76584818f2a2f12f31e5277279ee4bae4c45197b4a820f8"),
-            (json.dumps(exchange.schema, sort_keys=True), "f06755d0110a353ae37da7b64772029fb066bf3ff241f24f4803a9ee47c8ecde"),
+            (json.dumps(exchange.schema, sort_keys=True), "74fd8792e33ba364de05478a874ca9b9df2cc739cc4cbf120fbce9b3ad7f9a0f"),
             (json.dumps(plan_json_schema(tuple(manifest["callable_tools"])), sort_keys=True),
-             "553cc402a0599a9f119598def0485fb09ce3c3222402de3999eb29dd6d8aee19"),
+             "949eacfdb7fd965908bc3696da814f77c333b85501be4173b4d896c08d1c3109"),
         )
         for payload, expected in fixtures:
             self.assertEqual(hashlib.sha256(payload.encode()).hexdigest(), expected)

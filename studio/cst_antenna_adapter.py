@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 
 from studio.antenna_design import AntennaDesign, GeometryObject, Scalar
+from studio.antenna_recipes import SPACING_MODE_FIXED_MM
 from studio.antenna_validation import validate_adapter_input, validate_design
 
 
@@ -351,5 +352,26 @@ class CSTAdapter:
             "' Experimental generated starting design. Validate mesh, ports, materials, and results before engineering use.\n"
             "' Array elements use independent ports. No array feed network is synthesized.\n"
             "' Array row/column parameter changes require regenerating this construction script.\n"
+            + self._spacing_note(design)
         )
         return warning + "Sub Main\n" + self.history(design) + "\nEnd Sub\n"
+
+    @staticmethod
+    def _spacing_note(design: AntennaDesign) -> str:
+        """State the spacing basis, because a sweep of FreqGHz depends on it.
+
+        In electrical mode ElementSpacing is an expression in FreqGHz, so a CST
+        parameter sweep over frequency also moves every element and resizes the
+        board. That is legitimate but has to be said, or a sweep that looks like
+        a frequency sweep is really a frequency-and-geometry sweep.
+        """
+
+        if design.metadata_map().get("spacing_mode") == SPACING_MODE_FIXED_MM:
+            return (
+                "' ElementSpacing is a fixed physical dimension in mm."
+                " Sweeping FreqGHz changes the operating point only.\n"
+            )
+        return (
+            "' ElementSpacing is locked to SpacingLambda wavelengths of FreqGHz."
+            " Sweeping FreqGHz also moves every element and resizes the board.\n"
+        )

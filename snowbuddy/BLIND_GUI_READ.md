@@ -255,11 +255,19 @@ build a trusted surrogate model.
   active recipe: inset-patch dimensions and substrate controls,
   circular-patch radius/probe/substrate controls, or dipole arm/wire/gap
   controls, plus frequency and array controls. Supported numeric rows have Vary
-  boxes with useful family-specific defaults. Operating frequency remains
+  boxes with useful family-specific defaults. Which spacing basis the design
+  uses decides whether frequency can be varied, and exactly one of the two
+  spacing rows is independent at a time. On the default electrical basis the
+  element spacing is held in wavelengths, so operating frequency remains
   editable but its Vary box is disabled: frequency drives recipe dimensions,
   wavelength-based array spacing, and the solver range, so it is deliberately
   excluded from LHS variables to prevent a confounded geometry/frequency sweep.
-  This rule is stated directly above the parameter rows. Parameters created by persisted
+  This rule is stated directly above the parameter rows. On the physical basis
+  the element spacing is held in millimetres and becomes the editable, varyable
+  row; the wavelength row turns read-only and reports the electrical spacing
+  that the fixed dimension actually has at the current frequency; and the
+  frequency Vary box is enabled, because a frequency sweep then changes the
+  operating point only and leaves the array where it is. Parameters created by persisted
   composed geometry, such as a circular-slot radius or rectangular-slot width
   and height, are added to this same table, survive project reopen, and are
   removed when their owning composed operation is deleted. A table edit submits

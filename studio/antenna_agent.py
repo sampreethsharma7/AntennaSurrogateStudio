@@ -34,6 +34,8 @@ from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.antenna_modifiers import active_modifier_ids
 from studio.antenna_recipes import (
     MATERIALS,
+    SPACING_MODE_FIXED_MM,
+    SPACING_MODE_LAMBDA,
     RecipeParameter,
     _circular_radius,
     _microstrip_width_50_ohm,
@@ -980,7 +982,18 @@ class AntennaDesignAgent:
                     sweepable=parameter.sweepable,
                 ))
                 existing_keys.add(key)
-        return tuple(rows)
+        # A row's sweepability can depend on the design rather than the recipe:
+        # the element-spacing basis decides which of the two spacing rows is
+        # independent, and whether frequency may be varied. Report the flags the
+        # design actually carries, so the Vary boxes cannot disagree with what
+        # LHS selection will accept.
+        return tuple(
+            replace(row, sweepable=parameter_map[row.key].sweepable)
+            if row.key in parameter_map
+            and parameter_map[row.key].sweepable != row.sweepable
+            else row
+            for row in rows
+        )
 
     def values_for_design(self, design: AntennaDesign) -> dict[str, Any]:
         recipe = self.registry.recipe(design.recipe_id)
@@ -989,6 +1002,13 @@ class AntennaDesignAgent:
         values = {parameter.key: parameter.value for parameter in design.parameters if parameter.key in keys}
         if "material" in keys:
             values["material"] = design.metadata_map().get("substrate_material", "FR4")
+        if "spacing_mode" in keys:
+            # Choice rows are not design parameters, so without this the mode
+            # would fall back to the default on every edit and a design saved
+            # in fixed_mm would quietly revert to frequency-coupled spacing.
+            values["spacing_mode"] = design.metadata_map().get(
+                "spacing_mode", SPACING_MODE_LAMBDA
+            )
         defaults = recipe.defaults()
         for modifier_id in active_modifier_ids(design):
             defaults.update(self.registry.modifier(modifier_id).defaults())
@@ -1225,6 +1245,7 @@ class AntennaDesignAgent:
         value = arguments["value"]
         if isinstance(value, bool) or not isinstance(value, (int, float, str)):
             raise AgentInstructionError(f"Parameter {key} must be a number or installed choice string.")
+        self._reject_dependent_spacing_edit(context, key)
         if key in context.composed_parameters:
             context.composed_groups = list(self._set_group_parameter(context.composed_groups, key, value))
         else:
@@ -1233,6 +1254,34 @@ class AntennaDesignAgent:
         context.explicit_updates[key] = value
         context.dimension_driver_changed |= key in {"frequency_ghz", "material", "substrate_thickness_mm"}
         context.changes.append(f"{definitions[key].label} to {value}")
+
+    @staticmethod
+    def _reject_dependent_spacing_edit(context: _PlanningContext, key: str) -> None:
+        """Refuse an edit to whichever spacing variable the mode derives.
+
+        Only one of the two is independent, so the other is recomputed on every
+        build. Accepting the edit would store a value that the next rebuild
+        discards, which reads as the edit having silently done nothing.
+        """
+
+        if key not in {"element_spacing_mm", "element_spacing_lambda"}:
+            return
+        if "spacing_mode" not in context.values:
+            return
+        mode = str(context.values.get("spacing_mode", SPACING_MODE_LAMBDA))
+        physical = mode == SPACING_MODE_FIXED_MM
+        if physical and key == "element_spacing_lambda":
+            raise AgentInstructionError(
+                "This design holds element spacing as a physical dimension, so the "
+                "spacing in wavelengths is reported rather than set. Set the physical "
+                "element spacing in millimetres, or change the element spacing basis."
+            )
+        if not physical and key == "element_spacing_mm":
+            raise AgentInstructionError(
+                "This design holds element spacing in wavelengths of the operating "
+                "frequency, so the physical spacing is derived rather than set. Set the "
+                "element spacing in wavelengths, or change the element spacing basis."
+            )
 
     def _tool_set_excitation_strategy(
         self,

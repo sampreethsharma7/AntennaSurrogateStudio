@@ -14,6 +14,22 @@ from studio.antenna_validation import validate_design
 SPEED_OF_LIGHT_MM_GHZ = 299.792458
 MAX_ARRAY_ELEMENTS = 64
 
+# Element spacing has one independent variable, and which one it is decides
+# whether the operating frequency may be swept.
+#
+# "lambda"   electrical spacing drives the physical one, so changing the
+#            frequency moves every element and resizes the board.  Frequency is
+#            therefore not sweepable: an LHS column varying it would vary
+#            geometry in the same column and confound a surrogate fit.
+# "fixed_mm" physical spacing in mm is independent and the electrical spacing is
+#            reported from it.  Geometry no longer depends on frequency, so
+#            frequency is sweepable and means only the operating point.
+SPACING_MODE_LAMBDA = "lambda"
+SPACING_MODE_FIXED_MM = "fixed_mm"
+SPACING_MODES = (SPACING_MODE_LAMBDA, SPACING_MODE_FIXED_MM)
+ELECTRICAL_SPACING_EXPRESSION = "299.792458/frequency_ghz*element_spacing_lambda"
+PHYSICAL_SPACING_EXPRESSION = "element_spacing_mm*frequency_ghz/299.792458"
+
 
 @dataclass(frozen=True, slots=True)
 class MaterialDefinition:
@@ -102,7 +118,18 @@ class _RecipeBase:
     parameter_rows: tuple[RecipeParameter, ...] = ()
 
     def defaults(self) -> dict[str, Any]:
-        return {item.key: item.default for item in self.parameter_rows}
+        values = {item.key: item.default for item in self.parameter_rows}
+        if "element_spacing_mm" in values:
+            # Both modes start from the same geometry: the electrical spacing
+            # seeds the physical one, so switching modes does not move anything
+            # until something is actually edited.
+            values["element_spacing_mm"] = round(
+                SPEED_OF_LIGHT_MM_GHZ
+                / float(values["frequency_ghz"])
+                * float(values["element_spacing_lambda"]),
+                4,
+            )
+        return values
 
     def parameter_definitions(self) -> tuple[RecipeParameter, ...]:
         return self.parameter_rows
@@ -135,11 +162,55 @@ class _RecipeBase:
         if rows < 1 or columns < 1 or rows * columns > MAX_ARRAY_ELEMENTS:
             raise CapabilityError("Array rows and columns must describe 1-64 elements.")
         frequency = float(values["frequency_ghz"])
+        wavelength = SPEED_OF_LIGHT_MM_GHZ / frequency
+        if values.get("spacing_mode", SPACING_MODE_LAMBDA) == SPACING_MODE_FIXED_MM:
+            # The physical dimension is authoritative, so a frequency edit must
+            # leave it alone.  Bounding it electrically here would re-introduce
+            # the coupling this mode exists to remove, so the millimetre value
+            # is bounded directly and the electrical spacing is only reported.
+            spacing_mm = float(values["element_spacing_mm"])
+            if spacing_mm <= 0:
+                raise CapabilityError("Element spacing must be greater than zero.")
+            return rows, columns, spacing_mm / wavelength, spacing_mm
         spacing_lambda = float(values["element_spacing_lambda"])
         if not 0.2 <= spacing_lambda <= 2.0:
             raise CapabilityError("Element spacing must be from 0.2 to 2.0 wavelengths.")
-        spacing_mm = SPEED_OF_LIGHT_MM_GHZ / frequency * spacing_lambda
-        return rows, columns, spacing_lambda, spacing_mm
+        return rows, columns, spacing_lambda, wavelength * spacing_lambda
+
+    @staticmethod
+    def _spacing_registration(
+        values: dict[str, Any],
+    ) -> tuple[str | None, dict[str, dict[str, Any]]]:
+        """Return the physical-spacing expression and per-parameter overrides.
+
+        The electrical spacing seeds the physical one in both modes, so the
+        starting geometry is identical; the modes differ only in which of the
+        two stays independent afterwards, and therefore in whether frequency
+        can be swept without moving the array.
+        """
+
+        if values.get("spacing_mode", SPACING_MODE_LAMBDA) == SPACING_MODE_FIXED_MM:
+            spacing_mm = float(values["element_spacing_mm"])
+            frequency = float(values["frequency_ghz"])
+            return None, {
+                "frequency_ghz": {"sweepable": True},
+                "element_spacing_lambda": {
+                    "editable": False,
+                    "sweepable": False,
+                    "expression": PHYSICAL_SPACING_EXPRESSION,
+                    # Report what the fixed spacing actually is at this
+                    # frequency, rather than the value that seeded it.
+                    "value": round(spacing_mm * frequency / SPEED_OF_LIGHT_MM_GHZ, 6),
+                    "minimum": None,
+                    "maximum": None,
+                },
+                "element_spacing_mm": {
+                    "editable": True,
+                    "sweepable": True,
+                    "minimum": 0.1,
+                },
+            }
+        return ELECTRICAL_SPACING_EXPRESSION, {}
 
     def _common_start(
         self,
@@ -148,44 +219,46 @@ class _RecipeBase:
         calls: list[ToolCall],
         values: dict[str, Any],
         derived: dict[str, tuple[str, float, str | None]],
+        overrides: dict[str, dict[str, Any]] | None = None,
     ) -> AntennaDesign:
+        overrides = overrides or {}
         definitions = {item.key: item for item in self.parameter_rows}
         for definition in self.parameter_rows:
-            if definition.kind == "choice":
+            # A row that also appears in `derived` is registered by the loop
+            # below, which knows its expression for the active spacing mode.
+            if definition.kind == "choice" or definition.key in derived:
                 continue
             raw = values[definition.key]
-            design = self._run(
-                registry,
-                design,
-                calls,
-                "parameter.create",
-                key=definition.key,
-                name=definition.name,
-                label=definition.label,
-                value=float(raw),
-                unit=definition.unit,
-                editable=True,
-                sweepable=definition.sweepable,
-                integer=definition.kind == "integer",
-                minimum=definition.minimum,
-                maximum=definition.maximum,
-                sweep_lower_factor=definition.sweep_lower_factor,
-                sweep_upper_factor=definition.sweep_upper_factor,
-            )
+            arguments: dict[str, Any] = {
+                "key": definition.key,
+                "name": definition.name,
+                "label": definition.label,
+                "value": float(raw),
+                "unit": definition.unit,
+                "editable": True,
+                "sweepable": definition.sweepable,
+                "integer": definition.kind == "integer",
+                "minimum": definition.minimum,
+                "maximum": definition.maximum,
+                "sweep_lower_factor": definition.sweep_lower_factor,
+                "sweep_upper_factor": definition.sweep_upper_factor,
+            }
+            arguments.update(overrides.get(definition.key, {}))
+            design = self._run(registry, design, calls, "parameter.create", **arguments)
         for key, (name, value, expression) in derived.items():
-            design = self._run(
-                registry,
-                design,
-                calls,
-                "parameter.create",
-                key=key,
-                name=name,
-                label=key.replace("_", " ").title(),
-                value=value,
-                expression=expression,
-                editable=False,
-                sweepable=False,
-            )
+            arguments = {
+                "key": key,
+                "name": name,
+                # Prefer the recipe row's wording when the key has one, so a
+                # table row and its design parameter do not disagree.
+                "label": definitions[key].label if key in definitions else key.replace("_", " ").title(),
+                "value": value,
+                "expression": expression,
+                "editable": False,
+                "sweepable": False,
+            }
+            arguments.update(overrides.get(key, {}))
+            design = self._run(registry, design, calls, "parameter.create", **arguments)
         rows = int(values["array_rows"])
         columns = int(values["array_columns"])
         design = self._run(
@@ -206,6 +279,14 @@ class _RecipeBase:
             maximum_ghz="1.35*frequency_ghz",
         )
         design = self._run(registry, design, calls, "design.metadata.set", key="recipe_id", value=self.recipe_id)
+        design = self._run(
+            registry,
+            design,
+            calls,
+            "design.metadata.set",
+            key="spacing_mode",
+            value=str(values.get("spacing_mode", SPACING_MODE_LAMBDA)),
+        )
         return design
 
     def normalize(self, values: dict[str, Any]) -> dict[str, Any]:
@@ -259,6 +340,8 @@ class InsetPatchRecipe(_RecipeBase):
         RecipeParameter("array_rows", "ArrayRows", "Array rows", "", 1, kind="integer", minimum=1, maximum=16),
         RecipeParameter("array_columns", "ArrayCols", "Array columns", "", 1, kind="integer", minimum=1, maximum=16),
         RecipeParameter("element_spacing_lambda", "SpacingLambda", "Element spacing", "λ₀", 0.55, sweepable=True, minimum=0.2, maximum=2),
+        RecipeParameter("spacing_mode", "SpacingMode", "Element spacing basis", "", SPACING_MODE_LAMBDA, kind="choice", choices=SPACING_MODES),
+        RecipeParameter("element_spacing_mm", "ElementSpacing", "Physical element spacing", "mm", 0.0, minimum=0.1),
     )
 
     def defaults(self) -> dict[str, Any]:
@@ -296,14 +379,15 @@ class InsetPatchRecipe(_RecipeBase):
         rows, columns, _, spacing = self._validate_array(values)
         board_width = values["patch_width_mm"] + (columns - 1) * spacing + 2 * values["board_margin_mm"]
         board_length = values["patch_length_mm"] + (rows - 1) * spacing + 2 * values["board_margin_mm"]
+        spacing_expression, spacing_overrides = self._spacing_registration(values)
         derived = {
-            "element_spacing_mm": ("ElementSpacing", spacing, "299.792458/frequency_ghz*element_spacing_lambda"),
+            "element_spacing_mm": ("ElementSpacing", spacing, spacing_expression),
             "board_width_mm": ("BoardW", board_width, "patch_width_mm+(array_columns-1)*element_spacing_mm+2*board_margin_mm"),
             "board_length_mm": ("BoardL", board_length, "patch_length_mm+(array_rows-1)*element_spacing_mm+2*board_margin_mm"),
         }
         design = self._new_design(design_id, revision)
         calls: list[ToolCall] = []
-        design = self._common_start(registry, design, calls, values, derived)
+        design = self._common_start(registry, design, calls, values, derived, spacing_overrides)
         material = MATERIALS[values["material"]]
         design = self._run(registry, design, calls, "material.define", material_id="copper", name="Copper", kind="conductor", conductivity_s_per_m=5.8e7)
         design = self._run(registry, design, calls, "material.define", material_id="substrate", name=material.name, kind="dielectric", epsilon_r=material.epsilon_r, loss_tangent=material.loss_tangent)
@@ -369,6 +453,8 @@ class CircularPatchRecipe(_RecipeBase):
         RecipeParameter("array_rows", "ArrayRows", "Array rows", "", 1, kind="integer", minimum=1, maximum=16),
         RecipeParameter("array_columns", "ArrayCols", "Array columns", "", 1, kind="integer", minimum=1, maximum=16),
         RecipeParameter("element_spacing_lambda", "SpacingLambda", "Element spacing", "λ₀", 0.55, sweepable=True, minimum=0.2, maximum=2),
+        RecipeParameter("spacing_mode", "SpacingMode", "Element spacing basis", "", SPACING_MODE_LAMBDA, kind="choice", choices=SPACING_MODES),
+        RecipeParameter("element_spacing_mm", "ElementSpacing", "Physical element spacing", "mm", 0.0, minimum=0.1),
     )
 
     def defaults(self) -> dict[str, Any]:
@@ -394,8 +480,9 @@ class CircularPatchRecipe(_RecipeBase):
         diameter = 2 * values["patch_radius_mm"]
         board_width = diameter + (columns - 1) * spacing + 2 * values["board_margin_mm"]
         board_length = diameter + (rows - 1) * spacing + 2 * values["board_margin_mm"]
+        spacing_expression, spacing_overrides = self._spacing_registration(values)
         derived = {
-            "element_spacing_mm": ("ElementSpacing", spacing, "299.792458/frequency_ghz*element_spacing_lambda"),
+            "element_spacing_mm": ("ElementSpacing", spacing, spacing_expression),
             "board_width_mm": ("BoardW", board_width, "2*patch_radius_mm+(array_columns-1)*element_spacing_mm+2*board_margin_mm"),
             "board_length_mm": ("BoardL", board_length, "2*patch_radius_mm+(array_rows-1)*element_spacing_mm+2*board_margin_mm"),
             "coax_dielectric_radius_mm": ("CoaxDielectricRadius", 3.5 * values["probe_radius_mm"], "3.5*probe_radius_mm"),
@@ -404,7 +491,7 @@ class CircularPatchRecipe(_RecipeBase):
         }
         design = self._new_design(design_id, revision)
         calls: list[ToolCall] = []
-        design = self._common_start(registry, design, calls, values, derived)
+        design = self._common_start(registry, design, calls, values, derived, spacing_overrides)
         material = MATERIALS[values["material"]]
         design = self._run(registry, design, calls, "material.define", material_id="copper", name="Copper", kind="conductor", conductivity_s_per_m=5.8e7)
         design = self._run(registry, design, calls, "material.define", material_id="substrate", name=material.name, kind="dielectric", epsilon_r=material.epsilon_r, loss_tangent=material.loss_tangent)
@@ -478,6 +565,8 @@ class DipoleRecipe(_RecipeBase):
         RecipeParameter("array_rows", "ArrayRows", "Array rows", "", 1, kind="integer", minimum=1, maximum=16),
         RecipeParameter("array_columns", "ArrayCols", "Array columns", "", 1, kind="integer", minimum=1, maximum=16),
         RecipeParameter("element_spacing_lambda", "SpacingLambda", "Element spacing", "λ₀", 0.5, sweepable=True, minimum=0.2, maximum=2),
+        RecipeParameter("spacing_mode", "SpacingMode", "Element spacing basis", "", SPACING_MODE_LAMBDA, kind="choice", choices=SPACING_MODES),
+        RecipeParameter("element_spacing_mm", "ElementSpacing", "Physical element spacing", "mm", 0.0, minimum=0.1),
     )
 
     def defaults(self) -> dict[str, Any]:
@@ -506,13 +595,14 @@ class DipoleRecipe(_RecipeBase):
     def build(self, registry: ToolRegistry, values: dict[str, Any], *, design_id: str | None = None, revision: int = 0) -> tuple[AntennaDesign, tuple[ToolCall, ...]]:
         values = self.normalize(values)
         rows, columns, _, spacing = self._validate_array(values)
+        spacing_expression, spacing_overrides = self._spacing_registration(values)
         derived = {
-            "element_spacing_mm": ("ElementSpacing", spacing, "299.792458/frequency_ghz*element_spacing_lambda"),
+            "element_spacing_mm": ("ElementSpacing", spacing, spacing_expression),
             "total_length_mm": ("DipoleLength", 2 * values["arm_length_mm"] + values["feed_gap_mm"], "2*arm_length_mm+feed_gap_mm"),
         }
         design = self._new_design(design_id, revision)
         calls: list[ToolCall] = []
-        design = self._common_start(registry, design, calls, values, derived)
+        design = self._common_start(registry, design, calls, values, derived, spacing_overrides)
         design = self._run(registry, design, calls, "material.define", material_id="copper", name="Copper", kind="conductor", conductivity_s_per_m=5.8e7)
         design = self._run(registry, design, calls, "design.metadata.set", key="substrate_material", value="No substrate")
         element = 0
