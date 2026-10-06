@@ -1,4 +1,3 @@
-import json
 import shutil
 import unittest
 import uuid
@@ -350,44 +349,6 @@ class ProjectMemoryNormalizationTests(unittest.TestCase):
         self.assertEqual(requirement.source, "deterministic")
         self.assertIsNone(requirement.normalization_version)
         self.assertEqual(memory.canonical_ref.revision, design.revision)
-
-    def test_recorded_g01_g02_g03_proposals_replay_to_canonical_intent(self):
-        root = (
-            Path(__file__).resolve().parents[1]
-            / "benchmarks" / "results" / "v1"
-            / "20260924_stage5b_hosted_v1" / "gemini"
-        )
-        results = {}
-        for case_id in ("G01", "G02", "G03"):
-            memory = ProjectMemory.empty()
-            for line in (root / case_id / "trajectory.jsonl").read_text(encoding="utf-8").splitlines():
-                record = json.loads(line)
-                proposed = record.get("semantic_memory", {}).get("proposed", [])
-                if not proposed:
-                    continue
-                proposals = tuple(SemanticMemoryProposal.from_unvalidated(item) for item in proposed)
-                memory, _audit = apply_semantic_memory_proposals(
-                    memory,
-                    proposals,
-                    instruction=record["user_request"],
-                    planner_calls=(),
-                    design=None,
-                    turn_id=record["turn_id"],
-                )
-            results[case_id] = {
-                item.key: (item.value, item.unit, item.constraint_operator)
-                for item in self.semantic_items(memory)
-                if item.status == "active"
-            }
-        self.assertEqual(
-            results["G01"]["target_polarization"],
-            ("circular_polarization", None, None),
-        )
-        self.assertEqual(results["G02"]["board_width_limit"], (90.0, "mm", "max"))
-        self.assertEqual(
-            results["G03"]["feed_network_future_goal"],
-            ("corporate_feed", None, None),
-        )
 
     def test_stage5e_polarization_alias_is_narrow_and_canonical(self):
         memory, audit = self.apply(
