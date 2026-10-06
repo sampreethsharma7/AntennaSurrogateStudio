@@ -1414,7 +1414,7 @@ class GeminiSchemaConstrainedPlanner(_AgentLoopPlannerMixin):
     ) -> LLMToolPlan:
         if not self.api_key:
             raise CapabilityError(
-                "Gemini cloud planner requires GEMINI_API_KEY. Set it in the environment or in the ignored project .env file; Local Qwen remains available."
+                "Gemini cloud planner requires GEMINI_API_KEY. Set it in the environment or in the ignored project .env file; Local Ollama remains available."
             )
         if not self.model:
             raise CapabilityError("Choose a Gemini model before using the cloud planner.")
@@ -1676,7 +1676,7 @@ class GroqSchemaConstrainedPlanner(_AgentLoopPlannerMixin):
     ) -> LLMToolPlan:
         if not self.api_key:
             raise CapabilityError(
-                "Groq cloud planner requires GROQ_API_KEY. Set it in the environment or in the ignored project .env file; Local Qwen remains available."
+                "Groq cloud planner requires GROQ_API_KEY. Set it in the environment or in the ignored project .env file; Local Ollama remains available."
             )
         if not self.model:
             raise CapabilityError("Choose a Groq model before using the cloud planner.")
@@ -1844,7 +1844,7 @@ class OpenRouterNemotronPlanner(_AgentLoopPlannerMixin):
     ) -> LLMToolPlan:
         if not self.api_key:
             raise CapabilityError(
-                "OpenRouter Nemotron planner requires OPENROUTER_API_KEY. Set it in the environment or in the ignored project .env file; Local Qwen remains available."
+                "OpenRouter Nemotron planner requires OPENROUTER_API_KEY. Set it in the environment or in the ignored project .env file; Local Ollama remains available."
             )
         if not self.model:
             raise CapabilityError("Choose an OpenRouter model before using the cloud planner.")

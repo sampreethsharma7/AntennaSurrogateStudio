@@ -5,7 +5,7 @@ CST commands or geometry directly.
 
 ```text
 User instruction
-  -> selected planner transport (Local Qwen, Gemini, Groq GPT-OSS, or OpenRouter Nemotron)
+  -> selected planner transport (Local Ollama, Gemini, Groq GPT-OSS, or OpenRouter Nemotron)
   -> identical system instruction + AntennaDesign + capability manifest + ToolPlan schema
   -> ordered registered-tool plan / clarify / refuse
   -> exact ToolPlan parsing and validation
@@ -72,7 +72,7 @@ identify a radiating patch without guessing. The model cannot emit code, files,
 CST commands, solver operations, or unregistered calls. A clarification or
 refusal contains no calls and cannot mutate the design.
 
-The Local Qwen transport requests a 16,384-token context so the current design
+The Local Ollama transport requests a 16,384-token context so the current design
 and runtime schemas are not truncated. Malformed structured output receives one
 schema-repair attempt. If an otherwise valid call sequence fails the registered
 executor (for example, a modifier parameter appears before `modifier.apply`),
