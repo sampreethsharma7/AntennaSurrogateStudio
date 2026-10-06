@@ -19,6 +19,13 @@ from studio.antenna_engineering_summary import (
     GROUP_PREFIX, PlannerEngineeringSummary, engineering_report_hash, summarize_engineering_report,
 )
 from studio.antenna_tools import CapabilityError
+from studio.planner_credentials import (
+    GEMINI,
+    GROQ,
+    OPENROUTER,
+    read_environment_or_env_file,
+    read_stored_credential,
+)
 
 
 PLAN_SCHEMA_VERSION = 1
@@ -791,48 +798,55 @@ def build_agent_step_exchange(
 
 
 def _load_local_api_key(name: str, *, env_file: str | Path | None = None) -> str:
-    """Read one credential from the process environment or ignored local .env."""
+    """Read one credential from the process environment or ignored local .env.
 
-    direct = os.environ.get(name, "").strip()
-    if direct:
+    Retained as the environment-and-file half of the resolution order; the
+    reader itself now lives in `planner_credentials` so the credential store
+    can share it without an import cycle.
+    """
+
+    return read_environment_or_env_file(name, env_file=env_file)
+
+
+def _load_planner_api_key(
+    name: str,
+    provider_id: str,
+    *,
+    env_file: str | Path | None = None,
+) -> str:
+    """Resolve one provider's key: environment, then `.env`, then the OS store.
+
+    An explicitly supplied `env_file` scopes the lookup to the environment and
+    that one file. Callers pass it to say exactly where the credential should
+    come from, and silently reaching past it into the machine's credential
+    store would make that request meaningless.
+    """
+
+    direct = read_environment_or_env_file(name, env_file=env_file)
+    if direct or env_file is not None:
         return direct
-    candidates = [Path(env_file)] if env_file is not None else [
-        Path.cwd() / ".env",
-        Path(__file__).resolve().parents[1] / ".env",
-    ]
-    for path in dict.fromkeys(candidates):
-        try:
-            lines = path.read_text(encoding="utf-8-sig").splitlines()
-        except OSError:
-            continue
-        for line in lines:
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, value = stripped.split("=", 1)
-            if key.strip() == name:
-                return value.strip().strip('"\'')
-    return ""
+    return read_stored_credential(provider_id)
 
 
 def load_gemini_api_key(*, env_file: str | Path | None = None) -> str:
-    """Read Gemini credentials from the process environment or ignored .env."""
+    """Read Gemini credentials from the environment, .env, then the OS store."""
 
-    return _load_local_api_key("GEMINI_API_KEY", env_file=env_file)
+    return _load_planner_api_key("GEMINI_API_KEY", GEMINI, env_file=env_file)
 
 
 def load_groq_api_key(*, env_file: str | Path | None = None) -> str:
-    """Read Groq credentials from the process environment or ignored .env."""
+    """Read Groq credentials from the environment, .env, then the OS store."""
 
-    return _load_local_api_key("GROQ_API_KEY", env_file=env_file)
+    return _load_planner_api_key("GROQ_API_KEY", GROQ, env_file=env_file)
 
 
 def load_openrouter_api_key(*, env_file: str | Path | None = None) -> str:
-    """Read OpenRouter credentials from the process environment or ignored .env."""
+    """Read OpenRouter credentials from the environment, .env, then the OS store."""
 
     return (
-        _load_local_api_key("OPENROUTER_API_KEY", env_file=env_file)
-        or _load_local_api_key("OPEN_ROUTER_API_KEY", env_file=env_file)
+        read_environment_or_env_file("OPENROUTER_API_KEY", env_file=env_file)
+        or read_environment_or_env_file("OPEN_ROUTER_API_KEY", env_file=env_file)
+        or ("" if env_file is not None else read_stored_credential(OPENROUTER))
     )
 
 

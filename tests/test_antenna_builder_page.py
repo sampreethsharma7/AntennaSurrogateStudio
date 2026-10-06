@@ -19,10 +19,28 @@ from studio.antenna_builder_ui import (
 from studio.antenna_builder import ProjectMemoryItem, load_builder_session, save_project_design
 from studio.antenna_design import AntennaDesign
 from studio.antenna_llm_planner import AgentStep, EngineeringDisposition, LLMToolPlan, PlannedToolCall
+from studio.planner_credentials import KEYRING_SERVICE, LOCAL_OLLAMA
 from studio.planner_model_discovery import GEMINI, ModelDiscoveryError, PlannerModel
+from studio.planner_onboarding_ui import SetupOutcome
 from studio.project_store import ProjectStore
 from studio.theme import FONTS
 from studio.ui import StudioApp
+
+
+class _EmptyCredentialStore:
+    """A credential store with nothing in it, and no connection to the machine."""
+
+    def __init__(self, values=None):
+        self.values = dict(values or {})
+
+    def get_password(self, service, account):
+        return self.values.get((service, account))
+
+    def set_password(self, service, account, password):
+        self.values[(service, account)] = password
+
+    def delete_password(self, service, account):
+        del self.values[(service, account)]
 
 
 GUI_MAY_BE_AVAILABLE = (
@@ -112,6 +130,18 @@ class AntennaBuilderPageTests(unittest.TestCase):
         self.app.set_project(project, target_page="design_start")
         self.app.update()
         self.page = self.app.antenna_builder_page
+        # Entering the builder now settles how the planner will be reached. A
+        # test machine has no cloud credential, so without a stand-in these
+        # tests would block on a modal dialog nothing closes. Local Ollama is
+        # what they already exercise, so that is what the stand-in chooses.
+        self.setup_dialog_calls = []
+        self.app.design_start_page.credential_backend = _EmptyCredentialStore()
+        self.app.design_start_page.setup_dialog_runner = self._offline_setup_choice
+        self.page.credential_backend = _EmptyCredentialStore()
+
+    def _offline_setup_choice(self, *args, **kwargs):
+        self.setup_dialog_calls.append(kwargs.get("provider"))
+        return SetupOutcome(provider=LOCAL_OLLAMA, verified=False)
 
     def tearDown(self):
         dialog = self.app.data_page.sample_generator_dialog

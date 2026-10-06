@@ -49,6 +49,12 @@ from studio.planner_model_discovery import (
     PlannerModel,
     PlannerModelDiscovery,
 )
+from studio.planner_credentials import (
+    CLOUD_PROVIDERS,
+    RECOMMENDED_CLOUD_PROVIDER,
+    has_credential,
+)
+from studio.planner_onboarding_ui import run_setup_dialog
 from studio.project_store import Project
 from studio.theme import COLORS, FONTS
 
@@ -79,6 +85,42 @@ def _active_color(value: str | tuple[str, str]) -> str:
     return value[1] if ctk.get_appearance_mode().lower() == "dark" else value[0]
 
 
+def cloud_onboarding_required(
+    project: Project | None,
+    *,
+    env_file: str | None = None,
+    credential_backend: object | None = None,
+) -> bool:
+    """Whether credential setup should run before the builder opens.
+
+    Three cases must not be interrupted, which is what the two early exits
+    cover:
+
+    * a project that already records a planner choice, including a deliberate
+      Local Ollama one, because reopening an existing design is not a first
+      run;
+    * a machine that already resolves a cloud key from the environment, a
+      `.env` file or the credential store, which is every developer and every
+      user who set one up before this dialog existed.
+
+    Everything else is a genuine first run with no way to reach a cloud
+    planner, where proceeding would fail later inside the planner with a
+    message about an environment variable.
+    """
+
+    if project is None:
+        return False
+    settings = project.manifest.get("antenna_builder")
+    if isinstance(settings, dict) and (
+        settings.get("planner_provider") or settings.get("planner_backend")
+    ):
+        return False
+    return not any(
+        has_credential(provider, env_file=env_file, backend=credential_backend)
+        for provider in CLOUD_PROVIDERS
+    )
+
+
 class DesignStartPage(ctk.CTkFrame):
     """Ask whether a new project starts from existing data or a template."""
 
@@ -86,6 +128,13 @@ class DesignStartPage(ctk.CTkFrame):
         super().__init__(parent, fg_color=COLORS["app_bg"], corner_radius=0)
         self.app = app
         self.project: Project | None = None
+        # Injected by tests so the onboarding path can be exercised without a
+        # real credential store, a browser, network access, or a modal dialog
+        # that nothing would ever close.
+        self.setup_discovery: PlannerModelDiscovery | None = None
+        self.credential_backend: object | None = None
+        self.setup_browser: Callable[[str], object] | None = None
+        self.setup_dialog_runner: Callable[..., object] = run_setup_dialog
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self._build_header()
@@ -234,6 +283,8 @@ class DesignStartPage(ctk.CTkFrame):
     def choose_template(self) -> None:
         if not self.project:
             return
+        if not self.ensure_planner_credential():
+            return
         self.app.update_current_project(
             {
                 "design_start": {"choice": "generated_template"},
@@ -241,6 +292,39 @@ class DesignStartPage(ctk.CTkFrame):
             }
         )
         self.app.show_page("antenna_builder")
+
+    def ensure_planner_credential(self) -> bool:
+        """Settle how the planner will be reached before the builder opens.
+
+        Returns False when the user closed setup without choosing anything, in
+        which case this page stays put instead of handing them a workspace
+        whose first request is going to fail.
+        """
+
+        if not cloud_onboarding_required(
+            self.project, credential_backend=self.credential_backend
+        ):
+            return True
+        outcome = self.setup_dialog_runner(
+            self,
+            provider=RECOMMENDED_CLOUD_PROVIDER,
+            discovery=self.setup_discovery,
+            credential_backend=self.credential_backend,
+            browser=self.setup_browser,
+        )
+        if not outcome.completed:
+            return False
+        # Record the provider the user actually settled on, so reopening the
+        # project never asks again. The key itself is not part of this.
+        self.app.update_current_project(
+            {
+                "antenna_builder": {
+                    "planner_provider": outcome.provider,
+                    "planner_model": DEFAULT_MODELS[outcome.provider],
+                }
+            }
+        )
+        return True
 
     def describe_ui_state(self) -> list[str]:
         choice = (
@@ -281,6 +365,11 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.model_var = ctk.StringVar()
         self.openrouter_free_only_var = ctk.BooleanVar(value=True)
         self.model_discovery = PlannerModelDiscovery()
+        # Injected by tests so the API-key dialog can be exercised without a
+        # real credential store, a browser, or network access.
+        self.credential_backend: object | None = None
+        self.setup_browser: Callable[[str], object] | None = None
+        self.setup_dialog_runner: Callable[..., object] = run_setup_dialog
         self._model_catalogs: dict[str, tuple[PlannerModel, ...]] = {}
         self._selected_model_ids = dict(DEFAULT_MODELS)
         self._set_model_choices(LOCAL_OLLAMA, self._fallback_models(LOCAL_OLLAMA))
@@ -469,6 +558,20 @@ class AntennaBuilderPage(ctk.CTkFrame):
             command=self._refresh_models_async,
         )
         self.refresh_models_button.grid(row=0, column=3, padx=(4, 0))
+        self.api_keys_button = ctk.CTkButton(
+            planner_row,
+            text="API keys",
+            width=84,
+            height=28,
+            font=FONTS["caption"],
+            fg_color=COLORS["surface"],
+            hover_color=COLORS["control_hover"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["ink"],
+            command=self.open_api_key_settings,
+        )
+        self.api_keys_button.grid(row=1, column=4, padx=(4, 0), pady=(5, 0))
         self.planner_notice_label = ctk.CTkLabel(
             instruction,
             textvariable=self.planner_notice_var,
@@ -1174,6 +1277,30 @@ class AntennaBuilderPage(ctk.CTkFrame):
         self.planner_notice_var.set(
             f"Model discovery failed ({reason}); retained {retained}."
         )
+
+    def open_api_key_settings(self) -> None:
+        """Let the user replace or remove a stored cloud key at any time.
+
+        Without this the first key entered during setup would be the only one
+        the application ever used, with no way to rotate it from the GUI.
+        """
+
+        provider = self._provider_id()
+        outcome = self.setup_dialog_runner(
+            self,
+            provider=provider if provider in CLOUD_PROVIDERS else RECOMMENDED_CLOUD_PROVIDER,
+            manage=True,
+            discovery=self.model_discovery,
+            credential_backend=self.credential_backend,
+            browser=self.setup_browser,
+        )
+        if not outcome.completed or outcome.provider == self._provider_id():
+            self._update_planner_notice()
+            return
+        # A key was verified for a different provider; follow the user there
+        # rather than leaving the menu pointing at the one they left behind.
+        self.provider_var.set(PROVIDER_LABELS[outcome.provider])
+        self._planner_changed(PROVIDER_LABELS[outcome.provider])
 
     def _persist_planner_choice(self) -> None:
         if self.project is not None:

@@ -7,3 +7,8 @@ scipy==1.18.0
 joblib==1.5.3
 xgboost==3.3.0
 pywin32==312; sys_platform == "win32"
+# Stores Text-to-CAD cloud API keys in the operating system credential
+# store instead of a plaintext file. On Windows this resolves to the
+# Windows Credential Manager. The application still starts, and .env
+# credentials still work, if this is missing or has no usable backend.
+keyring==25.7.0

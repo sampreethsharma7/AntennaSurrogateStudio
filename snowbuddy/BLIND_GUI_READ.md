@@ -1,10 +1,11 @@
 # SnowBuddy Blind GUI Read
 
 Contract version: 3.97
-Studio version: 0.34.0-beta
+Studio version: 0.34.1-beta
 UI source SHA-256: df816406dfcbcdf0360fe780703cd3af0ea7aed716367966c11c8e00218b3f77
 Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6d9f8b4804456a892df56
-Antenna Builder UI source SHA-256: c2c24eaa67f5ca8827e674c7162d3e1a7a49bf31fd87fe681d7e3491eced784e
+Antenna Builder UI source SHA-256: 96a07c78fa6b302755e2bb7832a59bfae9bc4f68b87e41de1712df65f3b918b6
+Planner Onboarding UI source SHA-256: e3b56af47b320588200ecea4399cdcff303fe829cd295e4e2abf167e6e114835
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
 Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
@@ -204,8 +205,10 @@ build a trusted surrogate model.
   Local Ollama uses its local tags endpoint. Models validated with the antenna
   agent are labeled **Tested** and other compatible discovered text models are
   labeled **Untested**. OpenRouter adds a **Free only** filter based on catalog
-  pricing. If discovery fails, the last valid model remains selected and the
-  notice states the failure. Local Ollama is the default and shows
+  pricing. An **API keys** button beside the model menu opens the Text-to-CAD
+  API keys dialog, so a stored cloud key can be replaced or removed at any time
+  without leaving the page. If discovery fails, the last valid model remains
+  selected and the notice states the failure. Local Ollama is the default and shows
   **Private/offline: models are discovered from local Ollama; design context
   stays on this computer.** Cloud notices state that design state and requests
   are sent to the selected provider. Provider, model, and OpenRouter filter
@@ -224,11 +227,36 @@ build a trusted surrogate model.
   recipe, reapply modifiers, resolve stored Boolean targets by semantic role
   and array element, and replay those groups before publishing. An incompatible
   topology or failed replay rejects the edit and leaves the prior design open.
-  Gemini requires `GEMINI_API_KEY`, Groq requires `GROQ_API_KEY`, and OpenRouter
-  requires `OPENROUTER_API_KEY` (with `OPEN_ROUTER_API_KEY` accepted as a local
-  compatibility alias) in the environment or ignored local `.env`; a missing
-  key produces a clear warning
-  and does not affect Local Ollama. Each
+  Cloud keys resolve from the process environment first, then an ignored local
+  `.env`, then this computer's credential store. Gemini reads `GEMINI_API_KEY`,
+  Groq reads `GROQ_API_KEY`, and OpenRouter reads `OPENROUTER_API_KEY` (with
+  `OPEN_ROUTER_API_KEY` accepted as a local compatibility alias). A missing key
+  produces a clear warning and does not affect Local Ollama.
+
+  **Set up Text-to-CAD** is the first-run credential dialog. Choosing **Open
+  Experimental Builder** opens it when the project has not yet recorded a
+  planner choice and no cloud key resolves from any source; a project that
+  already records one, and a machine that already has a key, go straight to the
+  builder without interruption. The dialog states that Text-to-CAD uses a cloud
+  AI model to interpret design requests, names **Recommended provider: Gemini**,
+  and offers a masked **API key** field with **Get an API key** and **Verify &
+  Continue**. **Get an API key** opens the provider's own key page in the system
+  browser; no browser is embedded. **Verify & Continue** authenticates the key
+  against the provider's model catalog, which sends no geometry, design state or
+  instruction, and on success shows **✓ API key verified** with **Text-to-CAD is
+  ready.**, saves the key in the operating system credential store, and enters
+  the builder. A rejected key leaves the dialog open, is not saved, and is
+  explained in one sentence such as **We couldn't verify this API key.** or
+  **Gemini could not be reached. Check your internet connection and try again.**
+  No raw status codes, payloads, tracebacks or key characters appear. A
+  question-mark panel, **? API usage, privacy, and other providers**, holds the
+  storage, egress, cost and offline notes, and **Other providers and offline
+  use** exposes Groq, OpenRouter, **Use Local Ollama instead** with its lower
+  local-capability note, the configured source of each provider's key, and
+  **Remove saved key**. The two panels never open together, so the dialog always
+  fits a 1366x768 viewport. **Not now** closes without choosing and leaves the
+  Design Start page in place. Reopened from the builder's **API keys** button
+  the same dialog manages saved keys and never displays a stored secret. Each
   project records credential-free comparison metadata in
   `design/planner_ab.jsonl`: backend, request, returned plan, validation,
   repair, and final deterministic tool sequence.

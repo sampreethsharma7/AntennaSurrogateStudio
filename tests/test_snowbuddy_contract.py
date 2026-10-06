@@ -57,6 +57,10 @@ class SnowBuddyContractTests(unittest.TestCase):
             r"Antenna Builder UI source SHA-256: ([0-9a-f]{64})",
             content,
         )
+        planner_onboarding_ui_match = re.search(
+            r"Planner Onboarding UI source SHA-256: ([0-9a-f]{64})",
+            content,
+        )
         vtk_preview_ui_match = re.search(
             r"VTK Preview UI source SHA-256: ([0-9a-f]{64})",
             content,
@@ -89,6 +93,10 @@ class SnowBuddyContractTests(unittest.TestCase):
         self.assertIsNotNone(
             antenna_builder_ui_match,
             "BLIND_GUI_READ.md must record studio/antenna_builder_ui.py SHA-256.",
+        )
+        self.assertIsNotNone(
+            planner_onboarding_ui_match,
+            "BLIND_GUI_READ.md must record studio/planner_onboarding_ui.py SHA-256.",
         )
         self.assertIsNotNone(
             vtk_preview_ui_match,
@@ -132,6 +140,11 @@ class SnowBuddyContractTests(unittest.TestCase):
             antenna_builder_ui_match.group(1),
             sha256(ROOT / "studio" / "antenna_builder_ui.py"),
             "studio/antenna_builder_ui.py changed without updating BLIND_GUI_READ.md.",
+        )
+        self.assertEqual(
+            planner_onboarding_ui_match.group(1),
+            sha256(ROOT / "studio" / "planner_onboarding_ui.py"),
+            "studio/planner_onboarding_ui.py changed without updating BLIND_GUI_READ.md.",
         )
         self.assertEqual(
             vtk_preview_ui_match.group(1),
