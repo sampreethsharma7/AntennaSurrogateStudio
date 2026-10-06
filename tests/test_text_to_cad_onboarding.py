@@ -9,7 +9,7 @@ import urllib.error
 from pathlib import Path
 from unittest.mock import patch
 
-from studio.antenna_builder_ui import cloud_onboarding_required
+from studio.antenna_builder_ui import DEFAULT_MODELS, cloud_onboarding_required
 from studio.planner_credentials import (
     GEMINI,
     GROQ,
@@ -647,6 +647,45 @@ class BuilderEntryGatingTests(unittest.TestCase):
         self.assertEqual(
             reopened.manifest["antenna_builder"]["planner_provider"], GEMINI
         )
+
+    def test_the_builder_adopts_the_provider_that_setup_verified(self):
+        """The workspace must point at the planner the user just set up.
+
+        The builder reads its planner choice when the project is opened, which
+        is before setup has run, and nothing re-reads it afterwards. Recording
+        the choice in the manifest is therefore not enough on its own: someone
+        who had just verified a Gemini key was handed a workspace still set to
+        Local Ollama, so their first request went to a planner they never chose
+        and failed if no local model was running.
+        """
+
+        builder = self.app.antenna_builder_page
+        self.assertEqual(builder._provider_id(), LOCAL_OLLAMA)
+        self.start_page.setup_dialog_runner = self._runner(
+            SetupOutcome(provider=GEMINI, verified=True)
+        )
+        with patch.object(builder, "_refresh_models_async"), patch.dict(
+            os.environ, {}, clear=True
+        ):
+            self.start_page.choose_template()
+            self.app.update()
+
+        self.assertEqual(builder._provider_id(), GEMINI)
+        self.assertEqual(builder._selected_model_id(), DEFAULT_MODELS[GEMINI])
+
+    def test_choosing_the_offline_planner_leaves_the_builder_on_it(self):
+        builder = self.app.antenna_builder_page
+        self.start_page.setup_dialog_runner = self._runner(
+            SetupOutcome(provider=LOCAL_OLLAMA, verified=False)
+        )
+        with patch.object(builder, "_refresh_models_async"), patch.dict(
+            os.environ, {}, clear=True
+        ):
+            self.start_page.choose_template()
+            self.app.update()
+
+        self.assertEqual(builder._provider_id(), LOCAL_OLLAMA)
+        self.assertEqual(builder._selected_model_id(), DEFAULT_MODELS[LOCAL_OLLAMA])
 
     def test_dismissing_setup_keeps_the_user_on_the_start_page(self):
         # Proceeding would hand over a workspace whose first request fails deep

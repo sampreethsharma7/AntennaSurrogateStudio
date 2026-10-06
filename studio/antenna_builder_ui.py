@@ -324,6 +324,11 @@ class DesignStartPage(ctk.CTkFrame):
                 }
             }
         )
+        # The builder read its planner choice when the project was opened,
+        # which was before any of this, so it has to be told.
+        builder = getattr(self.app, "antenna_builder_page", None)
+        if builder is not None:
+            builder.adopt_planner_provider(outcome.provider)
         return True
 
     def describe_ui_state(self) -> list[str]:
@@ -1299,8 +1304,22 @@ class AntennaBuilderPage(ctk.CTkFrame):
             return
         # A key was verified for a different provider; follow the user there
         # rather than leaving the menu pointing at the one they left behind.
-        self.provider_var.set(PROVIDER_LABELS[outcome.provider])
-        self._planner_changed(PROVIDER_LABELS[outcome.provider])
+        self.adopt_planner_provider(outcome.provider)
+
+    def adopt_planner_provider(self, provider: str) -> None:
+        """Point the selector at a provider that was settled somewhere else.
+
+        ``set_project`` reads the stored choice, but it runs when the project
+        is opened, which is before first-run setup has had a chance to happen.
+        Without this the page keeps the default it was built with, and someone
+        who has just verified a cloud key is handed a workspace pointed at the
+        local planner they never chose.
+        """
+
+        if provider not in PROVIDER_LABELS or provider == self._provider_id():
+            return
+        self.provider_var.set(PROVIDER_LABELS[provider])
+        self._planner_changed(PROVIDER_LABELS[provider])
 
     def _persist_planner_choice(self) -> None:
         if self.project is not None:
