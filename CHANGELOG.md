@@ -29,8 +29,9 @@ changes.
 - **An API keys button** beside the builder's Model menu reopens the same
   dialog to replace or remove a stored key, and names which source each
   provider's key currently comes from.
-- **A help panel** covering where the key is stored, what the provider
-  receives, cost, and the offline option, kept out of the main dialog.
+- **A separate help window**, *About Text-to-CAD and your API key*, covering
+  where the key is stored, what the provider receives, cost, and the offline
+  option. It opens from the setup dialog, which itself stays small.
 
 ### Changed
 
@@ -46,12 +47,24 @@ changes.
   providers and offline use**. Local Ollama is no longer the recommended first
   run, and its lower capability is stated where it is offered.
 
+### Fixed
+
+- Status, error and help text wrapped wider than the window showing it, which
+  cut the last characters off several messages on laptop layouts.
+- A provider verified during setup now becomes the builder's active provider
+  immediately, instead of leaving the workspace on the previous one.
+- The Provider selector stays visible alongside the new API keys control.
+- A recorded cloud planner whose saved credential is missing now asks for a key
+  again instead of failing during a later design request.
+
 ### Notes
 
 - Entering the builder settles how the planner will be reached before the
   workspace opens, so a first run can no longer proceed with no usable
-  credential and fail later. A project that already records a planner choice,
-  including a deliberate offline one, is never interrupted.
+  credential and fail later. A recorded offline choice is never interrupted. A
+  recorded cloud provider is asked about again only when its credential no
+  longer resolves, so a missing key is raised at the dialog rather than during a
+  later design request.
 - `ANTENNA_STUDIO_NO_CREDENTIAL_STORE=1` keeps the Studio away from the
   credential store, leaving the environment and `.env` as the only sources.
 - No OpenAI provider was added, and the builder still performs no solving or
