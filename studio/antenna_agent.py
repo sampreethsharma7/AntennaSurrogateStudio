@@ -10,7 +10,7 @@ from typing import Any, Callable, Mapping
 
 from studio.antenna_analysis import EngineeringAnalysisResult
 from studio.antenna_excitation import (
-    INDEPENDENT_LOCAL_PORT_MODEL,
+    independent_port_model,
     realize_excitation,
     supports_independent_port_synthesis,
 )
@@ -426,7 +426,7 @@ class AntennaDesignAgent:
                         else "unsupported_for_current_design"
                     ),
                     "realization_model": (
-                        INDEPENDENT_LOCAL_PORT_MODEL
+                        independent_port_model(design)
                         if supports_independent_port_synthesis(design)
                         else None
                     ),

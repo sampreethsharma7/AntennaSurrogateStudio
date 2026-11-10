@@ -5,6 +5,18 @@ Notable changes to Antenna Surrogate Studio. Newest first.
 Versions before `0.34.0-beta` predate this file; their history is in the commit
 log.
 
+## [Unreleased]
+
+### Changed
+
+- **Single-row inset-patch arrays keep their feed lines.** Giving every element
+  its own port used to shorten each feed to the edge of its patch and put the
+  port there, in every array. A 1 × N array now keeps each feed line running to
+  the board edge with its port at the edge, as a single patch already did, so
+  an edge-fed linear array exports to CST as it would be built. Arrays with
+  more than one row are unchanged, because an inner row's feed would cross the
+  patches below it.
+
 ## [0.34.1-beta] — 2026-10-06
 
 A focused usability release. The experimental Text-to-CAD builder now asks for

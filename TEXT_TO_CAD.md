@@ -13,7 +13,7 @@
 
 <img src="docs/media/text-to-cad/walkthrough.gif" alt="Three plain-language requests build an inset-fed patch, cut a circular slot into it, and replicate it into a 1x3 array, which is then exported to CST Studio Suite" width="880">
 
-<sub><b>Three requests, one model.</b> Patch → slot → array → CST. Full walkthrough, 37 s.</sub>
+<sub><b>Three requests, one model.</b> Patch → slot → array → CST. Full walkthrough, 34 s.</sub>
 
 </div>
 

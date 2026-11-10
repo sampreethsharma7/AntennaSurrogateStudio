@@ -81,6 +81,45 @@ class IndependentExcitationRealizationTests(unittest.TestCase):
                     count,
                 )
 
+    def test_single_row_arrays_keep_feed_lines_and_ports_at_the_board_edge(self):
+        for rows, columns in ((1, 2), (1, 4)):
+            with self.subTest(array=(rows, columns)):
+                design = self._realize(self._legacy(rows, columns))
+                self.assertEqual(design.excitation.realization_status, "realized")
+                values = resolve_parameter_values(design)
+                board_edge = -values["board_length_mm"] / 2
+                feeds = [item for item in design.geometry if item.object_id.endswith("_feed")]
+                self.assertEqual(len(feeds), columns)
+                for feed in feeds:
+                    self.assertIn("independent_local_feed", feed.tags)
+                    self.assertEqual(feed.dimension_map()["y_min"], "-board_length_mm/2")
+                for negative, positive in self._segments(design):
+                    self.assertAlmostEqual(negative[1], board_edge)
+                    self.assertAlmostEqual(positive[1], board_edge)
+                self.assertEqual(len(set(self._segments(design))), columns)
+
+    def test_multi_row_arrays_move_ports_to_each_element(self):
+        for rows, columns in ((2, 3), (3, 1)):
+            with self.subTest(array=(rows, columns)):
+                design = self._realize(self._legacy(rows, columns))
+                values = resolve_parameter_values(design)
+                board_edge = -values["board_length_mm"] / 2
+                feeds = [item for item in design.geometry if item.object_id.endswith("_feed")]
+                self.assertTrue(all(feed.dimension_map()["y_min"] != "-board_length_mm/2" for feed in feeds))
+                self.assertTrue(all(
+                    abs(negative[1] - board_edge) > 1e-9 for negative, _positive in self._segments(design)
+                ))
+
+    def test_cst_history_keeps_board_edge_feeds_for_a_single_row_array(self):
+        design = self._realize(self._legacy(1, 4))
+        operations = CSTAdapter().history_operations(design)
+        feed_operations = [
+            item for item in operations
+            if item.category == "primitive" and item.name.endswith("_feed")
+        ]
+        self.assertEqual(len(feed_operations), 4)
+        self.assertTrue(all("-BoardL/2" in item.script for item in feed_operations))
+
     def test_2x3_engineering_checks_are_structurally_coherent(self):
         design = self._realize(self._legacy(2, 3))
         report = run_engineering_checks(design)

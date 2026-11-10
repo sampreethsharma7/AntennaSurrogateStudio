@@ -36,7 +36,9 @@ design. Validate mesh, ports, materials and results before engineering use.
   though conductivity is stored. Connectors, baluns, waveguide ports, coaxial
   clearances and de-embedding are all absent.
 - **Array elements get independent ports and no feed network.** Feed-network
-  synthesis and any corporate-feed design remain your work in CST.
+  synthesis and any corporate-feed design remain your work in CST. Single-row
+  arrays keep each feed line to the board edge; arrays with more than one row
+  place each port at its own patch, so their feeds stop there.
 
 ## Element spacing and frequency sweeps
 
