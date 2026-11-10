@@ -38,9 +38,12 @@ environment-variable and `.env` routes, which are still supported.
 4. Wait while the first-run setup creates `.venv` and installs the requirements.
 5. The Studio opens automatically.
 
-If Python is not installed and Windows Package Manager is available, setup may
-offer to install Python 3.12. Otherwise install 64-bit Python from
-[python.org](https://www.python.org/downloads/) and run the launcher again.
+If no supported Python is found and Windows Package Manager (`winget`) is
+available, setup installs Python 3.12 automatically with
+`winget install Python.Python.3.12`, accepting the package and source
+agreements on your behalf. If you would rather install Python yourself, install
+64-bit Python 3.11, 3.12 or 3.13 from
+[python.org](https://www.python.org/downloads/) before running the launcher.
 
 ### Launching after setup
 

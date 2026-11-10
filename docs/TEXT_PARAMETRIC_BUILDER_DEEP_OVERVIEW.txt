@@ -11,7 +11,7 @@ Current verification: the full repository suite passes
 1. EXECUTIVE OVERVIEW
 ======================================================================
 
-The text-parametric builder moves Antenna Surrogate Studio (ASS) one step
+The text-parametric builder moves Antenna Surrogate Studio (the Studio) one step
 earlier in the antenna-development workflow. Instead of requiring the user to
 arrive with a finished CST model and a known parameter set, it can produce a
 controlled parametric starting design from natural-language instructions.
@@ -70,7 +70,7 @@ manufacturing-ready antenna.
 2. WHAT THE FEATURE FEELS LIKE TO THE USER
 ======================================================================
 
-After a project is created, ASS opens Antenna Design and presents two paths:
+After a project is created, the Studio opens Antenna Design and presents two paths:
 
     I already have a design
     Design with antenna agent
@@ -878,8 +878,8 @@ new parameters, cutters, and Solid.Subtract history operations.
 
 No external text-to-CAD package or text-to-LLM plugin is a runtime dependency.
 The earthtojake/text-to-cad repository motivated the workflow discussion, but
-its implementation was not copied or integrated. This builder is native ASS
-code designed around ASS persistence, CST export, and LHS integration.
+its implementation was not copied or integrated. This builder is native Studio
+code designed around the Studio's persistence, CST export, and LHS integration.
 
 
 11. VALIDATION MODEL
@@ -1028,7 +1028,7 @@ This makes the generated project suitable for parameter sweeps.
 
 ArrayRows and ArrayCols are recorded as parameters, but changing them inside an
 already generated CST project cannot create or delete history objects. Array
-count changes require regenerating the construction script/project from ASS.
+count changes require regenerating the construction script/project from the Studio.
 Continuous dimensions such as PatchW or CornerRadiusRatio remain normal CST
 parameters after generation.
 
@@ -1055,7 +1055,7 @@ to PatchW and CornerRadiusRatio. This avoids inconsistent radius values.
 ArrayRows and ArrayCols are not sweepable because element count changes alter
 topology and require script regeneration.
 
-The LHS generator creates input samples only. ASS does not yet run every CST
+The LHS generator creates input samples only. The Studio does not yet run every CST
 sample automatically from this builder. The user still needs to execute the
 sweep/simulations, collect response data, and return it through Data Prep.
 
@@ -1541,7 +1541,7 @@ The strongest public description is:
     "An experimental constrained antenna design agent that turns supported
     text instructions into validated parametric starting models, lets the user
     inspect and edit the same live design, exports meaningful CST parameters,
-    and transfers selected variables into ASS sampling."
+    and transfers selected variables into the Studio's sampling."
 
 It should not be described as:
 
@@ -1551,7 +1551,7 @@ It should not be described as:
     - a replacement for CST modeling expertise;
     - a system that supports any requested topology.
 
-Its differentiating value inside ASS is continuity. The output is not merely a
+Its differentiating value inside the Studio is continuity. The output is not merely a
 CAD object. It is a named parametric model already connected to the data and
 surrogate workflow.
 

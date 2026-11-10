@@ -123,7 +123,8 @@ In the builder:
    the antenna agent are marked **Tested**; all other compatible catalog entries
    are marked **Untested**. Local Ollama keeps the design context on this
    computer. A cloud choice sends the current request, solver-neutral design
-   state, and runtime tool manifest to that provider. The
+   state, runtime tool manifest, the project's stored design intent from
+   earlier requests, and engineering summaries to that provider. The
    notice below the selector always states which behavior is active.
 2. Enter a supported instruction such as **Create an inset-fed rectangular
    patch at 2.45 GHz on FR4**, **Create a circular patch at 5.8 GHz on Rogers
@@ -215,7 +216,9 @@ exact schema of every tool it may call. With a design open that is 19 tools: six
 recipe and modifier actions, nine composition primitives that can create named
 parameters, build rectangular or circular cutting geometry, translate, rotate or
 duplicate the shapes just created and apply validated union and subtraction
-operations, and four read-only analysis tools. It must return an
+operations, and four read-only analysis tools. When the design already has
+composed features, three more tools let it change their scope, edit an
+operation, or delete one, for 22 in total. It must return an
 ordered registered-tool plan, one clarification question, or a refusal. The
 executor validates schemas, semantic object references, bounds, dependencies,
 and the complete resulting design before publishing it. Geometry creation and

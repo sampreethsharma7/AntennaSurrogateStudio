@@ -91,8 +91,10 @@ HELP_SECTIONS: tuple[tuple[str, str], ...] = (
     (
         "What the provider receives",
         "When you use a cloud planner, your design request, the solver-neutral "
-        "design state and the tool manifest are sent to that provider, as the "
-        "User Manual already describes. Your datasets, trained surrogate "
+        "design state, the tool manifest, the project's stored design intent "
+        "from earlier requests and engineering summaries of the design are "
+        "sent to that provider, as the User Manual describes. Your datasets, "
+        "trained surrogate "
         "models, CST output files and other project files are not uploaded by "
         "this feature. The provider's own retention and training policies "
         "still apply to what is sent.",

@@ -2291,9 +2291,10 @@ class TrainingResultsPage(ctk.CTkFrame):
             pady=(8, 6),
             sticky="ew",
         )
-        recommendation.grid_propagate(False)
+        # The banner grows with its text: a fixed height clipped the last line
+        # of a three-line recommendation reason.
         recommendation.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(
+        recommendation_title = ctk.CTkLabel(
             recommendation,
             text=comparison.recommendation_title,
             text_color=(
@@ -2303,8 +2304,9 @@ class TrainingResultsPage(ctk.CTkFrame):
             ),
             font=FONTS["body_small"],
             anchor="w",
-        ).grid(row=0, column=0, padx=(12, 14), pady=6, sticky="w")
-        ctk.CTkLabel(
+        )
+        recommendation_title.grid(row=0, column=0, padx=(12, 14), pady=6, sticky="w")
+        recommendation_reason = ctk.CTkLabel(
             recommendation,
             text=comparison.recommendation_reason,
             text_color=COLORS["ink"],
@@ -2312,7 +2314,19 @@ class TrainingResultsPage(ctk.CTkFrame):
             anchor="w",
             justify="left",
             wraplength=650,
-        ).grid(row=0, column=1, padx=(0, 12), pady=5, sticky="ew")
+        )
+        recommendation_reason.grid(row=0, column=1, padx=(0, 12), pady=5, sticky="ew")
+
+        def fit_reason_to_banner(event: tk.Event) -> None:
+            # Wrap within the space beside the title. CustomTkinter scales a
+            # wraplength by the widget scaling, so convert from pixels first.
+            scaling = recommendation._get_widget_scaling() or 1.0
+            available = event.width - recommendation_title.winfo_width() - 40
+            wrap = max(240, int(available / scaling))
+            if recommendation_reason.cget("wraplength") != wrap:
+                recommendation_reason.configure(wraplength=wrap)
+
+        recommendation.bind("<Configure>", fit_reason_to_banner, add="+")
 
         cards = ctk.CTkFrame(shell, fg_color="transparent")
         cards.grid(row=2, column=0, columnspan=2, pady=(0, 4), sticky="ew")
