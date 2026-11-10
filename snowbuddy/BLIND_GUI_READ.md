@@ -7,7 +7,7 @@ Sample Generator UI source SHA-256: efffa868a194fe772e13a1ed1d1f9c868e1c91f2c7a6
 Antenna Builder UI source SHA-256: 3548321920ad2b339ce36622e8bcf8a88010b4c8f6a7f9326801767729417517
 Planner Onboarding UI source SHA-256: adaf6fb85e316d43e8aeca2b682e7ea74a33311a9fa754cf54dd60a5ff883d3e
 VTK Preview UI source SHA-256: 077dcbf12db19aba8d3372d362619ab1a37084cd6e8a0f65f7ebc5cd65f54789
-Results UI source SHA-256: 897fc4c6207acbfbc3d21e4692381bed3dad46529091812de3eff391a96304a5
+Results UI source SHA-256: e2d1f9affdab55631a9bb718e37863a88f11bb0dab4f09fe503602b0b9086eb0
 Library UI source SHA-256: a74128d6a7d3c27893d1de202c7ecf922ca0123dd1d17e7b6d6e8e1d15ceeb42
 Inference UI source SHA-256: 465baaa40efa7b89edaec4fcd80053a18e8bd5605828c5ca6631355231038b41
 Inverse Design UI source SHA-256: d23ee1ea3ab90d3e1a071da4082c9d6f70fc981741079742852ec50bbc3cbe14
