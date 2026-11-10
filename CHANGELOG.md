@@ -5,7 +5,20 @@ Notable changes to Antenna Surrogate Studio. Newest first.
 Versions before `0.34.0-beta` predate this file; their history is in the commit
 log.
 
-## [Unreleased]
+## [0.34.2-beta] — 2026-11-09
+
+A correctness and documentation release. Text-to-CAD accepts the material
+spellings people actually type, single-row arrays keep their feed lines, and
+the documentation now matches the application.
+
+### Fixed
+
+- **Material names no longer crash a Text-to-CAD request.** A planner that set
+  the substrate to `fr4`, `FR-4`, `rt5880` or another common spelling aborted
+  the whole request with a bare `KeyError`. Choice parameters now match
+  regardless of case and spacing, the known material aliases are accepted, and
+  an unknown material is refused with the list of installed materials so the
+  planner can correct itself.
 
 ### Changed
 
@@ -16,6 +29,17 @@ log.
   an edge-fed linear array exports to CST as it would be built. Arrays with
   more than one row are unchanged, because an inner row's feed would cross the
   patches below it.
+- **The sample guide recommends XGBoost for the first run.** Linear Regression
+  cannot represent the periodic effect of phase on the pattern, so the guide
+  now starts with XGBoost, lists what each model achieves on the sample, and
+  explains pooled versus per-output R². Its steps and button names now match
+  the application.
+- **Documentation corrections.** The planner's tool count (19, or 22 once a
+  design has composed features), the full list of what a cloud planner
+  receives (including stored design intent and engineering summaries, also
+  shown in the setup dialog), the automatic Python installation through
+  `winget`, and a broken link in the Text-to-CAD guide. The README screenshots
+  and Text-to-CAD walkthrough media are recaptured from the current build.
 
 ## [0.34.1-beta] — 2026-10-06
 

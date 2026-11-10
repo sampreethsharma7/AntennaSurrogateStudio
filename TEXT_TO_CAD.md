@@ -6,7 +6,7 @@
 
 [![Status](https://img.shields.io/badge/status-experimental%20beta-orange)](docs/LIMITATIONS.md)
 [![Recipes](https://img.shields.io/badge/starting%20recipes-3-blue)](#starting-points)
-[![Output](https://img.shields.io/badge/output-native%20CST%20%2B%20.bas%20macro-informational)](#-and-into-cst)
+[![Output](https://img.shields.io/badge/output-native%20CST%20%2B%20.bas%20macro-informational)](#and-into-cst)
 [![Solver](https://img.shields.io/badge/solver-never%20run%20for%20you-lightgrey)](#what-this-is-not)
 
 <br>
@@ -139,8 +139,8 @@ dielectric properties.
 
 <br>
 
-With a design open the planner may call **19 registered tools** and nothing
-else. It cannot add tools, geometry types, antenna families, materials or solver
+With a design open the planner may call **19 registered tools** — 22 once the
+design has composed features to edit — and nothing else. It cannot add tools, geometry types, antenna families, materials or solver
 commands.
 
 | Group | Tools |
@@ -148,6 +148,7 @@ commands.
 | Recipe & modifier actions (6) | `design.reset`, `recipe.select`, `parameter.set`, `excitation.set_strategy`, `modifier.apply`, `modifier.remove` |
 | Composition primitives (9) | `parameter.create`, `geometry.rectangle_sheet`, `geometry.cylinder`, `geometry.circle_sheet`, `geometry.translate`, `geometry.rotate`, `geometry.duplicate`, `boolean.subtract`, `boolean.union` |
 | Read-only analysis (4) | `engineering.design_summary`, `engineering.array_spacing`, `engineering.rectangular_patch_baseline`, `engineering.dipole_baseline` |
+| Composed-feature edits (3, only when composed features exist) | `composition.set_scope`, `composition.update_operation`, `composition.delete` |
 
 The model's only permitted replies are an ordered sequence of those calls, one
 clarification question, or a refusal. Every plan is schema-checked, then

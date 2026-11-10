@@ -1,3 +1,3 @@
 """Antenna Surrogate Studio."""
 
-__version__ = "0.34.1-beta"
+__version__ = "0.34.2-beta"

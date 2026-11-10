@@ -1,6 +1,6 @@
 # Antenna Surrogate Studio
 
-**Studio Preview v0.34.1-beta.** Source-available for noncommercial use; see
+**Studio Preview v0.34.2-beta.** Source-available for noncommercial use; see
 [License](#license).
 
 Antenna Surrogate Studio is a local desktop application for antenna engineers
@@ -48,7 +48,10 @@ simulate before trusting it.
 <p align="center"><em>Shown with the included four-element patch-array phase-sweep sample. Select an image to view it full size.</em></p>
 
 Everything runs on your computer. Your projects, models, results, and SnowBuddy
-conversations remain in your local project folders.
+conversations remain in your local project folders. The one exception is
+optional: if you choose a cloud planner for the experimental antenna builder,
+your design requests go to that provider (see
+[What leaves your computer](#what-leaves-your-computer)).
 
 ## What it does
 
@@ -121,7 +124,7 @@ For command-line setup, troubleshooting, and system requirements, see
 5. Open **Model Training**, choose a model and training mode, then select **Train Model**.
 6. Review the completed run in **Training Results**.
 7. Select **Create Model Book** to save the trained surrogate for reuse.
-8. Make the Model Book active in **Model Library**.
+8. In **Model Library**, select the book and choose **Set as Active**.
 9. Use **Inference** for new predictions or **Inverse Design** to search for suitable inputs.
 
 ## Try the included sample
@@ -133,10 +136,12 @@ for each case.
 
 ![Four-element microstrip patch antenna array](sample_data/four_element_patch_array_phase_sweep/PatchAntennaArray.png)
 
-To try it, create a project and choose **#Parameters sweep** in **Data Prep**.
-Browse to the sample's `data` folder, select **Parse**, then choose `P2`, `P3`,
-and `P4` as the model inputs and `Gain,Phi=0.0 []` as the output. Select
-**Save selection**, **Prepare input + output**, and **Validate and register**.
+To try it, create a project, select **Continue to Data Prep**, and choose
+**#Parameters sweep**. Browse to the sample's `data` folder, select **Parse**,
+then choose `P2`, `P3`, and `P4` as the model inputs and `Gain,Phi=0.0 []` as
+the **Pattern output**. Select **Save selection**, **Prepare input + output**,
+and **Validate and register**, then train **XGBoost** or **Neural Network** in
+**Model Training**.
 
 That one output is a radiation pattern, so preparation expands it into 361
 columns — one per theta point — and the surrogate you train predicts the whole
@@ -186,8 +191,8 @@ compatible, the edit is rejected and the last valid design stays open.
 
 ### The capability boundary
 
-With a design open, the planner may call **19 registered tools** and nothing
-else:
+With a design open, the planner may call **19 registered tools** — 22 once the
+design has composed features to edit — and nothing else:
 
 - **6 recipe and modifier actions** — `design.reset`, `recipe.select`,
   `parameter.set`, `excitation.set_strategy`, `modifier.apply`,
@@ -199,6 +204,9 @@ else:
 - **4 read-only analysis tools** — `engineering.design_summary`,
   `engineering.array_spacing`, `engineering.rectangular_patch_baseline`,
   `engineering.dipole_baseline`
+- **3 composed-feature edits**, offered only when the design already has
+  composed features — `composition.set_scope`, `composition.update_operation`,
+  `composition.delete`
 
 The model's only permitted replies are an ordered sequence of those registered
 calls, one clarification question, or a refusal. It cannot add tools, geometry
@@ -364,8 +372,11 @@ on this machine.
 **Choosing a cloud planner sends design context to that provider.** When you
 explicitly select Gemini, Groq or OpenRouter in the antenna builder, each
 request transmits your typed instruction, the current solver-neutral antenna
-design state, and the runtime tool manifest to Google, Groq or OpenRouter
-respectively. The notice under the provider selector always states which
+design state, the runtime tool manifest, the project's stored design intent
+from earlier requests (requirements and decisions, which can quote your earlier
+instructions), and engineering summaries of the current design to Google, Groq
+or OpenRouter respectively. When a plan is rejected and retried, the rejected
+plan and the reason are sent too. The notice under the provider selector always states which
 behaviour is active before you send anything.
 
 Your project files, datasets, trained models and CST outputs are never

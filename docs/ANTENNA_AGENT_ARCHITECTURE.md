@@ -220,15 +220,10 @@ The CST adapter then applies its own representation gate. A generated native
 project remains an unsolved starting design until an engineer reviews the
 materials, excitation, boundaries, mesh, and simulated results.
 
-## Relevant local precedents
+## Design patterns
 
-The implementation adopts two narrow patterns from adjacent projects without
-importing their code:
+Two patterns shape the implementation:
 
-- BlackMagician keeps LLM proposals behind deterministic schemas and one CST
-  write boundary.
-- Claude CSTMCP exposes discoverable tools, serializes CST automation, and
-  refuses in-place overwrites.
-
-Those projects remain independent. Their larger optimization and MCP toolsets
-are not dependencies of Antenna Surrogate Studio.
+- LLM proposals stay behind deterministic schemas, with one CST write boundary.
+- Tools are discoverable, CST automation is serialized, and existing projects
+  are never overwritten in place.
