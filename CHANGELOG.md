@@ -19,6 +19,8 @@ the documentation now matches the application.
   regardless of case and spacing, the known material aliases are accepted, and
   an unknown material is refused with the list of installed materials so the
   planner can correct itself.
+- **The Model Comparison recommendation is no longer cut off.** Its banner had
+  a fixed height, so a reason that wrapped to three lines lost its last line.
 
 ### Changed
 

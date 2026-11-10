@@ -29,12 +29,12 @@ simulate before trusting it.
     </td>
     <td width="33%">
       <a href="docs/screenshots/02-model-comparison.png">
-        <img src="docs/screenshots/02-model-comparison.png" alt="Validation-backed Linear Regression and XGBoost model comparison">
+        <img src="docs/screenshots/02-model-comparison.png" alt="Validation-backed comparison of Linear Regression, XGBoost and Neural Network surrogates, with Neural Network recommended">
       </a>
     </td>
     <td width="33%">
       <a href="docs/screenshots/03-inverse-design.png">
-        <img src="docs/screenshots/03-inverse-design.png" alt="Inverse-design result and scientific radiation-pattern plot">
+        <img src="docs/screenshots/03-inverse-design.png" alt="Inverse design maximising gain at theta 20 degrees, with the optimised phases and the predicted radiation pattern">
       </a>
     </td>
   </tr>
