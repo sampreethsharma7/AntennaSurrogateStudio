@@ -34,6 +34,8 @@ from studio.antenna_llm_planner import LLMToolPlan, PlannedToolCall
 from studio.antenna_modifiers import active_modifier_ids
 from studio.antenna_recipes import (
     MATERIALS,
+    MATERIAL_ALIASES,
+    canonical_choice,
     SPACING_MODE_FIXED_MM,
     SPACING_MODE_LAMBDA,
     RecipeParameter,
@@ -1245,6 +1247,20 @@ class AntennaDesignAgent:
         value = arguments["value"]
         if isinstance(value, bool) or not isinstance(value, (int, float, str)):
             raise AgentInstructionError(f"Parameter {key} must be a number or installed choice string.")
+        definition = definitions[key]
+        if getattr(definition, "kind", None) == "choice" and definition.choices:
+            resolved = canonical_choice(
+                value,
+                tuple(definition.choices),
+                MATERIAL_ALIASES if key == "material" else None,
+            )
+            if resolved is None:
+                raise AgentInstructionError(
+                    f"{definition.label} must be one of: "
+                    + ", ".join(definition.choices)
+                    + f". {value!r} is not an installed choice."
+                )
+            value = resolved
         self._reject_dependent_spacing_edit(context, key)
         if key in context.composed_parameters:
             context.composed_groups = list(self._set_group_parameter(context.composed_groups, key, value))

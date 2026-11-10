@@ -56,6 +56,29 @@ MATERIAL_ALIASES = {
 }
 
 
+def canonical_choice(value: object, choices: tuple[str, ...], aliases: dict[str, str] | None = None) -> str | None:
+    """Return the installed spelling of a choice value, or None when it is not one.
+
+    Matching ignores case and surrounding spaces, so "fr4" and " FR4 " resolve
+    to "FR4"; `aliases` maps further accepted spellings (lower-case keys).
+    """
+
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.split())
+    if text in choices:
+        return text
+    folded = text.casefold()
+    for choice in choices:
+        if choice.casefold() == folded:
+            return choice
+    if aliases:
+        target = aliases.get(folded)
+        if target in choices:
+            return target
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class RecipeParameter:
     key: str
