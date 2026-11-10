@@ -183,7 +183,10 @@ still unsupported and fail explicitly.
 
 Each recipe can replicate elements into linear or planar arrays when its
 spacing rules pass. Each element has an independent port. No array feed network
-is synthesized.
+is synthesized. In a single-row inset-patch array each element keeps its full
+feed line to the board edge, with its port there; with more than one row the
+feeds of inner rows would cross other patches, so each port moves to the edge
+of its own patch.
 
 ## Adding a capability
 

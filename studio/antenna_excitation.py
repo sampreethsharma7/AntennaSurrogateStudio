@@ -18,6 +18,27 @@ from studio.antenna_design import (
 
 
 INDEPENDENT_LOCAL_PORT_MODEL = "local_vertical_discrete_port"
+INDEPENDENT_EDGE_PORT_MODEL = "board_edge_discrete_port"
+
+
+def independent_feeds_reach_board_edge(design: AntennaDesign) -> bool:
+    """Whether each element's feed can run unobstructed to the board edge.
+
+    In a single-row array no other element sits between a patch and the board
+    edge its feed runs to, so the recipe's full-length feed line and edge port
+    are kept, as for a single patch. With more rows, feeds from inner rows
+    would cross the patches below them, so the port moves to the element.
+    """
+
+    return design.array.rows == 1
+
+
+def independent_port_model(design: AntennaDesign) -> str:
+    return (
+        INDEPENDENT_EDGE_PORT_MODEL
+        if independent_feeds_reach_board_edge(design)
+        else INDEPENDENT_LOCAL_PORT_MODEL
+    )
 
 
 def supports_independent_port_synthesis(design: AntennaDesign) -> bool:
@@ -74,6 +95,7 @@ def realize_excitation(design: AntennaDesign) -> AntennaDesign:
 
     geometry = list(design.geometry)
     ports = list(design.ports)
+    edge_fed = independent_feeds_reach_board_edge(design)
     assignments: list[ExcitationAssignment] = []
     for ordinal in range(1, design.array.element_count + 1):
         coordinates = element_coordinate(design.array, ordinal)
@@ -106,16 +128,22 @@ def realize_excitation(design: AntennaDesign) -> AntennaDesign:
             )
         local_edge = local_edges[0]
         feed_index = feed_indexes[0]
-        geometry[feed_index] = _replace_dimension(geometry[feed_index], "y_min", local_edge)
-
+        feed = geometry[feed_index]
         port_index = port_indexes[0]
         port = ports[port_index]
-        ports[port_index] = replace(
-            port,
-            kind="discrete",
-            positive_point=(port.positive_point[0], local_edge, port.positive_point[2]),
-            negative_point=(port.negative_point[0], local_edge, port.negative_point[2]),
-        )
+        if edge_fed:
+            # Keep the recipe's feed line to the board edge and its edge port.
+            feed_start = feed.dimension_map().get("y_min")
+            geometry[feed_index] = _replace_dimension(feed, "y_min", feed_start)
+            ports[port_index] = replace(port, kind="discrete")
+        else:
+            geometry[feed_index] = _replace_dimension(feed, "y_min", local_edge)
+            ports[port_index] = replace(
+                port,
+                kind="discrete",
+                positive_point=(port.positive_point[0], local_edge, port.positive_point[2]),
+                negative_point=(port.negative_point[0], local_edge, port.negative_point[2]),
+            )
         assignments.append(ExcitationAssignment(
             coordinates[0],
             coordinates[1],

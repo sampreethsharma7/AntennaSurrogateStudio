@@ -88,7 +88,10 @@ Their centers lie on the four patch corners and the default radius is one
 quarter of patch width. The radius ratio appears in the parameter table and can
 be sent to LHS.
 Array elements receive independent CST ports; the builder does not synthesize
-an array feed network.
+an array feed network. In a single-row array each feed line runs to the board
+edge and its port sits there, as for a single patch. In arrays with more than
+one row, each port sits at the edge of its own patch instead, because a feed
+from an inner row would cross the patches below it.
 
 For arrays, the parameter table carries a **SpacingMode** row with two settings,
 and the choice decides which parameters you are allowed to sweep:
